@@ -1,3 +1,9 @@
+# 1.0.1
+
+- Updated License to MIT
+
+
+
 # 1.0.0
 
 - Initial release of `dep_graph_visualizer`.
