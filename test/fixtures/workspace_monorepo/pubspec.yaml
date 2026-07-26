@@ -1,0 +1,7 @@
+name: my_monorepo
+description: Test monorepo workspace.
+version: 1.0.0
+workspace:
+  - packages/*
+environment:
+  sdk: ^3.11.0

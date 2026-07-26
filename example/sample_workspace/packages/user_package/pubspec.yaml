@@ -1,0 +1,12 @@
+name: user_package
+version: 1.0.0
+
+environment:
+  sdk: ^3.6.0
+
+resolution: workspace
+
+dependencies:
+  auth_package:
+    path: ../auth_package
+

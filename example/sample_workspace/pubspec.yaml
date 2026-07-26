@@ -1,0 +1,9 @@
+name: sample_workspace
+description: Sample Dart 3.6+ Workspace monorepo showing cross-package circular dependency detection.
+version: 1.0.0
+
+environment:
+  sdk: ^3.11.0
+
+workspace:
+  - packages/*
