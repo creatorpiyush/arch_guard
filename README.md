@@ -7,6 +7,7 @@ A pub.dev-ready CLI tool and Dart library to scan Dart/Flutter projects and mono
 ## Features
 
 - 🚀 **Fast static scanning**: Lightweight regex directive parser that scans without building slow full AST trees.
+- 🔀 **Conditional import support**: Treats every quoted URI in a conditional import/export directive as a potential dependency edge, which improves Flutter web/io cycle detection.
 - 🏢 **Monorepo & Dart Workspace Auto-Discovery**: Automatically discovers member packages in Dart 3.6+ workspaces (`workspace: [...]`) or Melos repositories (`packages/*`, `apps/*`), mapping cross-package imports and detecting inter-package cycles.
 - ⚡ **Tarjan's SCC Cycle Detection**: Accurate, non-recursive cycle group identification handling multi-node loops, 2-file cycles, self-imports, and multi-package cycles.
 - 🎨 **Interactive Centerpiece HTML Visualizer**:
@@ -141,6 +142,8 @@ dep_graph_visualizer . --no-color > scan_report.txt
 ## Programmatic Usage
 
 You can also use `dep_graph_visualizer` directly in Dart/Flutter tools or custom build scripts:
+
+The scanner includes Dart and Flutter package layouts out of the box, including conditional import branches such as web/io platform stubs. That makes it useful for catching circular dependencies in Flutter apps and package monorepos without requiring analyzer resolution.
 
 ```dart
 import 'package:dep_graph_visualizer/dep_graph_visualizer.dart';

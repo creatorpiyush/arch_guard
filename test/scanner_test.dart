@@ -19,23 +19,25 @@ void main() {
       expect(cycles.length, equals(2));
     });
 
-    test('detects a cycle in a Flutter-style conditional import fixture',
-        () async {
-      final scanner = ProjectScanner(
-        rootPath: 'test/fixtures/flutter_conditional_app',
-        scanDirs: ['lib'],
-      );
+    test(
+      'detects a cycle in a Flutter-style conditional import fixture',
+      () async {
+        final scanner = ProjectScanner(
+          rootPath: 'test/fixtures/flutter_conditional_app',
+          scanDirs: ['lib'],
+        );
 
-      final result = await scanner.scan();
-      expect(result.packageName, equals('flutter_conditional_app'));
-      expect(result.files.length, equals(3));
+        final result = await scanner.scan();
+        expect(result.packageName, equals('flutter_conditional_app'));
+        expect(result.files.length, equals(3));
 
-      final graph = DependencyGraph.fromScanResult(result);
-      final cycles = graph.findCircularDependencies();
+        final graph = DependencyGraph.fromScanResult(result);
+        final cycles = graph.findCircularDependencies();
 
-      expect(cycles.length, equals(1));
-      expect(cycles.first.files, contains('lib/main.dart'));
-      expect(cycles.first.files, contains('lib/src/platform_stub.dart'));
-    });
+        expect(cycles.length, equals(1));
+        expect(cycles.first.files, contains('lib/main.dart'));
+        expect(cycles.first.files, contains('lib/src/platform_stub.dart'));
+      },
+    );
   });
 }
