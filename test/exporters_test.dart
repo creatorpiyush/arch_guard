@@ -89,5 +89,67 @@ void main() {
         expect(html, contains('lib/a.dart'));
       },
     );
+
+    test('HtmlExporter without --offline references external CDN assets', () {
+      final html = HtmlExporter.export(result: mockResult, cycles: mockCycles);
+      expect(html, contains('https://unpkg.com/vis-network'));
+      expect(html, contains('https://fonts.googleapis.com'));
+    });
+
+    test(
+      'HtmlExporter with --offline makes no outbound network references',
+      () {
+        final html = HtmlExporter.export(
+          result: mockResult,
+          cycles: mockCycles,
+          offline: true,
+        );
+        expect(html, isNot(contains('unpkg.com')));
+        expect(html, isNot(contains('fonts.googleapis.com')));
+        expect(html, contains('<script>'));
+        expect(html.length, greaterThan(500000)); // bundled JS inlined
+      },
+    );
+
+    test(
+      'MermaidExporter disambiguates node IDs that sanitize to the same value',
+      () {
+        final collidingResult = const ScanResult(
+          packageName: 'demo_pkg',
+          files: {
+            'lib/a-b.dart': FileNode(
+              relativePath: 'lib/a-b.dart',
+              absolutePath: '/abs/a-b.dart',
+            ),
+            'lib/a_b.dart': FileNode(
+              relativePath: 'lib/a_b.dart',
+              absolutePath: '/abs/a_b.dart',
+            ),
+          },
+          edges: [
+            GraphEdge(from: 'lib/a-b.dart', to: 'lib/a_b.dart'),
+            GraphEdge(from: 'lib/a_b.dart', to: 'lib/a-b.dart'),
+          ],
+        );
+        final collidingCycles = [
+          const Cycle(
+            files: ['lib/a-b.dart', 'lib/a_b.dart'],
+            exampleChain: ['lib/a-b.dart', 'lib/a_b.dart', 'lib/a-b.dart'],
+          ),
+        ];
+
+        final mermaid = MermaidExporter.export(
+          result: collidingResult,
+          cycles: collidingCycles,
+        );
+
+        expect(mermaid, contains('lib/a-b.dart'));
+        expect(mermaid, contains('lib/a_b.dart'));
+        final nodeDeclarationCount = RegExp(
+          r'\["lib/a[-_]b\.dart"\]',
+        ).allMatches(mermaid).length;
+        expect(nodeDeclarationCount, equals(2));
+      },
+    );
   });
 }

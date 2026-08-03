@@ -1,3 +1,10 @@
+# 1.1.2
+
+- **True `--offline` HTML Support**: Inlined Base64-encoded `vis-network.min.js` (v10.1.0 UMD) asset and system font fallbacks when `--offline` flag is specified.
+- **Physics Stabilization Freeze**: Added `stabilizationIterationsDone` event listener to freeze Vis-Network force calculation after stabilization to eliminate CPU background spin.
+- **Mermaid Exporter Disambiguation**: Added shared ID map with numeric suffix disambiguation for colliding file paths (e.g. `a-b.dart` vs `a_b.dart`) and quote label sanitization (`#quot;`).
+- **Attribution & Notices**: Added `THIRD_PARTY_NOTICES.md` for bundled `vis-network` Apache-2.0/MIT software licensing.
+
 # 1.1.1
 
 - Refined `dep_graph.yaml` configuration examples and updated example application layout.

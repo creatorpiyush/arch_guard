@@ -1,9 +1,16 @@
 import 'dart:convert';
+import '../assets/vis_network_asset.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 
 /// Centerpiece interactive HTML visualizer exporter.
 class HtmlExporter {
+  /// Prevents an embedded `</script>` (or `<!--`) sequence inside inlined JS
+  /// from prematurely terminating the surrounding HTML `<script>` block.
+  static String _escapeInlineScript(String js) {
+    return js.replaceAll('</script', '<\\/script').replaceAll('<!--', '<\\!--');
+  }
+
   /// Generates the single self-contained interactive HTML document.
   static String export({
     required ScanResult result,
@@ -109,14 +116,22 @@ class HtmlExporter {
 
     final rawJson = jsonEncode(payload);
 
+    final visNetworkTag = offline
+        ? '<script>\n${_escapeInlineScript(visNetworkMinJs)}\n</script>'
+        : '<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>';
+
+    final fontsTag = offline
+        ? '<!-- --offline: Google Fonts skipped, using system font fallback -->'
+        : '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">';
+
     return '''<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${_htmlEscape(result.packageName)} - Dependency Graph Visualizer</title>
-  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  $visNetworkTag
+  $fontsTag
   <style>
     * {
       box-sizing: border-box;
@@ -168,194 +183,180 @@ class HtmlExporter {
       gap: 16px;
     }
     .stat-card {
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      padding: 6px 14px;
-      border-radius: 8px;
       display: flex;
       align-items: center;
       gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 4px 12px;
+      border-radius: 6px;
       font-size: 0.85rem;
-    }
-    .stat-label {
-      color: #94a3b8;
     }
     .stat-value {
       font-weight: 700;
-      color: #38bdf8;
+      color: #60a5fa;
     }
     .stat-value.danger {
       color: #f87171;
     }
-    .stat-value.success {
-      color: #4ade80;
-    }
-    .main-container {
-      display: flex;
+    main {
       flex: 1;
+      display: flex;
       position: relative;
-      overflow: hidden;
     }
-    sidebar {
-      width: 340px;
+    #sidebar {
+      width: 320px;
       background: #1e293b;
       border-right: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
       flex-direction: column;
       z-index: 10;
-      transition: transform 0.3s ease;
     }
     .sidebar-header {
       padding: 16px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
     .search-box {
       width: 100%;
-      background: #0f172a;
-      border: 1px solid #334155;
-      color: #f8fafc;
       padding: 8px 12px;
       border-radius: 6px;
-      font-family: inherit;
-      font-size: 0.875rem;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #0f172a;
+      color: #fff;
+      font-size: 0.85rem;
       outline: none;
-      transition: border-color 0.2s;
     }
     .search-box:focus {
-      border-color: #38bdf8;
-    }
-    .filter-tools {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .btn {
-      background: #334155;
-      color: #f8fafc;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn:hover {
-      background: #475569;
-    }
-    .btn.active {
-      background: #ef4444;
-      color: #ffffff;
+      border-color: #3b82f6;
     }
     .cycle-list {
       flex: 1;
       overflow-y: auto;
       padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
     }
     .cycle-card {
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 8px;
       padding: 12px;
-      margin-bottom: 10px;
       cursor: pointer;
       transition: all 0.2s ease;
     }
     .cycle-card:hover {
-      border-color: #ef4444;
-      background: rgba(239, 68, 68, 0.1);
-      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
     }
     .cycle-card.active {
       border-color: #ef4444;
-      box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
-      background: rgba(239, 68, 68, 0.15);
+      background: rgba(239, 68, 68, 0.1);
     }
     .cycle-title {
+      font-size: 0.85rem;
       font-weight: 600;
-      font-size: 0.9rem;
       color: #f87171;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
     }
     .cycle-chain {
       font-family: 'Fira Code', monospace;
-      font-size: 0.78rem;
-      color: #cbd5e1;
-      line-height: 1.4;
+      font-size: 0.75rem;
+      color: #94a3b8;
+      word-break: break-all;
     }
     .chain-node {
       padding: 2px 0;
-      word-break: break-all;
     }
     .chain-arrow {
       color: #ef4444;
-      font-weight: bold;
     }
-    #network-container {
+    #mynetwork {
       flex: 1;
       height: 100%;
-      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+      background: #0f172a;
     }
-    .node-details-panel {
+    #details-panel {
       position: absolute;
-      right: 20px;
       top: 20px;
-      width: 320px;
-      background: rgba(30, 41, 59, 0.95);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      padding: 16px;
-      display: none;
+      right: 20px;
+      width: 340px;
+      background: rgba(30, 41, 59, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 30;
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-      z-index: 15;
+      display: none;
     }
-    .panel-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      word-break: break-all;
-      color: #38bdf8;
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
       margin-bottom: 12px;
     }
-    .panel-section {
-      margin-bottom: 10px;
-    }
-    .panel-subtitle {
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-    .panel-list {
+    .panel-filename {
       font-family: 'Fira Code', monospace;
-      font-size: 0.78rem;
-      max-height: 120px;
-      overflow-y: auto;
-      background: #0f172a;
-      padding: 6px 8px;
-      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #38bdf8;
+      word-break: break-all;
     }
-    .close-btn {
-      position: absolute;
-      top: 10px;
-      right: 12px;
+    .panel-close {
       background: none;
       border: none;
       color: #94a3b8;
       font-size: 1.2rem;
       cursor: pointer;
     }
-    .close-btn:hover {
-      color: #f8fafc;
+    .panel-close:hover {
+      color: #fff;
     }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    .panel-section {
+      margin-top: 12px;
+    }
+    .panel-section-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 4px;
+    }
+    .panel-list {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .toolbar {
+      position: absolute;
+      bottom: 20px;
+      left: 340px;
+      display: flex;
+      gap: 8px;
+      z-index: 20;
+    }
+    .btn {
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn:hover {
+      background: #334155;
+    }
+    .btn.active {
+      background: #ef4444;
+      border-color: #ef4444;
     }
   </style>
 </head>
@@ -366,55 +367,44 @@ class HtmlExporter {
       <span class="badge">${_htmlEscape(result.packageName)}</span>
     </div>
     <div class="stats">
-      ${result.isWorkspace ? '<div class="stat-card"><span class="stat-label">Packages:</span><span class="stat-value">${result.workspacePackageCount}</span></div>' : ''}
-      <div class="stat-card">
-        <span class="stat-label">Files:</span>
-        <span class="stat-value">${result.files.length}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Edges:</span>
-        <span class="stat-value">${result.edges.length}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Cycles:</span>
-        <span class="stat-value ${cycles.isEmpty ? 'success' : 'danger'}">${cycles.length}</span>
-      </div>
+      <div class="stat-card">Files: <span class="stat-value">${result.files.length}</span></div>
+      <div class="stat-card">Edges: <span class="stat-value">${result.edges.length}</span></div>
+      <div class="stat-card">Cycles: <span class="stat-value ${cycles.isNotEmpty ? 'danger' : ''}">${cycles.length}</span></div>
     </div>
   </header>
-
-  <div class="main-container">
-    <sidebar>
+  <main>
+    <div id="sidebar">
       <div class="sidebar-header">
-        <input type="text" id="search" class="search-box" placeholder="Search files...">
-        <div class="filter-tools">
-          <button class="btn" id="reset-btn">Reset View</button>
-          <button class="btn" id="filter-cycles-btn">Show Cycles Only</button>
-        </div>
+        <input type="text" id="search-input" class="search-box" placeholder="Filter files by path..." />
       </div>
-      <div class="cycle-list" id="cycle-list">
-        <!-- Rendered by JS -->
-      </div>
-    </sidebar>
+      <div class="cycle-list" id="cycle-list"></div>
+    </div>
+    <div id="mynetwork"></div>
 
-    <div id="network-container"></div>
+    <div class="toolbar">
+      <button class="btn" id="reset-btn">Reset View</button>
+      <button class="btn" id="filter-cycles-btn">Focus Cycles Only</button>
+    </div>
 
-    <div class="node-details-panel" id="details-panel">
-      <button class="close-btn" id="panel-close">&times;</button>
-      <div class="panel-title" id="panel-filename">filename.dart</div>
-      <div class="panel-section">
-        <div class="panel-subtitle">Status</div>
-        <div id="panel-status">Normal</div>
+    <div id="details-panel">
+      <div class="panel-header">
+        <div class="panel-filename" id="panel-filename">lib/main.dart</div>
+        <button class="panel-close" id="panel-close">&times;</button>
       </div>
       <div class="panel-section">
-        <div class="panel-subtitle">Direct Imports (Outgoing)</div>
-        <div class="panel-list" id="panel-imports">None</div>
+        <div class="panel-section-title">Status</div>
+        <div id="panel-status">In Cycle #1</div>
       </div>
       <div class="panel-section">
-        <div class="panel-subtitle">Importers (Incoming)</div>
-        <div class="panel-list" id="panel-importers">None</div>
+        <div class="panel-section-title">Imports</div>
+        <div class="panel-list" id="panel-imports"></div>
+      </div>
+      <div class="panel-section">
+        <div class="panel-section-title">Imported By</div>
+        <div class="panel-list" id="panel-importers"></div>
       </div>
     </div>
-  </div>
+  </main>
 
   <script id="graph-data" type="application/json">
     $rawJson
@@ -423,11 +413,12 @@ class HtmlExporter {
   <script>
     const graphData = JSON.parse(document.getElementById('graph-data').textContent);
 
-    const container = document.getElementById('network-container');
-    const searchInput = document.getElementById('search');
+    const container = document.getElementById('mynetwork');
+    const searchInput = document.getElementById('search-input');
+    const cycleListContainer = document.getElementById('cycle-list');
     const resetBtn = document.getElementById('reset-btn');
     const filterCyclesBtn = document.getElementById('filter-cycles-btn');
-    const cycleListContainer = document.getElementById('cycle-list');
+
     const detailsPanel = document.getElementById('details-panel');
     const panelFilename = document.getElementById('panel-filename');
     const panelStatus = document.getElementById('panel-status');
@@ -435,68 +426,67 @@ class HtmlExporter {
     const panelImporters = document.getElementById('panel-importers');
     const panelClose = document.getElementById('panel-close');
 
-    let showOnlyCycles = false;
     let selectedCycleIndex = null;
+    let showOnlyCycles = false;
 
-    // Convert raw JSON data to Vis-network DataSets
-    const nodes = new vis.DataSet(
-      graphData.nodes.map(n => {
-        const isCycle = n.group === 'cycle';
-        return {
-          id: n.id,
-          label: n.label,
-          shape: 'box',
-          margin: 10,
-          font: { face: 'Fira Code', size: 12, color: isCycle ? '#fee2e2' : '#e2e8f0' },
-          color: {
-            background: isCycle ? '#991b1b' : '#1e293b',
-            border: isCycle ? '#ef4444' : '#334155',
-            highlight: {
-              background: isCycle ? '#dc2626' : '#0284c7',
-              border: isCycle ? '#f87171' : '#38bdf8'
-            }
-          },
-          borderWidth: isCycle ? 2 : 1,
-          cycleIndex: n.cycleIndex
-        };
-      })
-    );
-
-    const edges = new vis.DataSet(
-      graphData.edges.map(e => ({
-        from: e.from,
-        to: e.to,
-        arrows: 'to',
-        dashes: e.type === 'export',
-        color: {
-          color: e.isCycle ? '#ef4444' : '#475569',
-          highlight: '#38bdf8',
-          hover: '#38bdf8'
+    // Convert nodes for vis-network
+    const nodes = new vis.DataSet(graphData.nodes.map(n => {
+      const isCycle = n.group === 'cycle';
+      return {
+        id: n.id,
+        label: n.id.split('/').pop(),
+        title: n.id,
+        shape: isCycle ? 'dot' : 'dot',
+        size: isCycle ? 16 : 8,
+        color: isCycle ? {
+          background: '#ef4444',
+          border: '#b91c1c',
+          highlight: { background: '#f87171', border: '#ef4444' }
+        } : {
+          background: '#38bdf8',
+          border: '#0284c7',
+          highlight: { background: '#7dd3fc', border: '#38bdf8' }
         },
-        width: e.isCycle ? 2 : 1
-      }))
-    );
+        font: { color: '#cbd5e1', size: 12 }
+      };
+    }));
+
+    // Convert edges for vis-network
+    const edges = new vis.DataSet(graphData.edges.map(e => ({
+      id: `\${e.from}->\${e.to}`,
+      from: e.from,
+      to: e.to,
+      arrows: 'to',
+      color: e.isCycle ? { color: '#ef4444', highlight: '#f87171' } : { color: '#334155', highlight: '#64748b' },
+      width: e.isCycle ? 2 : 1,
+      dashes: e.type === 'export'
+    })));
 
     const options = {
       nodes: {
+        borderWidth: 2,
         shadow: true
       },
       edges: {
         smooth: {
-          type: 'cubicBezier',
-          forceDirection: 'horizontal',
-          roundness: 0.4
+          type: 'continuous',
+          roundness: 0.2
         }
       },
       physics: {
         solver: 'forceAtlas2Based',
         forceAtlas2Based: {
-          gravitationalConstant: -45,
-          centralGravity: 0.01,
-          springLength: 120,
-          springConstant: 0.08
+          gravitationalConstant: -26,
+          centralGravity: 0.005,
+          springLength: 100,
+          springConstant: 0.18
         },
-        stabilization: { iterations: 150 }
+        maxVelocity: 50,
+        minVelocity: 0.75,
+        stabilization: {
+          enabled: true,
+          iterations: 150
+        }
       },
       interaction: {
         hover: true,
@@ -505,6 +495,12 @@ class HtmlExporter {
     };
 
     const network = new vis.Network(container, { nodes, edges }, options);
+
+    // Freeze physics once the initial layout settles, instead of letting
+    // forceAtlas2Based keep recalculating forces every frame indefinitely.
+    network.once('stabilizationIterationsDone', () => {
+      network.setOptions({ physics: false });
+    });
 
     // Render sidebar cycles
     function renderCyclesSidebar() {
