@@ -1,0 +1,39 @@
+# dep_graph.yaml
+# Layer Boundary Governance matching example/sample_project directory layout
+
+ignore:
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+
+fail_on_layer_violation: false
+
+layers:
+  models:
+    patterns:
+      - "lib/models/**"
+    allowed_imports:
+      - "models"
+
+  services:
+    patterns:
+      - "lib/services/**"
+    allowed_imports:
+      - "services"
+      - "models"
+
+  screens:
+    patterns:
+      - "lib/screens/**"
+    allowed_imports:
+      - "screens"
+      - "widgets"
+      - "services"
+      - "models"
+
+  widgets:
+    patterns:
+      - "lib/widgets/**"
+    allowed_imports:
+      - "widgets"
+      - "screens"
+      - "models"

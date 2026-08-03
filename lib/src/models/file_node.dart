@@ -19,6 +19,13 @@ class FileNode {
     this.exports = const [],
   });
 
+  Map<String, dynamic> toJson() => {
+    'relativePath': relativePath,
+    'absolutePath': absolutePath,
+    'imports': imports,
+    'exports': exports,
+  };
+
   @override
   String toString() => 'FileNode($relativePath)';
 }

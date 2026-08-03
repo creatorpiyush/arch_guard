@@ -85,6 +85,8 @@ class ProjectScanner {
         }
       }
 
+      final dartFiles =
+          <File, String>{}; // File entity to relative path mapping
       await for (final entity in dir.list(
         recursive: true,
         followLinks: false,
@@ -94,46 +96,72 @@ class ProjectScanner {
         final relPath = p
             .relative(entity.path, from: absRoot)
             .replaceAll('\\', '/');
-        if (isExcluded(relPath)) continue;
-
-        final content = await entity.readAsString();
-        final directives = ImportReader.extractDirectives(content);
-
-        final imports = <String>[];
-        final exports = <String>[];
-
-        for (final directive in directives) {
-          if (directive.type == 'export') {
-            exports.add(directive.uri);
-          } else {
-            imports.add(directive.uri);
-          }
-
-          final resolvedTarget = ImportReader.resolveUri(
-            uri: directive.uri,
-            packageName: currentPkgName,
-            importingFileRelativePath: relPath,
-            workspacePackages: workspaceLibMap.isNotEmpty
-                ? workspaceLibMap
-                : null,
-          );
-
-          if (resolvedTarget != null) {
-            rawEdges.add(
-              _TempEdge(
-                from: relPath,
-                to: resolvedTarget,
-                type: directive.type,
-              ),
-            );
-          }
+        if (!isExcluded(relPath)) {
+          dartFiles[entity] = relPath;
         }
+      }
 
-        filesMap[relPath] = FileNode(
-          relativePath: relPath,
-          absolutePath: entity.path,
-          imports: imports,
-          exports: exports,
+      // Process Dart files in parallel batches of 64
+      final fileEntries = dartFiles.entries.toList();
+      const chunkSize = 64;
+      for (var i = 0; i < fileEntries.length; i += chunkSize) {
+        final chunk = fileEntries.sublist(
+          i,
+          i + chunkSize > fileEntries.length
+              ? fileEntries.length
+              : i + chunkSize,
+        );
+
+        await Future.wait(
+          chunk.map((entry) async {
+            final entity = entry.key;
+            final relPath = entry.value;
+            try {
+              final content = await entity.readAsString();
+              final directives = ImportReader.extractDirectives(content);
+
+              final imports = <String>[];
+              final exports = <String>[];
+              final localRawEdges = <_TempEdge>[];
+
+              for (final directive in directives) {
+                if (directive.type == 'export') {
+                  exports.add(directive.uri);
+                } else {
+                  imports.add(directive.uri);
+                }
+
+                final resolvedTarget = ImportReader.resolveUri(
+                  uri: directive.uri,
+                  packageName: currentPkgName,
+                  importingFileRelativePath: relPath,
+                  workspacePackages: workspaceLibMap.isNotEmpty
+                      ? workspaceLibMap
+                      : null,
+                );
+
+                if (resolvedTarget != null) {
+                  localRawEdges.add(
+                    _TempEdge(
+                      from: relPath,
+                      to: resolvedTarget,
+                      type: directive.type,
+                    ),
+                  );
+                }
+              }
+
+              rawEdges.addAll(localRawEdges);
+              filesMap[relPath] = FileNode(
+                relativePath: relPath,
+                absolutePath: entity.path,
+                imports: imports,
+                exports: exports,
+              );
+            } catch (_) {
+              // Ignore unreadable files
+            }
+          }),
         );
       }
     }

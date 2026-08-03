@@ -8,7 +8,11 @@ class HtmlExporter {
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
+    String scope = 'cycles',
+    bool offline = false,
   }) {
+    final cyclicFiles = cycles.expand((c) => c.files).toSet();
+
     // Prepare cycle lookup maps
     final cycleMap = <String, int>{}; // nodePath -> cycleIndex (1-indexed)
     final cycleChains = <List<String>>[];
@@ -21,33 +25,63 @@ class HtmlExporter {
       }
     }
 
+    // Determine nodes to export based on scope
+    final Set<String> targetNodes;
+    if (scope == 'cycles') {
+      if (cyclicFiles.isEmpty) {
+        // If no cycles found, include top 20 files as context sample
+        targetNodes = result.files.keys.take(20).toSet();
+      } else {
+        // Include cyclic files + 1 hop neighbor context
+        targetNodes = <String>{...cyclicFiles};
+        for (final edge in result.edges) {
+          if (cyclicFiles.contains(edge.from) ||
+              cyclicFiles.contains(edge.to)) {
+            targetNodes.add(edge.from);
+            targetNodes.add(edge.to);
+          }
+        }
+      }
+    } else {
+      targetNodes = result.files.keys.toSet();
+    }
+
     // Build JSON nodes data
-    final nodesJsonList = result.files.keys.map((nodePath) {
-      final inCycle = cycleMap.containsKey(nodePath);
-      final cycleIdx = cycleMap[nodePath];
-      return {
-        'id': nodePath,
-        'label': nodePath,
-        'group': inCycle ? 'cycle' : 'normal',
-        'cycleIndex': cycleIdx,
-        'imports': result.files[nodePath]?.imports ?? [],
-        'exports': result.files[nodePath]?.exports ?? [],
-      };
-    }).toList();
+    final nodesJsonList = result.files.keys
+        .where((path) => targetNodes.contains(path))
+        .map((nodePath) {
+          final inCycle = cycleMap.containsKey(nodePath);
+          final cycleIdx = cycleMap[nodePath];
+          return {
+            'id': nodePath,
+            'label': nodePath,
+            'group': inCycle ? 'cycle' : 'normal',
+            'cycleIndex': cycleIdx,
+            'imports': result.files[nodePath]?.imports ?? [],
+            'exports': result.files[nodePath]?.exports ?? [],
+          };
+        })
+        .toList();
 
     // Build JSON edges data
-    final edgesJsonList = result.edges.map((edge) {
-      final isCycleEdge =
-          cycleMap.containsKey(edge.from) &&
-          cycleMap.containsKey(edge.to) &&
-          cycleMap[edge.from] == cycleMap[edge.to];
-      return {
-        'from': edge.from,
-        'to': edge.to,
-        'type': edge.type,
-        'isCycle': isCycleEdge,
-      };
-    }).toList();
+    final edgesJsonList = result.edges
+        .where(
+          (edge) =>
+              targetNodes.contains(edge.from) && targetNodes.contains(edge.to),
+        )
+        .map((edge) {
+          final isCycleEdge =
+              cycleMap.containsKey(edge.from) &&
+              cycleMap.containsKey(edge.to) &&
+              cycleMap[edge.from] == cycleMap[edge.to];
+          return {
+            'from': edge.from,
+            'to': edge.to,
+            'type': edge.type,
+            'isCycle': isCycleEdge,
+          };
+        })
+        .toList();
 
     final cyclesJsonList = cycles
         .map(
@@ -55,6 +89,7 @@ class HtmlExporter {
             'files': c.files,
             'chain': c.exampleChain,
             'extra': c.extraMembers,
+            if (c.scc != null) 'scc': c.scc!.toJson(),
           },
         )
         .toList();
@@ -66,6 +101,7 @@ class HtmlExporter {
       'cycleCount': cycles.length,
       'workspacePackageCount': result.workspacePackageCount,
       'isWorkspace': result.isWorkspace,
+      'scope': scope,
       'nodes': nodesJsonList,
       'edges': edgesJsonList,
       'cycles': cyclesJsonList,

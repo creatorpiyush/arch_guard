@@ -24,6 +24,44 @@ void main() {
       expect(code, equals(1));
     });
 
+    test('returns exit code 0 when --explain passed', () async {
+      final code = await runCli([
+        'example/sample_project',
+        '--explain',
+        'lib/services/auth_service.dart',
+      ]);
+      expect(code, equals(0));
+    });
+
+    test('returns exit code 0 for --format json', () async {
+      final code = await runCli([
+        'example/sample_project',
+        '--no-fail-on-cycle',
+        '-f',
+        'json',
+        '-o',
+        'build/test_out',
+      ]);
+      expect(code, equals(0));
+    });
+
+    test(
+      'returns exit code 0 for --format mermaid with scope cycles',
+      () async {
+        final code = await runCli([
+          'example/sample_project',
+          '--no-fail-on-cycle',
+          '-f',
+          'mermaid',
+          '--scope',
+          'cycles',
+          '-o',
+          'build/test_out',
+        ]);
+        expect(code, equals(0));
+      },
+    );
+
     test('returns exit code 0 when --no-fail-on-cycle passed', () async {
       final code = await runCli([
         'example/sample_project',
