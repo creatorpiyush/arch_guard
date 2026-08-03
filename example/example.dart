@@ -4,7 +4,9 @@ void main() async {
   print('=== 1. Single Package Scan with Tarjan SCC Metrics ===');
   await scanSinglePackageWithMetrics();
 
-  print('\n=== 2. Clean Architecture Layer Boundary Check (using dep_graph.yaml) ===');
+  print(
+    '\n=== 2. Clean Architecture Layer Boundary Check (using dep_graph.yaml) ===',
+  );
   await validateCleanArchitectureLayers();
 
   print('\n=== 3. Dependency Path Explainer ===');
