@@ -1,24 +1,22 @@
 # dep_graph_visualizer
 
-A pub.dev-ready CLI tool and Dart library to scan Dart/Flutter projects and monorepos, discover import & export dependencies, detect circular dependencies using **Tarjan's Strongly Connected Components (SCC) algorithm**, and export clean visual graph outputs (Terminal text, Graphviz `.dot`, and a rich interactive HTML visualizer centerpiece).
+A pub.dev-ready CLI tool and Dart library to scan Dart/Flutter projects and monorepos, discover import & export dependencies, detect circular dependencies using **Tarjan's Strongly Connected Components (SCC) algorithm**, enforce **Clean Architecture layer boundaries**, and export clean visual graph outputs (Terminal text, JSON, Mermaid `.mmd`, Graphviz `.dot`, and a rich interactive HTML centerpiece).
 
 ---
 
 ## Features
 
-- 🚀 **High-Throughput Parallel Scanning**: Bounded parallel file reader queue (batch size 64) for high-speed scanning without building slow analyzer AST trees.
-- 📐 **SCC Severity Metrics**: Calculates internal edges, average fan-in/fan-out, instability metric ($I$), graph density ($D$), and bottleneck hub files.
-- 🛡️ **Clean Architecture Layer Validation**: Enforce directional layer boundary rules defined in `dep_graph.yaml` or `pubspec.yaml`.
-- 🔍 **Targeted File Dependency Explainer**: Detailed file-level inspection (`--explain <file>`) showing incoming/outgoing dependencies and SCC cycle chains.
-- 🔀 **Conditional Import Support**: Handles quoted URIs in conditional import/export directives (`if (dart.library.html)`).
-- 🏢 **Monorepo & Dart Workspace Auto-Discovery**: Automatically discovers member packages in Dart 3.6+ workspaces (`workspace: [...]`) or Melos repositories.
-- ⚡ **Tarjan's SCC Cycle Detection**: Accurate, non-recursive cycle group identification.
-- 🎨 **Multi-Format Export Engine**:
-  - **Terminal Text**: ANSI-colored output with summary statistics and metrics.
-  - **Interactive Centerpiece HTML Visualizer**: Dark mode visualizer with glowing node pulses, physics stabilization freeze, and `--scope cycles` graph trimming.
-  - **Mermaid Markdown Diagram (`.mmd`)**: Native flowchart diagrams for GitHub/GitLab PRs.
-  - **Machine-Readable JSON (`.json`)**: Structured export for CI/CD pipelines.
-  - **Graphviz DOT Exporter (`.dot`)**: Subgraph clusters ready for Graphviz.
+- 🚀 **High-Performance Concurrent Scanning**: Bounded parallel async scanner (`Future.wait` batching) designed for 1,000+ file codebases.
+- 📐 **Clean Architecture Layer Validation**: Enforce directional rules (e.g. `domain` cannot import `presentation` or `data`) configured via `dep_graph.yaml` or `pubspec.yaml`.
+- 📊 **Tarjan's SCC Severity Metrics**: Computes internal edge density, average Fan-In/Fan-Out, Instability ($I$), and dependency hub identification per SCC.
+- 🔍 **CLI File Explainer (`--explain`)**: Interactively inspect incoming/outgoing dependencies and SCC membership for any specific file.
+- 🏢 **Monorepo & Dart Workspace Auto-Discovery**: Automatically discovers member packages in Dart 3.6+ workspaces (`workspace: [...]`) or Melos repositories (`packages/*`, `apps/*`), mapping cross-package cycles.
+- 🎨 **Multi-Format Exporters**:
+  - **Interactive Centerpiece HTML**: Dark mode, Vis-network rendering with physics stabilization freeze, `--scope cycles` scalability, and `--offline` air-gapped support.
+  - **Mermaid.js Diagram (`.mmd`)**: Native markdown diagrams ready for GitHub/GitLab PRs.
+  - **JSON Data Report (`.json`)**: Machine-readable payload for CI/CD dashboards.
+  - **Graphviz DOT (`.dot`)**: Subgraph-clustered DOT format for `dot -Tsvg`.
+- 💻 **Pub.dev Ready & Flexible CLI**: Configurable flags, exit codes for CI/CD pipelines (`0`, `1`, `2`, `64`), and a clear programmatic Dart API.
 
 ---
 
@@ -38,6 +36,45 @@ dart run dep_graph_visualizer [path] [options]
 
 ---
 
+## Configuration (`dep_graph.yaml` or `pubspec.yaml`)
+
+Define Clean Architecture layer rules and ignore patterns in `dep_graph.yaml` at your project root:
+
+```yaml
+# dep_graph.yaml
+ignore:
+  - "**/*.g.dart"
+  - "**/*.freezed.dart"
+  - "**/*.mocks.dart"
+
+fail_on_layer_violation: true
+
+layers:
+  domain:
+    patterns:
+      - "**/domain/**"
+    allowed_imports:
+      - "domain"
+
+  presentation:
+    patterns:
+      - "**/presentation/**"
+    allowed_imports:
+      - "presentation"
+      - "domain"
+
+  data:
+    patterns:
+      - "**/data/**"
+    allowed_imports:
+      - "data"
+      - "domain"
+```
+
+Or configure under `dep_graph_visualizer:` in `pubspec.yaml`.
+
+---
+
 ## Command Reference
 
 ### Basic Syntax
@@ -54,16 +91,16 @@ If `[project_path]` is omitted, it defaults to current directory (`.`).
 
 | Flag / Option | Short | Description | Default |
 | :--- | :--- | :--- | :--- |
-| `--format` | `-f` | Output format(s) to generate (`text`, `dot`, `html`, `json`, `mermaid`, `all`). | `text` |
-| `--output` | `-o` | Output directory path for generated reports and visualizers. | `dep_graph_output` |
-| `--explain` | | File path to inspect for incoming/outgoing dependencies and SCC membership. | |
-| `--scope` | | Export graph scope: `cycles` (SCCs + 1-hop context) or `all` (entire graph). | `cycles` |
-| `--offline` | | Inline static JS/CSS assets in HTML output for air-gapped CI environments. | `false` |
+| `--format` | `-f` | Output format(s): `text`, `dot`, `html`, `json`, `mermaid`, `all`. Repeatable. | `text` |
+| `--scope` | | Export scope: `cycles` (SCCs + 1-hop context) or `all` (full graph). | `cycles` |
+| `--explain` | | Inspect incoming/outgoing dependencies and SCC membership for a target file. | |
+| `--output` | `-o` | Output directory path for generated files. | `dep_graph_output` |
 | `--scan-dir` | | Subdirectory/subdirectories within project root to scan. Repeatable. | `lib` |
 | `--exclude` | | Custom glob pattern(s) to exclude from scanning. Repeatable. | Default excludes (`*.g.dart`, etc.) |
+| `--offline` | | Inline static assets in HTML report for air-gapped CI environments. | `false` |
 | `--color` / `--no-color` | | Enable or disable ANSI color styling in terminal output. | `--color` (enabled) |
 | `--fail-on-cycle` / `--no-fail-on-cycle` | | Return exit code `1` if circular dependencies are found. | `--fail-on-cycle` (enabled) |
-| `--workspace` / `--no-workspace` | | Auto-discover and scan member packages in a Dart 3.6+ workspace or monorepo. | `--workspace` (enabled) |
+| `--workspace` / `--no-workspace` | | Auto-discover member packages in Dart 3.6+ workspace or monorepo. | `--workspace` (enabled) |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
 
 ---
@@ -71,64 +108,43 @@ If `[project_path]` is omitted, it defaults to current directory (`.`).
 ### CLI Command Recipes
 
 #### 1. Basic Terminal Scan (Current Directory)
-Scans the current project and outputs a colored summary of circular dependencies to terminal:
+Scans current project and outputs colored summary with SCC severity metrics:
 ```bash
 dep_graph_visualizer
 ```
 
-#### 2. Generate Interactive Centerpiece HTML Visualizer
-Exports a single-file interactive HTML graph visualizer with glowing node pulses and path highlighting:
+#### 2. Explain Target File Dependencies
+Inspect why a specific file belongs to an SCC and view its direct incoming/outgoing edges:
+```bash
+dep_graph_visualizer . --explain lib/services/auth_service.dart
+```
+
+#### 3. Export Native Mermaid.js Diagram for GitHub PRs
+Generates a `.mmd` diagram ready to paste into GitHub/GitLab PRs or READMEs:
+```bash
+dep_graph_visualizer . -f mermaid -o build/reports
+```
+
+#### 4. Export Machine-Readable JSON for CI Pipelines
+Generates JSON report containing nodes, edges, SCC metrics, and layer violations:
+```bash
+dep_graph_visualizer . -f json -o build/reports
+```
+
+#### 5. Generate Scalable Interactive Centerpiece HTML Visualizer
+Exports interactive HTML graph with physics stabilization and `--scope cycles` scalability:
 ```bash
 dep_graph_visualizer . -f html -o build/reports
 ```
 
-#### 3. Export Graphviz `.dot` File
-Generates a `.dot` file with clustered sub-graphs for cycle groups:
-```bash
-dep_graph_visualizer . -f dot -o build/reports
-```
-*(You can convert the `.dot` file to SVG using Graphviz: `dot -Tsvg build/reports/dependency_graph.dot -o graph.svg`)*
-
-#### 4. Export All Formats (Terminal + DOT + HTML)
-Generates both `.dot` and `.html` visualizer files while printing the text summary:
+#### 6. Export All Formats (Text + DOT + HTML + JSON + Mermaid)
 ```bash
 dep_graph_visualizer . -f all -o build/reports
 ```
 
-#### 5. Monorepo & Dart 3.6+ Workspace Scan
-Scan an entire monorepo root (e.g. Melos or Dart 3.6+ workspace). Auto-discovers member packages and maps cross-package cycles:
+#### 7. Air-Gapped / Offline CI Execution
 ```bash
-dep_graph_visualizer /path/to/my_monorepo -f all -o build/reports
-```
-
-#### 6. Scan Custom Directories (e.g., `lib` and `test`)
-Scan multiple target subdirectories within a project:
-```bash
-dep_graph_visualizer . --scan-dir lib --scan-dir test
-```
-
-#### 7. Custom Exclude Globs
-Exclude generated files or custom folders:
-```bash
-dep_graph_visualizer . --exclude "**/*.g.dart" --exclude "**/*.freezed.dart" --exclude "**/*.mocks.dart"
-```
-
-#### 8. Disable Single-Package Workspace Auto-Discovery
-Force scanner to operate only on the specified directory without searching for child workspace packages:
-```bash
-dep_graph_visualizer . --no-workspace
-```
-
-#### 9. Non-Blocking CI/CD Mode (Always Exit 0)
-Prints detected circular dependencies but returns exit code `0` even if cycles are found:
-```bash
-dep_graph_visualizer . --no-fail-on-cycle
-```
-
-#### 10. Plain Text Output (No ANSI Terminal Colors)
-Useful for logging to file or CI pipeline logs:
-```bash
-dep_graph_visualizer . --no-color > scan_report.txt
+dep_graph_visualizer . -f html --offline -o build/reports
 ```
 
 ---
@@ -137,8 +153,8 @@ dep_graph_visualizer . --no-color > scan_report.txt
 
 | Exit Code | Description |
 | :---: | :--- |
-| `0` | **Success**: Scan completed with zero circular dependencies found (or `--no-fail-on-cycle` was specified). |
-| `1` | **Circular Dependencies Found**: Cycles detected and `--fail-on-cycle` (default) is enabled. |
+| `0` | **Success**: Scan completed with zero circular dependencies or layer violations. |
+| `1` | **Violations / Cycles Found**: Circular dependencies or Clean Architecture layer violations detected. |
 | `2` | **Scan Error**: Provided directory does not exist or target project could not be scanned. |
 | `64` | **Usage Error**: Invalid CLI flags or arguments provided (`EX_USAGE`). |
 
@@ -146,15 +162,11 @@ dep_graph_visualizer . --no-color > scan_report.txt
 
 ## Programmatic Usage
 
-You can also use `dep_graph_visualizer` directly in Dart/Flutter tools or custom build scripts:
-
-The scanner includes Dart and Flutter package layouts out of the box, including conditional import branches such as web/io platform stubs. That makes it useful for catching circular dependencies in Flutter apps and package monorepos without requiring analyzer resolution.
-
 ```dart
 import 'package:dep_graph_visualizer/dep_graph_visualizer.dart';
 
 void main() async {
-  // 1. Scan project or workspace monorepo root
+  // 1. Parallel scan of project or workspace
   final scanner = ProjectScanner(
     rootPath: '.',
     scanDirs: ['lib'],
@@ -165,18 +177,31 @@ void main() async {
   final result = await scanner.scan();
   print('Scanned ${result.files.length} files across ${result.workspacePackageCount} packages.');
 
-  // 2. Build graph and detect circular dependencies
+  // 2. Compute graph and find Tarjan SCC components
   final graph = DependencyGraph.fromScanResult(result);
   final cycles = graph.findCircularDependencies();
 
-  print('Found ${cycles.length} circular dependency groups:');
   for (final cycle in cycles) {
-    print('  Cycle chain: ${cycle.exampleChain.join(" -> ")}');
+    final scc = cycle.scc;
+    if (scc != null) {
+      print('SCC #${scc.id}: ${scc.files.length} files | Hub: ${scc.hubFile}');
+    }
   }
 
-  // 3. Export HTML visualizer
-  final html = HtmlExporter.export(result: result, cycles: cycles);
-  print('Generated HTML graph visualizer (${html.length} bytes)');
+  // 3. Validate Clean Architecture layers
+  const config = DepGraphConfig(
+    layers: {
+      'domain': LayerDefinition(name: 'domain', patterns: ['lib/domain/**'], allowedImports: ['domain']),
+      'presentation': LayerDefinition(name: 'presentation', patterns: ['lib/presentation/**'], allowedImports: ['presentation', 'domain']),
+    },
+  );
+
+  final violations = LayerValidator.validate(result: result, config: config);
+  print('Layer violations: ${violations.length}');
+
+  // 4. Export JSON & Mermaid
+  final jsonReport = JsonExporter.export(result: result, cycles: cycles);
+  final mermaid = MermaidExporter.export(result: result, cycles: cycles);
 }
 ```
 
@@ -219,4 +244,3 @@ This repository includes pre-configured GitHub Actions workflows:
 ## License
 
 [MIT License](LICENSE)
-
