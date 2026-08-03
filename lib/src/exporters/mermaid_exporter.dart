@@ -31,27 +31,43 @@ class MermaidExporter {
       return buffer.toString();
     }
 
-    // Map file path to safe Mermaid node IDs
-    String sanitizeId(String path) {
-      return path.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+    // Map each file path to a unique, safe Mermaid node ID. Different paths
+    // can sanitize to the same base ID (e.g. "a-b.dart" and "a_b.dart" both
+    // become "a_b_dart"), so collisions are disambiguated with a numeric
+    // suffix rather than silently merging distinct files in the diagram.
+    final idByPath = <String, String>{};
+    final usedIds = <String>{};
+    for (final file in targetNodes) {
+      final base = file.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '_');
+      var candidate = base;
+      var suffix = 1;
+      while (!usedIds.add(candidate)) {
+        candidate = '${base}_${suffix++}';
+      }
+      idByPath[file] = candidate;
     }
+
+    // Mermaid node labels: escape quotes so they can't break out of the
+    // `["..."]` label syntax.
+    String sanitizeLabel(String path) => path.replaceAll('"', '#quot;');
 
     // Write nodes
     for (final file in targetNodes) {
-      final id = sanitizeId(file);
+      final id = idByPath[file]!;
+      final label = sanitizeLabel(file);
       final isCyclic = cyclicFiles.contains(file);
       if (isCyclic) {
-        buffer.writeln('    $id["$file"]:::cyclicNode');
+        buffer.writeln('    $id["$label"]:::cyclicNode');
       } else {
-        buffer.writeln('    $id["$file"]');
+        buffer.writeln('    $id["$label"]');
       }
     }
 
     // Write edges
     for (final edge in result.edges) {
       if (targetNodes.contains(edge.from) && targetNodes.contains(edge.to)) {
-        final fromId = sanitizeId(edge.from);
-        final toId = sanitizeId(edge.to);
+        final fromId = idByPath[edge.from]!;
+        final toId = idByPath[edge.to]!;
         final arrow = edge.type == 'export' ? '-. export .->' : '-->';
         buffer.writeln('    $fromId $arrow $toId');
       }

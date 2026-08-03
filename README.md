@@ -227,4 +227,5 @@ Before publishing a new version to **pub.dev**, run the pre-release script to en
 
 ## License
 
-[MIT License](LICENSE)
+[MIT License](LICENSE) — See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party software attributions.
+
