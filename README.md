@@ -225,22 +225,6 @@ Before publishing a new version to **pub.dev**, run the pre-release script to en
 ./tool/pre_release.sh
 ```
 
----
-
-### 3. GitHub Actions CI & Automated Publishing
-
-This repository includes pre-configured GitHub Actions workflows:
-
-- **PR & Commit Verification** (`.github/workflows/verify.yml`): Runs `dart format`, `dart analyze --fatal-infos`, `dart test`, and `dart pub publish --dry-run` on PRs and pushes to `main`/`master`.
-- **Pub.dev Publishing** (`.github/workflows/publish.yml`): Publishes the package directly to [pub.dev](https://pub.dev) when a release is published or tag matching `v*` is pushed.
-
-#### Setting up Pub.dev OIDC Publishing:
-1. Go to [pub.dev](https://pub.dev) and log in as the package publisher/owner.
-2. Navigate to package settings for `dep_graph_visualizer` and enable **Automated Publishing**.
-3. Link your GitHub Repository (`<owner>/dep_graph_visualizer`) with automated publishing via OIDC.
-
----
-
 ## License
 
 [MIT License](LICENSE)

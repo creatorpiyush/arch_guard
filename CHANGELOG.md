@@ -1,3 +1,8 @@
+# 1.1.1
+
+- Refined `dep_graph.yaml` configuration examples and updated example application layout.
+- Cleaned up maintainer CI documentation in `README.md`.
+
 # 1.1.0
 
 - **Strongly Connected Component (SCC) Severity Metrics**: Calculate internal edges, average fan-in, average fan-out, instability metric ($I$), graph coupling density ($D$), and bottleneck dependency hub files (`SccComponent`).
@@ -10,8 +15,6 @@
 # 1.0.1
 
 - Updated License to MIT
-
-
 
 # 1.0.0
 
