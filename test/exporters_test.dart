@@ -42,7 +42,7 @@ void main() {
 
       expect(text, contains('Dependency Graph Visualizer - Scan Summary'));
       expect(text, contains('Package Name:  demo_pkg'));
-      expect(text, contains('Cycles Found:  1'));
+      expect(text, contains('SCC Cycles:    1'));
       expect(text, contains('lib/a.dart'));
       expect(text, contains('-> lib/b.dart'));
     });
@@ -53,6 +53,25 @@ void main() {
       expect(dot, contains('digraph "Dependency Graph"'));
       expect(dot, contains('subgraph cluster_1'));
       expect(dot, contains('"lib/a.dart" -> "lib/b.dart"'));
+    });
+
+    test('JsonExporter produces valid JSON output', () {
+      final json = JsonExporter.export(result: mockResult, cycles: mockCycles);
+
+      expect(json, contains('"packageName": "demo_pkg"'));
+      expect(json, contains('"sccCount": 1'));
+      expect(json, contains('"lib/a.dart"'));
+    });
+
+    test('MermaidExporter produces valid markdown diagram syntax', () {
+      final mermaid = MermaidExporter.export(
+        result: mockResult,
+        cycles: mockCycles,
+      );
+
+      expect(mermaid, contains('```mermaid'));
+      expect(mermaid, contains('flowchart TD'));
+      expect(mermaid, contains('lib_a_dart["lib/a.dart"]:::cyclicNode'));
     });
 
     test(

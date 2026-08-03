@@ -3,6 +3,8 @@ import '../models/scan_result.dart';
 import 'cycle_path_finder.dart';
 import 'tarjan_scc.dart';
 
+import '../models/scc_component.dart';
+
 /// Represents the dependency graph of a scanned Dart project.
 class DependencyGraph {
   /// The underlying scan result metadata.
@@ -54,6 +56,7 @@ class DependencyGraph {
     );
 
     final cycles = <Cycle>[];
+    int sccIndex = 1;
 
     for (final scc in sccs) {
       if (scc.length > 1) {
@@ -62,13 +65,30 @@ class DependencyGraph {
           sccNodes: scc,
           adjacencyList: outgoingEdges,
         );
-        cycles.add(Cycle(files: scc, exampleChain: exampleChain));
+        final sccComp = SccComponent.compute(
+          id: sccIndex++,
+          files: scc,
+          exampleChain: exampleChain,
+          outgoingEdges: outgoingEdges,
+          incomingEdges: incomingEdges,
+        );
+        cycles.add(Cycle(files: scc, exampleChain: exampleChain, scc: sccComp));
       } else if (scc.length == 1) {
         final node = scc.first;
         final targets = outgoingEdges[node] ?? const {};
         if (targets.contains(node)) {
           // Self-import cycle
-          cycles.add(Cycle(files: scc, exampleChain: [node, node]));
+          final exampleChain = [node, node];
+          final sccComp = SccComponent.compute(
+            id: sccIndex++,
+            files: scc,
+            exampleChain: exampleChain,
+            outgoingEdges: outgoingEdges,
+            incomingEdges: incomingEdges,
+          );
+          cycles.add(
+            Cycle(files: scc, exampleChain: exampleChain, scc: sccComp),
+          );
         }
       }
     }

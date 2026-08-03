@@ -21,6 +21,16 @@ class TextReporter {
     final cyan = useColor ? '\x1B[36m' : '';
     final dim = useColor ? '\x1B[2m' : '';
 
+    final largestScc = cycles.isEmpty
+        ? 0
+        : cycles.fold<int>(
+            0,
+            (max, c) => c.files.length > max ? c.files.length : max,
+          );
+    final avgSccSize = cycles.isEmpty
+        ? 0.0
+        : cycles.fold<int>(0, (sum, c) => sum + c.files.length) / cycles.length;
+
     buffer.writeln('==================================================');
     buffer.writeln('$bold  Dependency Graph Visualizer - Scan Summary$reset');
     buffer.writeln('==================================================');
@@ -31,8 +41,12 @@ class TextReporter {
     buffer.writeln('Files Scanned: ${result.files.length}');
     buffer.writeln('Graph Edges:   ${result.edges.length}');
     buffer.writeln(
-      'Cycles Found:  ${cycles.isEmpty ? "${green}0$reset" : "$red${cycles.length}$reset"}',
+      'SCC Cycles:    ${cycles.isEmpty ? "${green}0$reset" : "$red${cycles.length}$reset"}',
     );
+    if (cycles.isNotEmpty) {
+      buffer.writeln('Largest SCC:   $largestScc files');
+      buffer.writeln('Average SCC:   ${avgSccSize.toStringAsFixed(1)} files');
+    }
     buffer.writeln('==================================================');
     buffer.writeln();
 
@@ -41,18 +55,29 @@ class TextReporter {
       return buffer.toString();
     }
 
-    buffer.writeln('$red$bold[!] CIRCULAR DEPENDENCIES DETECTED:$reset');
+    buffer.writeln(
+      '$red$bold[!] STRONGLY CONNECTED COMPONENTS (SCCs) DETECTED:$reset',
+    );
     buffer.writeln();
 
     for (var i = 0; i < cycles.length; i++) {
       final cycle = cycles[i];
       final number = i + 1;
+      final scc = cycle.scc;
+
       buffer.writeln(
-        '  ${bold}Cycle #$number (${cycle.files.length} files):$reset',
+        '  ${bold}Strongly Connected Component #$number (${cycle.files.length} files)$reset',
       );
+
+      if (scc != null) {
+        buffer.writeln(
+          '    $dim[Metrics: ${scc.internalEdgesCount} internal edges | Avg Fan-In: ${scc.averageFanIn} | Avg Fan-Out: ${scc.averageFanOut} | Hub: ${scc.hubFile}]$reset',
+        );
+      }
 
       final chain = cycle.exampleChain;
       if (chain.isNotEmpty) {
+        buffer.writeln('    ${bold}Representative Cycle Path:$reset');
         buffer.writeln('    $red${chain.first}$reset');
         for (var j = 1; j < chain.length; j++) {
           buffer.writeln('    $red-> ${chain[j]}$reset');
@@ -61,7 +86,7 @@ class TextReporter {
 
       final extra = cycle.extraMembers;
       if (extra.isNotEmpty) {
-        buffer.writeln('    $dim(Also in group: ${extra.join(", ")})$reset');
+        buffer.writeln('    $dim• Additional Files: ${extra.join(", ")}$reset');
       }
       buffer.writeln();
     }

@@ -6,17 +6,19 @@ A pub.dev-ready CLI tool and Dart library to scan Dart/Flutter projects and mono
 
 ## Features
 
-- 🚀 **Fast static scanning**: Lightweight regex directive parser that scans without building slow full AST trees.
-- 🔀 **Conditional import support**: Treats every quoted URI in a conditional import/export directive as a potential dependency edge, which improves Flutter web/io cycle detection.
-- 🏢 **Monorepo & Dart Workspace Auto-Discovery**: Automatically discovers member packages in Dart 3.6+ workspaces (`workspace: [...]`) or Melos repositories (`packages/*`, `apps/*`), mapping cross-package imports and detecting inter-package cycles.
-- ⚡ **Tarjan's SCC Cycle Detection**: Accurate, non-recursive cycle group identification handling multi-node loops, 2-file cycles, self-imports, and multi-package cycles.
-- 🎨 **Interactive Centerpiece HTML Visualizer**:
-  - Dark mode design powered by Vis-network.
-  - Glowing red pulse effects on cyclic nodes.
-  - Interactive sidebar highlighting cycle chains step-by-step.
-  - Search/filter bar and node details inspector.
-- 📄 **Graphviz DOT Exporter**: Grouped `subgraph cluster` format ready for `dot -Tsvg` rendering.
-- 💻 **Pub.dev Ready & Flexible CLI**: Configurable flags, exit codes for CI/CD pipelines (`0`, `1`, `2`, `64`), and a clear programmatic Dart API.
+- 🚀 **High-Throughput Parallel Scanning**: Bounded parallel file reader queue (batch size 64) for high-speed scanning without building slow analyzer AST trees.
+- 📐 **SCC Severity Metrics**: Calculates internal edges, average fan-in/fan-out, instability metric ($I$), graph density ($D$), and bottleneck hub files.
+- 🛡️ **Clean Architecture Layer Validation**: Enforce directional layer boundary rules defined in `dep_graph.yaml` or `pubspec.yaml`.
+- 🔍 **Targeted File Dependency Explainer**: Detailed file-level inspection (`--explain <file>`) showing incoming/outgoing dependencies and SCC cycle chains.
+- 🔀 **Conditional Import Support**: Handles quoted URIs in conditional import/export directives (`if (dart.library.html)`).
+- 🏢 **Monorepo & Dart Workspace Auto-Discovery**: Automatically discovers member packages in Dart 3.6+ workspaces (`workspace: [...]`) or Melos repositories.
+- ⚡ **Tarjan's SCC Cycle Detection**: Accurate, non-recursive cycle group identification.
+- 🎨 **Multi-Format Export Engine**:
+  - **Terminal Text**: ANSI-colored output with summary statistics and metrics.
+  - **Interactive Centerpiece HTML Visualizer**: Dark mode visualizer with glowing node pulses, physics stabilization freeze, and `--scope cycles` graph trimming.
+  - **Mermaid Markdown Diagram (`.mmd`)**: Native flowchart diagrams for GitHub/GitLab PRs.
+  - **Machine-Readable JSON (`.json`)**: Structured export for CI/CD pipelines.
+  - **Graphviz DOT Exporter (`.dot`)**: Subgraph clusters ready for Graphviz.
 
 ---
 
@@ -52,12 +54,15 @@ If `[project_path]` is omitted, it defaults to current directory (`.`).
 
 | Flag / Option | Short | Description | Default |
 | :--- | :--- | :--- | :--- |
-| `--format` | `-f` | Output format(s) to generate (`text`, `dot`, `html`, `all`). Can be passed multiple times. | `text` |
-| `--output` | `-o` | Output directory path for generated `.dot` or `.html` files. | `dep_graph_output` |
+| `--format` | `-f` | Output format(s) to generate (`text`, `dot`, `html`, `json`, `mermaid`, `all`). | `text` |
+| `--output` | `-o` | Output directory path for generated reports and visualizers. | `dep_graph_output` |
+| `--explain` | | File path to inspect for incoming/outgoing dependencies and SCC membership. | |
+| `--scope` | | Export graph scope: `cycles` (SCCs + 1-hop context) or `all` (entire graph). | `cycles` |
+| `--offline` | | Inline static JS/CSS assets in HTML output for air-gapped CI environments. | `false` |
 | `--scan-dir` | | Subdirectory/subdirectories within project root to scan. Repeatable. | `lib` |
 | `--exclude` | | Custom glob pattern(s) to exclude from scanning. Repeatable. | Default excludes (`*.g.dart`, etc.) |
 | `--color` / `--no-color` | | Enable or disable ANSI color styling in terminal output. | `--color` (enabled) |
-| `--fail-on-cycle` / `--no-fail-on-cycle` | | Return exit code `1` if circular dependencies are found (useful for CI/CD). | `--fail-on-cycle` (enabled) |
+| `--fail-on-cycle` / `--no-fail-on-cycle` | | Return exit code `1` if circular dependencies are found. | `--fail-on-cycle` (enabled) |
 | `--workspace` / `--no-workspace` | | Auto-discover and scan member packages in a Dart 3.6+ workspace or monorepo. | `--workspace` (enabled) |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
 

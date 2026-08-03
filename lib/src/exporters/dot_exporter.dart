@@ -7,6 +7,7 @@ class DotExporter {
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
+    String scope = 'cycles',
   }) {
     final buffer = StringBuffer();
     buffer.writeln('digraph "Dependency Graph" {');
@@ -20,11 +21,20 @@ class DotExporter {
       cycleNodes.addAll(cycle.files);
     }
 
+    final Set<String> targetNodes;
+    if (scope == 'cycles') {
+      targetNodes = cycleNodes.isEmpty
+          ? result.files.keys.take(20).toSet()
+          : cycleNodes;
+    } else {
+      targetNodes = result.files.keys.toSet();
+    }
+
     // Cluster subgraphs for each cycle
     for (var i = 0; i < cycles.length; i++) {
       final cycle = cycles[i];
       buffer.writeln('  subgraph cluster_${i + 1} {');
-      buffer.writeln('    label="Cycle #${i + 1}";');
+      buffer.writeln('    label="Strongly Connected Component #${i + 1}";');
       buffer.writeln('    color="#ef4444";');
       buffer.writeln('    style=dashed;');
       buffer.writeln('    fontcolor="#ef4444";');
@@ -37,6 +47,7 @@ class DotExporter {
 
     // Node declarations
     for (final nodePath in result.files.keys) {
+      if (!targetNodes.contains(nodePath)) continue;
       final isCycle = cycleNodes.contains(nodePath);
       final fill = isCycle ? '#fee2e2' : '#f3f4f6';
       final color = isCycle ? '#b91c1c' : '#9ca3af';
@@ -51,6 +62,9 @@ class DotExporter {
 
     // Edges
     for (final edge in result.edges) {
+      if (!targetNodes.contains(edge.from) || !targetNodes.contains(edge.to)) {
+        continue;
+      }
       final isCycleEdge =
           cycleNodes.contains(edge.from) && cycleNodes.contains(edge.to);
       final color = isCycleEdge ? '#ef4444' : '#d1d5db';
