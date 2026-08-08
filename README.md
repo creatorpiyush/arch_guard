@@ -1,13 +1,13 @@
-# dep_graph_visualizer
+# arch_guard
 
-A pub.dev-ready CLI tool and Dart library to scan Dart/Flutter projects and monorepos, discover import & export dependencies, detect circular dependencies using **Tarjan's Strongly Connected Components (SCC) algorithm**, enforce **Clean Architecture layer boundaries**, and export clean visual graph outputs (Terminal text, JSON, Mermaid `.mmd`, Graphviz `.dot`, and a rich interactive HTML centerpiece).
+A pub.dev-ready CLI tool and Dart library for static architecture analysis, enforcing **Clean Architecture layer boundaries**, detecting circular dependencies using **Tarjan's Strongly Connected Components (SCC) algorithm**, computing architectural coupling metrics, and exporting visual graph outputs (Terminal text, JSON, Mermaid `.mmd`, Graphviz `.dot`, and a rich interactive HTML centerpiece).
 
 ---
 
 ## Features
 
+- 🛡️ **Clean Architecture Layer Validation**: Enforce directional rules (e.g. `domain` cannot import `presentation` or `data`) configured via `arch_guard.yaml` or `pubspec.yaml`.
 - 🚀 **High-Performance Concurrent Scanning**: Bounded parallel async scanner (`Future.wait` batching) designed for 1,000+ file codebases.
-- 📐 **Clean Architecture Layer Validation**: Enforce directional rules (e.g. `domain` cannot import `presentation` or `data`) configured via `dep_graph.yaml` or `pubspec.yaml`.
 - 📊 **Tarjan's SCC Severity Metrics**: Computes internal edge density, average Fan-In/Fan-Out, Instability ($I$), and dependency hub identification per SCC.
 - 🔍 **CLI File Explainer (`--explain`)**: Interactively inspect incoming/outgoing dependencies and SCC membership for any specific file.
 - 🏢 **Monorepo & Dart Workspace Auto-Discovery**: Automatically discovers member packages in Dart 3.6+ workspaces (`workspace: [...]`) or Melos repositories (`packages/*`, `apps/*`), mapping cross-package cycles.
@@ -25,23 +25,23 @@ A pub.dev-ready CLI tool and Dart library to scan Dart/Flutter projects and mono
 Add as a dependency in your `pubspec.yaml` or install globally via pub:
 
 ```bash
-dart pub global activate dep_graph_visualizer
+dart pub global activate arch_guard
 ```
 
 Or run directly using `dart run` in any project or monorepo directory:
 
 ```bash
-dart run dep_graph_visualizer [path] [options]
+dart run arch_guard [path] [options]
 ```
 
 ---
 
-## Configuration (`dep_graph.yaml` or `pubspec.yaml`)
+## Configuration (`arch_guard.yaml` or `pubspec.yaml`)
 
-Define Clean Architecture layer rules and ignore patterns in `dep_graph.yaml` at your project root:
+Define Clean Architecture layer rules and ignore patterns in `arch_guard.yaml` at your project root:
 
 ```yaml
-# dep_graph.yaml
+# arch_guard.yaml
 ignore:
   - "**/*.g.dart"
   - "**/*.freezed.dart"
@@ -71,7 +71,7 @@ layers:
       - "domain"
 ```
 
-Or configure under `dep_graph_visualizer:` in `pubspec.yaml`.
+Or configure under `arch_guard:` in `pubspec.yaml`.
 
 ---
 
@@ -80,7 +80,7 @@ Or configure under `dep_graph_visualizer:` in `pubspec.yaml`.
 ### Basic Syntax
 
 ```bash
-dep_graph_visualizer [project_path] [options]
+arch_guard [project_path] [options]
 ```
 
 If `[project_path]` is omitted, it defaults to current directory (`.`).
@@ -94,7 +94,7 @@ If `[project_path]` is omitted, it defaults to current directory (`.`).
 | `--format` | `-f` | Output format(s): `text`, `dot`, `html`, `json`, `mermaid`, `all`. Repeatable. | `text` |
 | `--scope` | | Export scope: `cycles` (SCCs + 1-hop context) or `all` (full graph). | `cycles` |
 | `--explain` | | Inspect incoming/outgoing dependencies and SCC membership for a target file. | |
-| `--output` | `-o` | Output directory path for generated files. | `dep_graph_output` |
+| `--output` | `-o` | Output directory path for generated files. | `arch_guard_output` |
 | `--scan-dir` | | Subdirectory/subdirectories within project root to scan. Repeatable. | `lib` |
 | `--exclude` | | Custom glob pattern(s) to exclude from scanning. Repeatable. | Default excludes (`*.g.dart`, etc.) |
 | `--offline` | | Inline static assets in HTML report for air-gapped CI environments. | `false` |
@@ -110,41 +110,41 @@ If `[project_path]` is omitted, it defaults to current directory (`.`).
 #### 1. Basic Terminal Scan (Current Directory)
 Scans current project and outputs colored summary with SCC severity metrics:
 ```bash
-dep_graph_visualizer
+arch_guard
 ```
 
 #### 2. Explain Target File Dependencies
 Inspect why a specific file belongs to an SCC and view its direct incoming/outgoing edges:
 ```bash
-dep_graph_visualizer . --explain lib/services/auth_service.dart
+arch_guard . --explain lib/services/auth_service.dart
 ```
 
 #### 3. Export Native Mermaid.js Diagram for GitHub PRs
 Generates a `.mmd` diagram ready to paste into GitHub/GitLab PRs or READMEs:
 ```bash
-dep_graph_visualizer . -f mermaid -o build/reports
+arch_guard . -f mermaid -o build/reports
 ```
 
 #### 4. Export Machine-Readable JSON for CI Pipelines
 Generates JSON report containing nodes, edges, SCC metrics, and layer violations:
 ```bash
-dep_graph_visualizer . -f json -o build/reports
+arch_guard . -f json -o build/reports
 ```
 
 #### 5. Generate Scalable Interactive Centerpiece HTML Visualizer
 Exports interactive HTML graph with physics stabilization and `--scope cycles` scalability:
 ```bash
-dep_graph_visualizer . -f html -o build/reports
+arch_guard . -f html -o build/reports
 ```
 
 #### 6. Export All Formats (Text + DOT + HTML + JSON + Mermaid)
 ```bash
-dep_graph_visualizer . -f all -o build/reports
+arch_guard . -f all -o build/reports
 ```
 
 #### 7. Air-Gapped / Offline CI Execution
 ```bash
-dep_graph_visualizer . -f html --offline -o build/reports
+arch_guard . -f html --offline -o build/reports
 ```
 
 ---
@@ -163,7 +163,7 @@ dep_graph_visualizer . -f html --offline -o build/reports
 ## Programmatic Usage
 
 ```dart
-import 'package:dep_graph_visualizer/dep_graph_visualizer.dart';
+import 'package:arch_guard/arch_guard.dart';
 
 void main() async {
   // 1. Parallel scan of project or workspace
@@ -228,4 +228,3 @@ Before publishing a new version to **pub.dev**, run the pre-release script to en
 ## License
 
 [MIT License](LICENSE) — See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for third-party software attributions.
-

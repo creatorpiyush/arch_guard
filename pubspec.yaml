@@ -1,18 +1,19 @@
-name: dep_graph_visualizer
-description: A CLI tool and Dart library to scan projects, detect circular dependencies using Tarjan's algorithm, and export visual graphs.
-repository: https://github.com/creatorpiyush/dep_graph_visualizer
+name: arch_guard
+description: A CLI tool and Dart library for static architecture analysis, Clean Architecture layer governance, circular dependency metrics, and graph visualization.
+repository: https://github.com/creatorpiyush/arch_guard
 version: 1.1.2
 topics:
-  - cli
+  - clean-architecture
   - static-analysis
   - developer-tools
   - dependency-graph
+  - architecture-governance
 
 environment:
   sdk: ^3.11.0
 
 executables:
-  dep_graph_visualizer: dep_graph_visualizer
+  arch_guard: arch_guard
 
 dependencies:
   args: ^2.7.0

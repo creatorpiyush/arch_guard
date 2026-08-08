@@ -28,7 +28,7 @@ class LayerDefinition {
   }
 }
 
-/// Project-level configuration options loaded from `dep_graph.yaml` or `pubspec.yaml`.
+/// Project-level configuration options loaded from `arch_guard.yaml`, `dep_graph.yaml` or `pubspec.yaml`.
 class DepGraphConfig {
   final List<String> ignorePatterns;
   final Map<String, LayerDefinition> layers;
@@ -43,15 +43,24 @@ class DepGraphConfig {
   });
 
   /// Loads configuration from project root directory.
-  /// Priority: `dep_graph.yaml` overrides `pubspec.yaml`.
+  /// Priority: `arch_guard.yaml` > `dep_graph.yaml` > `pubspec.yaml (arch_guard)` > `pubspec.yaml (dep_graph_visualizer)`.
   static DepGraphConfig load(String rootPath) {
     final absRoot = p.canonicalize(rootPath);
+    final archGuardYamlPath = p.join(absRoot, 'arch_guard.yaml');
     final depGraphYamlPath = p.join(absRoot, 'dep_graph.yaml');
     final pubspecYamlPath = p.join(absRoot, 'pubspec.yaml');
 
     DynamicMap? rawConfig;
 
-    if (File(depGraphYamlPath).existsSync()) {
+    if (File(archGuardYamlPath).existsSync()) {
+      try {
+        final content = File(archGuardYamlPath).readAsStringSync();
+        final doc = loadYaml(content);
+        if (doc is Map) rawConfig = doc;
+      } catch (_) {}
+    }
+
+    if (rawConfig == null && File(depGraphYamlPath).existsSync()) {
       try {
         final content = File(depGraphYamlPath).readAsStringSync();
         final doc = loadYaml(content);
@@ -63,8 +72,12 @@ class DepGraphConfig {
       try {
         final content = File(pubspecYamlPath).readAsStringSync();
         final doc = loadYaml(content);
-        if (doc is Map && doc.containsKey('dep_graph_visualizer')) {
-          rawConfig = doc['dep_graph_visualizer'];
+        if (doc is Map) {
+          if (doc.containsKey('arch_guard')) {
+            rawConfig = doc['arch_guard'];
+          } else if (doc.containsKey('dep_graph_visualizer')) {
+            rawConfig = doc['dep_graph_visualizer'];
+          }
         }
       } catch (_) {}
     }
@@ -100,5 +113,7 @@ class DepGraphConfig {
     );
   }
 }
+
+typedef ArchGuardConfig = DepGraphConfig;
 
 typedef DynamicMap = Map<dynamic, dynamic>;

@@ -1,4 +1,4 @@
-import 'package:dep_graph_visualizer/dep_graph_visualizer.dart';
+import 'package:arch_guard/arch_guard.dart';
 import 'package:test/test.dart';
 
 void main() {

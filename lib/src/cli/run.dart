@@ -29,7 +29,7 @@ Future<int> runCli(List<String> args) async {
   }
 
   if (argResults['help'] == true) {
-    stdout.writeln('Usage: dep_graph_visualizer [project_path] [options]');
+    stdout.writeln('Usage: arch_guard [project_path] [options]');
     stdout.writeln();
     stdout.writeln(parser.usage);
     return 0;
@@ -57,7 +57,7 @@ Future<int> runCli(List<String> args) async {
   final failOnCycle = argResults['fail-on-cycle'] as bool;
   final enableWorkspace = argResults['workspace'] as bool;
 
-  // Load dep_graph.yaml / pubspec.yaml layer rules & ignores
+  // Load arch_guard.yaml / dep_graph.yaml / pubspec.yaml layer rules & ignores
   final config = DepGraphConfig.load(absProjectPath);
   final mergedExcludes = [...excludes, ...config.ignorePatterns];
 

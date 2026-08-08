@@ -1,6 +1,6 @@
 import 'package:args/args.dart';
 
-/// Configures the command line argument parser for dep_graph_visualizer.
+/// Configures the command line argument parser for arch_guard.
 class ArgsConfig {
   static ArgParser buildParser() {
     final parser = ArgParser();
@@ -17,7 +17,7 @@ class ArgsConfig {
     parser.addOption(
       'output',
       abbr: 'o',
-      defaultsTo: 'dep_graph_output',
+      defaultsTo: 'arch_guard_output',
       help: 'Output directory for generated dot/html/json/mermaid files.',
     );
 
