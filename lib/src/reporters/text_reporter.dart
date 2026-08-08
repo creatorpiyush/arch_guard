@@ -36,7 +36,7 @@ class TextReporter {
     buffer.writeln('==================================================');
     buffer.writeln('Package Name:  $cyan${result.packageName}$reset');
     if (result.isWorkspace) {
-      buffer.writeln('Workspace Pkgs:${result.workspacePackageCount}');
+      buffer.writeln('Workspace Pkgs: ${result.workspacePackageCount}');
     }
     buffer.writeln('Files Scanned: ${result.files.length}');
     buffer.writeln('Graph Edges:   ${result.edges.length}');

@@ -96,7 +96,7 @@ class ImportReader {
                 workspacePackages.containsKey(packageName))
             ? workspacePackages[packageName]!
             : 'lib';
-        return p.normalize(p.join(baseLib, rest));
+        return p.normalize(p.join(baseLib, rest)).replaceAll('\\', '/');
       }
 
       // Check workspace packages
@@ -107,7 +107,9 @@ class ImportReader {
           final restPath = match.group(2)!;
           if (workspacePackages.containsKey(targetPkgName)) {
             final targetLibDir = workspacePackages[targetPkgName]!;
-            return p.normalize(p.join(targetLibDir, restPath));
+            return p
+                .normalize(p.join(targetLibDir, restPath))
+                .replaceAll('\\', '/');
           }
         }
       }
@@ -118,7 +120,9 @@ class ImportReader {
 
     // Relative import
     final importingDir = p.dirname(importingFileRelativePath);
-    final resolved = p.normalize(p.join(importingDir, uri));
+    final resolved = p
+        .normalize(p.join(importingDir, uri))
+        .replaceAll('\\', '/');
     return resolved;
   }
 }
