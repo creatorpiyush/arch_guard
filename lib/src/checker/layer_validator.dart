@@ -45,11 +45,36 @@ class LayerValidator {
       layerGlobs[layerName] = layerDef.patterns.map((p) => Glob(p)).toList();
     });
 
-    // Helper to determine layer of a file path
+    // Helper to determine layer of a file path.
+    //
+    // In workspace/monorepo mode, paths are prefixed with the package directory
+    // (e.g. `packages/auth_pkg/lib/domain/entity.dart`). Users typically write
+    // layer patterns relative to the package root (e.g. `lib/domain/**`).
+    //
+    // To support both single-package and workspace setups transparently, we
+    // match against:
+    //   1. The full path as-is (e.g. `packages/auth_pkg/lib/domain/entity.dart`)
+    //   2. The path starting from the first `lib/` segment, effectively
+    //      stripping the workspace package prefix (e.g. `lib/domain/entity.dart`)
     String? resolveLayer(String path) {
       final normalized = path.replaceAll('\\', '/');
+
+      // Derive the package-relative suffix: everything from `lib/` onward.
+      // e.g. `packages/auth_pkg/lib/domain/entity.dart` -> `lib/domain/entity.dart`
+      final libIndex = normalized.indexOf('/lib/');
+      final pkgRelativePath = libIndex >= 0
+          ? normalized.substring(libIndex + 1)
+          : null;
+
       for (final entry in layerGlobs.entries) {
-        if (entry.value.any((glob) => glob.matches(normalized))) {
+        final globs = entry.value;
+        if (globs.any((glob) => glob.matches(normalized))) {
+          return entry.key;
+        }
+        // Also try matching the package-relative path so patterns like
+        // `lib/domain/**` work in workspace mode without any config change.
+        if (pkgRelativePath != null &&
+            globs.any((glob) => glob.matches(pkgRelativePath))) {
           return entry.key;
         }
       }

@@ -1,3 +1,9 @@
+# 1.1.3
+
+- **Fix: Layer validator now works correctly in workspace/monorepo mode** (`LayerValidator`): Layer glob patterns such as `lib/domain/**` were silently never matching workspace-prefixed file paths (e.g. `packages/auth_pkg/lib/domain/entity.dart`). The validator now also tests the `lib/…` suffix of each path, making single-package and workspace `arch_guard.yaml` configs interchangeable with no user-side changes required.
+- **Fix: Cross-package edge resolution path separator on Windows** (`ImportReader.resolveUri`): `p.normalize(p.join(…))` could produce backslash-separated paths on Windows, causing all resolved edge targets to silently miss the forward-slash-keyed `filesMap` and disappear from the graph. All three return paths now force `/` separators.
+- **Fix: Missing space in workspace summary line** (`TextReporter`): The `Workspace Pkgs:` line was missing a space before the count, producing misaligned output (e.g. `Workspace Pkgs:3` instead of `Workspace Pkgs: 3`).
+
 # 1.1.2
 
 - **True `--offline` HTML Support**: Inlined Base64-encoded `vis-network.min.js` (v10.1.0 UMD) asset and system font fallbacks when `--offline` flag is specified.
