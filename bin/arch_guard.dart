@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:dep_graph_visualizer/src/cli/run.dart';
+import 'package:arch_guard/src/cli/run.dart';
 
 Future<void> main(List<String> args) async {
   final exitCode = await runCli(args);

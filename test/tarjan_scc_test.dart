@@ -1,4 +1,4 @@
-import 'package:dep_graph_visualizer/src/graph/tarjan_scc.dart';
+import 'package:arch_guard/src/graph/tarjan_scc.dart';
 import 'package:test/test.dart';
 
 void main() {

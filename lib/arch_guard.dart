@@ -1,4 +1,4 @@
-/// Circular dependency and import graph visualizer for Dart and Flutter projects.
+/// Static architecture analysis, Clean Architecture layer governance, metrics, and dependency graph visualizer for Dart and Flutter projects.
 library;
 
 export 'src/checker/layer_validator.dart';

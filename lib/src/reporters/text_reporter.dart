@@ -32,7 +32,7 @@ class TextReporter {
         : cycles.fold<int>(0, (sum, c) => sum + c.files.length) / cycles.length;
 
     buffer.writeln('==================================================');
-    buffer.writeln('$bold  Dependency Graph Visualizer - Scan Summary$reset');
+    buffer.writeln('$bold  arch_guard - Scan Summary$reset');
     buffer.writeln('==================================================');
     buffer.writeln('Package Name:  $cyan${result.packageName}$reset');
     if (result.isWorkspace) {

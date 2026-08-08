@@ -1,4 +1,4 @@
-import 'package:dep_graph_visualizer/dep_graph_visualizer.dart';
+import 'package:arch_guard/arch_guard.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -40,7 +40,7 @@ void main() {
         cycles: mockCycles,
       );
 
-      expect(text, contains('Dependency Graph Visualizer - Scan Summary'));
+      expect(text, contains('arch_guard - Scan Summary'));
       expect(text, contains('Package Name:  demo_pkg'));
       expect(text, contains('SCC Cycles:    1'));
       expect(text, contains('lib/a.dart'));

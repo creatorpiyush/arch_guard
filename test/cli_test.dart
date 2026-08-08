@@ -1,4 +1,4 @@
-import 'package:dep_graph_visualizer/src/cli/run.dart';
+import 'package:arch_guard/src/cli/run.dart';
 import 'package:test/test.dart';
 
 void main() {

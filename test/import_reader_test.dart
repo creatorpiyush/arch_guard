@@ -1,4 +1,4 @@
-import 'package:dep_graph_visualizer/src/scanner/import_reader.dart';
+import 'package:arch_guard/src/scanner/import_reader.dart';
 import 'package:test/test.dart';
 
 void main() {

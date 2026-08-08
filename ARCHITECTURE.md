@@ -1,17 +1,17 @@
-# `dep_graph_visualizer` — Architecture & Technical Design Specification
+# `arch_guard` — Architecture & Technical Design Specification
 
-This document provides a comprehensive technical overview of the system architecture, component design, data flow, algorithmic implementations, and scalability mechanics of `dep_graph_visualizer`.
+This document provides a comprehensive technical overview of the system architecture, component design, data flow, algorithmic implementations, and scalability mechanics of `arch_guard`.
 
 ---
 
 ## 1. System Overview & Architecture Goals
 
-`dep_graph_visualizer` is a high-performance Dart library and CLI tool engineered for static architecture analysis, circular dependency detection, and architectural boundary governance in Dart/Flutter monorepos and single-package projects.
+`arch_guard` is a high-performance Dart library and CLI tool engineered for static architecture analysis, circular dependency detection, and architectural boundary governance in Dart/Flutter monorepos and single-package projects.
 
 ### Key Architectural Objectives:
 1. **High-Throughput Static Scanning**: Parse import/export directives rapidly across 1,000+ Dart files without relying on heavy, slow analyzer AST trees.
 2. **Mathematically Accurate Cycle Analysis**: Utilize Tarjan's Strongly Connected Component (SCC) algorithm to identify complete dependency clusters rather than isolated loops.
-3. **Architectural Governance**: Enforce Clean Architecture layer rules and directional boundary constraints configured via `dep_graph.yaml` or `pubspec.yaml`.
+3. **Architectural Governance**: Enforce Clean Architecture layer rules and directional boundary constraints configured via `arch_guard.yaml` or `pubspec.yaml`.
 4. **Scalable Multi-Format Visualization**: Render interactive HTML visualizers, Mermaid.js diagrams, JSON payloads, and Graphviz DOT graphs with scope filtering to eliminate browser freezes on massive codebases.
 
 ---
