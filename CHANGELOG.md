@@ -1,3 +1,11 @@
+# 1.2.1
+
+- **Wider compatibility: minimum Dart SDK lowered from 3.11 to 3.8** (Flutter 3.32+), so projects on older toolchains can add `arch_guard` as a dev dependency.
+- **New: Standalone binaries**: every GitHub Release now includes prebuilt executables for Linux (x64, arm64), macOS (Apple Silicon) and Windows (x64) plus a `SHA256SUMS.txt`, so CI pipelines can run `arch_guard` without installing the Dart SDK.
+- **CI: Tests run on Linux, macOS and Windows** against both the minimum supported SDK (3.8) and the latest stable SDK.
+- **Fix: Publish workflow ran twice per release**: publishing to pub.dev is now triggered by version tags only.
+- Removed the Flutter `.metadata` file from the repository.
+
 # 1.2.0
 
 - **Fix: `--scan-dir` was ignored** whenever workspace discovery was on (the default). A single-package project is no longer treated as a workspace, and in workspace mode the root package honours `--scan-dir`.
