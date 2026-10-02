@@ -1,0 +1,175 @@
+name: arch_guard
+description: Check Dart/Flutter layer boundaries and circular dependencies, with PR comments and SARIF output.
+author: creatorpiyush
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Project directory to scan, relative to the repository root.
+    default: .
+  version:
+    description: >-
+      arch_guard release to run, e.g. `v1.3.0`. Defaults to the ref this action
+      is pinned to when that is a version tag, otherwise the latest release.
+      `source` builds the action's own checkout instead (needs Dart on the runner).
+    default: ''
+  args:
+    description: Extra arch_guard arguments, e.g. `--no-fail-on-cycle --scan-dir lib`.
+    default: ''
+  comment:
+    description: >-
+      Post (and keep updating) a pull request comment with new problems and the
+      cycle graph. Needs `pull-requests: write`.
+    default: 'true'
+  upload-sarif:
+    description: >-
+      Upload the SARIF report to GitHub Code Scanning. Needs
+      `security-events: write`; private repositories also need GitHub Advanced Security.
+    default: 'false'
+  output-dir:
+    description: Directory for the generated reports, relative to `path`.
+    default: arch_guard_output
+  token:
+    description: Token used to post the pull request comment.
+    default: ${{ github.token }}
+
+outputs:
+  exit-code:
+    description: arch_guard's exit code (0 clean, 1 new problems, 2 scan error, 64 usage error).
+    value: ${{ steps.run.outputs.exit-code }}
+  sarif-file:
+    description: Path of the SARIF report.
+    value: ${{ steps.run.outputs.sarif-file }}
+  markdown-file:
+    description: Path of the Markdown summary.
+    value: ${{ steps.run.outputs.markdown-file }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install arch_guard
+      id: install
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        bin_dir="$RUNNER_TEMP/arch_guard_bin"
+        mkdir -p "$bin_dir"
+        ext=""
+        [ "$RUNNER_OS" = "Windows" ] && ext=".exe"
+        exe="$bin_dir/arch_guard$ext"
+
+        if [ "$VERSION" = "source" ]; then
+          dart pub get --directory "$ACTION_PATH"
+          dart compile exe "$ACTION_PATH/bin/arch_guard.dart" -o "$exe"
+        else
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64) target=linux-x64 ;;
+            Linux-ARM64) target=linux-arm64 ;;
+            macOS-ARM64) target=macos-arm64 ;;
+            Windows-X64) target=windows-x64 ;;
+            *) echo "::error::No prebuilt arch_guard binary for $RUNNER_OS/$RUNNER_ARCH. Set version: source and install Dart."; exit 1 ;;
+          esac
+
+          if [ -z "$VERSION" ] && [[ "$ACTION_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            VERSION="$ACTION_REF"
+          fi
+          base="https://github.com/creatorpiyush/arch_guard/releases"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "latest" ]; then
+            url="$base/latest/download"
+          else
+            url="$base/download/v${VERSION#v}"
+          fi
+
+          asset="arch_guard-$target$ext"
+          curl -fsSL --retry 3 -o "$bin_dir/$asset" "$url/$asset"
+          curl -fsSL --retry 3 -o "$bin_dir/SHA256SUMS.txt" "$url/SHA256SUMS.txt"
+          (
+            cd "$bin_dir"
+            grep " $asset\$" SHA256SUMS.txt > expected.txt
+            if command -v sha256sum >/dev/null; then
+              sha256sum -c expected.txt
+            else
+              shasum -a 256 -c expected.txt
+            fi
+          )
+          mv "$bin_dir/$asset" "$exe"
+          chmod +x "$exe"
+        fi
+
+        "$exe" --version || true
+        echo "exe=$exe" >> "$GITHUB_OUTPUT"
+
+    - name: Run arch_guard
+      id: run
+      shell: bash
+      working-directory: ${{ inputs.path }}
+      env:
+        EXE: ${{ steps.install.outputs.exe }}
+        OUTPUT_DIR: ${{ inputs.output-dir }}
+        EXTRA_ARGS: ${{ inputs.args }}
+      run: |
+        set -uo pipefail
+        # Word-split EXTRA_ARGS on purpose so several flags can be passed.
+        # shellcheck disable=SC2086
+        "$EXE" . -f text -f sarif -f markdown -o "$OUTPUT_DIR" $EXTRA_ARGS
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        case "$OUTPUT_DIR" in
+          /*|?:*) out="$OUTPUT_DIR" ;;
+          *) out="$PWD/$OUTPUT_DIR" ;;
+        esac
+        sarif="$out/arch_guard.sarif"
+        markdown="$out/arch_guard_report.md"
+        if [ -f "$markdown" ]; then
+          cat "$markdown" >> "$GITHUB_STEP_SUMMARY"
+          [ "$RUNNER_OS" = "Windows" ] && markdown=$(cygpath -w "$markdown")
+          echo "markdown-file=$markdown" >> "$GITHUB_OUTPUT"
+        fi
+        if [ -f "$sarif" ]; then
+          [ "$RUNNER_OS" = "Windows" ] && sarif=$(cygpath -w "$sarif")
+          echo "sarif-file=$sarif" >> "$GITHUB_OUTPUT"
+        fi
+        exit 0
+
+    - name: Comment on pull request
+      if: inputs.comment == 'true' && github.event.pull_request.number && steps.run.outputs.markdown-file
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        BODY_FILE: ${{ steps.run.outputs.markdown-file }}
+      run: |
+        set -euo pipefail
+        marker='<!-- arch_guard-report -->'
+        comment_id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+          --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+        if [ -n "$comment_id" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$comment_id" -F "body=@$BODY_FILE" > /dev/null
+        else
+          gh api "repos/$REPO/issues/$PR/comments" -F "body=@$BODY_FILE" > /dev/null
+        fi
+
+    - name: Upload SARIF
+      if: inputs.upload-sarif == 'true' && steps.run.outputs.sarif-file
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.run.outputs.sarif-file }}
+        category: arch_guard
+
+    - name: Report result
+      shell: bash
+      env:
+        CODE: ${{ steps.run.outputs.exit-code }}
+      run: |
+        if [ "$CODE" != "0" ]; then
+          echo "::error::arch_guard exited with code $CODE (see the job summary for details)."
+        fi
+        exit "$CODE"

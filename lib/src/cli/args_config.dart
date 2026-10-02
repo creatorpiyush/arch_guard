@@ -8,17 +8,43 @@ class ArgsConfig {
     parser.addMultiOption(
       'format',
       abbr: 'f',
-      allowed: ['text', 'dot', 'html', 'json', 'mermaid', 'all'],
+      allowed: [
+        'text',
+        'dot',
+        'html',
+        'json',
+        'mermaid',
+        'sarif',
+        'markdown',
+        'all',
+      ],
       defaultsTo: ['text'],
       help:
-          'Export format(s) to generate (text, dot, html, json, mermaid, or all).',
+          'Export format(s) to generate (text, dot, html, json, mermaid, '
+          'sarif, markdown, or all).',
     );
 
     parser.addOption(
       'output',
       abbr: 'o',
       defaultsTo: 'arch_guard_output',
-      help: 'Output directory for generated dot/html/json/mermaid files.',
+      help: 'Output directory for generated report files.',
+    );
+
+    parser.addOption(
+      'baseline',
+      defaultsTo: 'arch_guard_baseline.json',
+      help:
+          'Baseline file of known problems (relative to the project). When it '
+          'exists, only problems not listed in it fail the run.',
+    );
+
+    parser.addFlag(
+      'update-baseline',
+      negatable: false,
+      help:
+          'Write the current cycles and layer violations to the baseline file '
+          'and exit with code 0.',
     );
 
     parser.addOption(
@@ -81,6 +107,12 @@ class ArgsConfig {
       abbr: 'h',
       negatable: false,
       help: 'Print this usage help message.',
+    );
+
+    parser.addFlag(
+      'version',
+      negatable: false,
+      help: 'Print the arch_guard version.',
     );
 
     return parser;

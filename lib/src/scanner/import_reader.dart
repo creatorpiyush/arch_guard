@@ -5,7 +5,10 @@ class ExtractedDirective {
   final String uri;
   final String type; // 'import', 'export' or 'part'
 
-  const ExtractedDirective(this.uri, {this.type = 'import'});
+  /// 1-based line of the directive keyword, if known.
+  final int? line;
+
+  const ExtractedDirective(this.uri, {this.type = 'import', this.line});
 }
 
 /// Lightweight Dart directive parser for `import`, `export` and `part` URIs.
@@ -88,6 +91,18 @@ class _DirectiveScanner {
 
   bool get _atEnd => pos >= src.length;
 
+  // Incremental offset -> line conversion; directives are read in order.
+  int _lineOffset = 0;
+  int _line = 1;
+
+  /// Returns the 1-based line containing [offset] (must not decrease).
+  int _lineAt(int offset) {
+    for (; _lineOffset < offset && _lineOffset < src.length; _lineOffset++) {
+      if (src.codeUnitAt(_lineOffset) == 0x0A) _line++;
+    }
+    return _line;
+  }
+
   int _char([int offset = 0]) =>
       pos + offset < src.length ? src.codeUnitAt(pos + offset) : -1;
 
@@ -107,17 +122,20 @@ class _DirectiveScanner {
       }
 
       final keyword = _peekIdentifier();
+      final line = _lineAt(pos);
       switch (keyword) {
         case 'import' || 'export':
           pos += keyword.length;
           final (:uris, firstWord: _) = _readStatement();
-          results.addAll(uris.map((u) => ExtractedDirective(u, type: keyword)));
+          results.addAll(
+            uris.map((u) => ExtractedDirective(u, type: keyword, line: line)),
+          );
         case 'part':
           pos += keyword.length;
           final (:uris, :firstWord) = _readStatement();
           if (firstWord != 'of') {
             results.addAll(
-              uris.map((u) => ExtractedDirective(u, type: 'part')),
+              uris.map((u) => ExtractedDirective(u, type: 'part', line: line)),
             );
           }
         case 'library':

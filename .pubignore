@@ -1,2 +1,15 @@
-# Files and directories to exclude when publishing to pub.dev
+# Files and directories to exclude when publishing to pub.dev.
+# Note: pub ignores .gitignore in a directory that has a .pubignore, so local
+# files that are gitignored must be listed here too.
 test/fixtures/
+plan.md
+*.iml
+.idea/
+.vscode/
+.fvm/
+.DS_Store
+**/build/
+**/.dart_tool/
+pubspec.lock
+action.yml
+.pre-commit-hooks.yaml

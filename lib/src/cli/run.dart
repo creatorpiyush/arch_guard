@@ -2,17 +2,21 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
+import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../exporters/dot_exporter.dart';
 import '../exporters/html_exporter.dart';
 import '../exporters/json_exporter.dart';
+import '../exporters/markdown_exporter.dart';
 import '../exporters/mermaid_exporter.dart';
+import '../exporters/sarif_exporter.dart';
 import '../graph/dependency_explainer.dart';
 import '../graph/dependency_graph.dart';
 import '../models/config_model.dart';
 import '../models/cycle.dart';
 import '../reporters/text_reporter.dart';
 import '../scanner/project_scanner.dart';
+import '../version.dart';
 import 'args_config.dart';
 
 /// Entry point logic for CLI execution.
@@ -33,6 +37,11 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln('Usage: arch_guard [project_path] [options]');
     stdout.writeln();
     stdout.writeln(parser.usage);
+    return 0;
+  }
+
+  if (argResults['version'] == true) {
+    stdout.writeln('arch_guard $packageVersion');
     return 0;
   }
 
@@ -57,6 +66,11 @@ Future<int> runCli(List<String> args) async {
   final offline = argResults['offline'] as bool;
   final failOnCycle = argResults['fail-on-cycle'] as bool;
   final enableWorkspace = argResults['workspace'] as bool;
+  final updateBaseline = argResults['update-baseline'] as bool;
+  final baselinePath = _resolve(
+    absProjectPath,
+    argResults['baseline'] as String,
+  );
 
   // Load arch_guard.yaml / dep_graph.yaml / pubspec.yaml layer rules & ignores
   final config = ArchGuardConfig.load(absProjectPath);
@@ -117,32 +131,81 @@ Future<int> runCli(List<String> args) async {
     return 0;
   }
 
+  Baseline? baseline;
+  if (!updateBaseline) {
+    try {
+      baseline = Baseline.load(baselinePath);
+    } on FormatException catch (e) {
+      stderr.writeln('Error: ${e.message}');
+      return 2;
+    }
+  }
+  final comparison = baseline?.compare(
+    cycles: cycles,
+    layerViolations: layerViolations,
+  );
+  final newCycles = comparison?.newCycles ?? cycles;
+  final newViolations = comparison?.newViolations ?? layerViolations;
+
+  final cRed = useColor ? '\x1B[31m' : '';
+  final cGreen = useColor ? '\x1B[32m' : '';
+  final cReset = useColor ? '\x1B[0m' : '';
+
   // Text summary report is always printed to terminal
   final textReporter = TextReporter(useColor: useColor);
   stdout.write(textReporter.formatReport(result: scanResult, cycles: cycles));
 
-  if (layerViolations.isNotEmpty) {
-    final cRed = useColor ? '\x1B[31m' : '';
-    final cReset = useColor ? '\x1B[0m' : '';
+  if (newViolations.isNotEmpty) {
+    final label = baseline == null ? '' : 'NEW ';
     stdout.writeln(
-      '$cRed[!] LAYER BOUNDARY VIOLATIONS DETECTED (${layerViolations.length}):$cReset',
+      '$cRed[!] ${label}LAYER BOUNDARY VIOLATIONS DETECTED (${newViolations.length}):$cReset',
     );
-    for (final v in layerViolations) {
+    for (final v in newViolations) {
       stdout.writeln('  $v');
+    }
+    stdout.writeln();
+  }
+
+  final maxSccSize = config.maxSccSize;
+  final oversizedSccs = maxSccSize == null
+      ? const <Cycle>[]
+      : cycles.where((c) => c.files.length > maxSccSize).toList();
+  final newOversizedSccs = oversizedSccs.where(newCycles.contains).toList();
+
+  if (comparison != null) {
+    stdout.writeln(
+      'Baseline: ${p.relative(baselinePath, from: absProjectPath)}',
+    );
+    stdout.writeln(
+      '  Known (ignored): ${comparison.knownCycles.length} cycle group(s), '
+      '${comparison.knownViolations.length} layer violation(s)',
+    );
+    final newColor = newCycles.isEmpty && newViolations.isEmpty ? cGreen : cRed;
+    stdout.writeln(
+      '  New:             $newColor${newCycles.length} cycle group(s), '
+      '${newViolations.length} layer violation(s)$cReset',
+    );
+    for (final cycle in newCycles) {
+      final id = cycle.scc?.id;
+      stdout.writeln(
+        '    New cycle${id != null ? ' #$id' : ''}: '
+        '${cycle.exampleChain.join(' -> ')}',
+      );
+    }
+    if (comparison.fixedCycleCount > 0 || comparison.fixedViolationCount > 0) {
+      stdout.writeln(
+        '  $cGreen${comparison.fixedCycleCount} cycle group(s) and '
+        '${comparison.fixedViolationCount} layer violation(s) in the '
+        'baseline are fixed.$cReset Run with --update-baseline to lock this in.',
+      );
     }
     stdout.writeln();
   }
 
   final exportAll = formats.contains('all');
 
-  if (exportAll ||
-      formats.contains('dot') ||
-      formats.contains('html') ||
-      formats.contains('json') ||
-      formats.contains('mermaid')) {
-    final absOutputDir = p.isAbsolute(outputDir)
-        ? outputDir
-        : p.join(absProjectPath, outputDir);
+  if (exportAll || formats.any((f) => f != 'text')) {
+    final absOutputDir = _resolve(absProjectPath, outputDir);
 
     final outDir = Directory(absOutputDir);
     if (!outDir.existsSync()) {
@@ -193,20 +256,45 @@ Future<int> runCli(List<String> args) async {
       File(mermaidPath).writeAsStringSync(mermaidContent);
       stdout.writeln('Exported Mermaid diagram to: $mermaidPath');
     }
+
+    if (exportAll || formats.contains('sarif')) {
+      final sarifPath = p.join(absOutputDir, 'arch_guard.sarif');
+      final sarifContent = SarifExporter.export(
+        result: scanResult,
+        cycles: cycles,
+        layerViolations: layerViolations,
+        baseline: comparison,
+        oversizedCycles: oversizedSccs,
+        maxSccSize: maxSccSize,
+        failOnCycle: failOnCycle,
+        failOnLayerViolation: config.failOnLayerViolation,
+        uriPrefix: _repoRelativePrefix(absProjectPath),
+      );
+      File(sarifPath).writeAsStringSync(sarifContent);
+      stdout.writeln('Exported SARIF report to: $sarifPath');
+    }
+
+    if (exportAll || formats.contains('markdown')) {
+      final markdownPath = p.join(absOutputDir, 'arch_guard_report.md');
+      final markdownContent = MarkdownExporter.export(
+        result: scanResult,
+        cycles: cycles,
+        layerViolations: layerViolations,
+        baseline: comparison,
+        oversizedCycles: oversizedSccs,
+        maxSccSize: maxSccSize,
+      );
+      File(markdownPath).writeAsStringSync(markdownContent);
+      stdout.writeln('Exported Markdown summary to: $markdownPath');
+    }
     stdout.writeln();
   }
 
-  final maxSccSize = config.maxSccSize;
-  final oversizedSccs = maxSccSize == null
-      ? const <Cycle>[]
-      : cycles.where((c) => c.files.length > maxSccSize).toList();
-  if (oversizedSccs.isNotEmpty) {
-    final cRed = useColor ? '\x1B[31m' : '';
-    final cReset = useColor ? '\x1B[0m' : '';
+  if (newOversizedSccs.isNotEmpty) {
     stdout.writeln(
       '$cRed[!] SCC SIZE LIMIT EXCEEDED (max_scc_size: $maxSccSize):$cReset',
     );
-    for (final cycle in oversizedSccs) {
+    for (final cycle in newOversizedSccs) {
       final id = cycle.scc?.id;
       stdout.writeln(
         '  Component${id != null ? ' #$id' : ''} has ${cycle.files.length} files',
@@ -215,19 +303,53 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
-  if (layerViolations.isNotEmpty && config.failOnLayerViolation) {
+  if (updateBaseline) {
+    Baseline.capture(
+      cycles: cycles,
+      layerViolations: layerViolations,
+    ).save(baselinePath);
+    stdout.writeln(
+      '${cGreen}Baseline written to $baselinePath$cReset '
+      '(${cycles.length} cycle group(s), ${layerViolations.length} layer '
+      'violation(s)). Commit it; later runs fail only on new problems.',
+    );
+    return 0;
+  }
+
+  if (newViolations.isNotEmpty && config.failOnLayerViolation) {
     return 1;
   }
 
-  if (oversizedSccs.isNotEmpty) {
+  if (newOversizedSccs.isNotEmpty) {
     return 1;
   }
 
-  if (cycles.isNotEmpty && failOnCycle) {
+  if (newCycles.isNotEmpty && failOnCycle) {
     return 1;
   }
 
   return 0;
+}
+
+/// Resolves [path] against the scanned project unless it is absolute.
+String _resolve(String absProjectPath, String path) =>
+    p.isAbsolute(path) ? path : p.join(absProjectPath, path);
+
+/// Path of [absProjectPath] inside its git repository (e.g. `packages/app/`),
+/// so SARIF locations resolve from the repository root. Empty when the
+/// project is the repository root or not inside a git repository.
+String _repoRelativePrefix(String absProjectPath) {
+  var dir = Directory(absProjectPath);
+  while (true) {
+    final git = p.join(dir.path, '.git');
+    if (FileSystemEntity.typeSync(git) != FileSystemEntityType.notFound) {
+      final rel = p.relative(absProjectPath, from: dir.path);
+      return rel == '.' ? '' : '${p.split(rel).join('/')}/';
+    }
+    final parent = dir.parent;
+    if (parent.path == dir.path) return '';
+    dir = parent;
+  }
 }
 
 void _warn(String message, bool useColor) {

@@ -9,11 +9,15 @@ class LayerViolation {
   final String sourceLayer;
   final String targetLayer;
 
+  /// 1-based line of the offending directive in [sourceFile], if known.
+  final int? line;
+
   const LayerViolation({
     required this.sourceFile,
     required this.targetFile,
     required this.sourceLayer,
     required this.targetLayer,
+    this.line,
   });
 
   Map<String, dynamic> toJson() => {
@@ -21,6 +25,7 @@ class LayerViolation {
     'targetFile': targetFile,
     'sourceLayer': sourceLayer,
     'targetLayer': targetLayer,
+    'line': ?line,
   };
 
   @override
@@ -76,6 +81,7 @@ class LayerValidator {
                 targetFile: edge.to,
                 sourceLayer: sourceLayer,
                 targetLayer: targetLayer,
+                line: edge.line,
               ),
             );
           }
