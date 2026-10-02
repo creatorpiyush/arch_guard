@@ -151,5 +151,52 @@ void main() {
         expect(nodeDeclarationCount, equals(2));
       },
     );
+
+    test('HtmlExporter escapes markup in file paths', () {
+      const nasty = 'lib/</script><img src=x onerror=alert(1)>.dart';
+      const result = ScanResult(
+        packageName: 'demo_pkg',
+        files: {
+          nasty: FileNode(relativePath: nasty, absolutePath: '/abs/x.dart'),
+        },
+        edges: [GraphEdge(from: nasty, to: nasty)],
+      );
+      final html = HtmlExporter.export(
+        result: result,
+        cycles: const [
+          Cycle(files: [nasty], exampleChain: [nasty, nasty]),
+        ],
+      );
+      expect(html, isNot(contains('</script><img')));
+      expect(html, contains(r'</script>'));
+      expect(html, contains('function escapeHtml'));
+    });
+
+    test('exporters style part edges distinctly', () {
+      const result = ScanResult(
+        packageName: 'demo_pkg',
+        files: {
+          'lib/a.dart': FileNode(
+            relativePath: 'lib/a.dart',
+            absolutePath: '/abs/a.dart',
+          ),
+          'lib/a_part.dart': FileNode(
+            relativePath: 'lib/a_part.dart',
+            absolutePath: '/abs/a_part.dart',
+          ),
+        },
+        edges: [
+          GraphEdge(from: 'lib/a.dart', to: 'lib/a_part.dart', type: 'part'),
+        ],
+      );
+      expect(
+        DotExporter.export(result: result, cycles: const [], scope: 'all'),
+        contains('style=dotted'),
+      );
+      expect(
+        MermaidExporter.export(result: result, cycles: const [], scope: 'all'),
+        contains('-. part .->'),
+      );
+    });
   });
 }

@@ -27,7 +27,17 @@ class PubspecReader {
     return null;
   }
 
+  /// Default member locations for monorepos without an explicit `workspace:` list
+  /// (Melos-style `packages/*` and `apps/*` layouts).
+  static const List<String> defaultMemberPatterns = ['packages/**', 'apps/**'];
+
   /// Discovers all member packages in a Dart 3.6+ workspace or monorepo under [projectRoot].
+  ///
+  /// Members are taken from the root `pubspec.yaml` `workspace:` list when present,
+  /// otherwise from [defaultMemberPatterns]. Returns an empty map when no member
+  /// packages are found, so a plain single-package project is never treated as a
+  /// workspace. When members exist, the root package (if it has a `lib/`) is
+  /// included under package path `.`.
   ///
   /// Maps package name -> [WorkspacePackage].
   static Map<String, WorkspacePackage> discoverWorkspacePackages(
@@ -38,6 +48,7 @@ class PubspecReader {
 
     final rootPubspecFile = File(p.join(absRoot, 'pubspec.yaml'));
     final workspaceGlobs = <Glob>[];
+    WorkspacePackage? rootPackage;
 
     if (rootPubspecFile.existsSync()) {
       try {
@@ -47,7 +58,7 @@ class PubspecReader {
           final rootName = yamlMap['name']?.toString();
           if (rootName != null &&
               Directory(p.join(absRoot, 'lib')).existsSync()) {
-            results[rootName] = WorkspacePackage(
+            rootPackage = WorkspacePackage(
               name: rootName,
               packagePath: '.',
               libPath: 'lib',
@@ -64,18 +75,27 @@ class PubspecReader {
       } catch (_) {}
     }
 
-    // Default search locations if no explicit workspace list is given or for general monorepos
     final rootDir = Directory(absRoot);
     if (!rootDir.existsSync()) return results;
+
+    // Without an explicit workspace list, only auto-discover conventional
+    // monorepo locations, and skip example/test packages nested inside them.
+    final isExplicitWorkspace = workspaceGlobs.isNotEmpty;
+    final memberGlobs = isExplicitWorkspace
+        ? workspaceGlobs
+        : defaultMemberPatterns.map((pattern) => Glob(pattern)).toList();
 
     final ignoredDirs = {
       '.dart_tool',
       'build',
       '.git',
       '.idea',
+      '.fvm',
       'node_modules',
+      'arch_guard_output',
       'dep_graph_output',
       '.github',
+      if (!isExplicitWorkspace) ...{'example', 'test', 'tool'},
     };
 
     void scanDirectory(Directory dir, int currentDepth) {
@@ -98,15 +118,12 @@ class PubspecReader {
           final libDir = Directory(p.join(entity.path, 'lib'));
 
           if (pubspecFile.existsSync() && libDir.existsSync()) {
-            // Check if matches workspace globs (if any defined), or auto-discovered monorepo pkg
-            final matchesWorkspace =
-                workspaceGlobs.isEmpty ||
-                workspaceGlobs.any((g) => g.matches(relPath));
-
-            if (matchesWorkspace) {
+            if (memberGlobs.any((g) => g.matches(relPath))) {
               final pkgName = readPackageName(entity.path);
               if (pkgName != null && pkgName.isNotEmpty) {
-                final relLibPath = p.relative(libDir.path, from: absRoot);
+                final relLibPath = p
+                    .relative(libDir.path, from: absRoot)
+                    .replaceAll('\\', '/');
                 results[pkgName] = WorkspacePackage(
                   name: pkgName,
                   packagePath: relPath,
@@ -124,6 +141,11 @@ class PubspecReader {
 
     scanDirectory(rootDir, 1);
 
+    if (results.isEmpty) return results;
+    final root = rootPackage;
+    if (root != null && !results.containsKey(root.name)) {
+      results[root.name] = root;
+    }
     return results;
   }
 }

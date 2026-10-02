@@ -69,7 +69,11 @@ class DotExporter {
           cycleNodes.contains(edge.from) && cycleNodes.contains(edge.to);
       final color = isCycleEdge ? '#ef4444' : '#d1d5db';
       final penWidth = isCycleEdge ? '2.0' : '1.0';
-      final style = edge.type == 'export' ? 'dashed' : 'solid';
+      final style = switch (edge.type) {
+        'export' => 'dashed',
+        'part' => 'dotted',
+        _ => 'solid',
+      };
 
       buffer.writeln(
         '  "${_escape(edge.from)}" -> "${_escape(edge.to)}" [color="$color", penwidth=$penWidth, style=$style];',

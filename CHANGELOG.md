@@ -1,3 +1,16 @@
+# 1.2.0
+
+- **Fix: `--scan-dir` was ignored** whenever workspace discovery was on (the default). A single-package project is no longer treated as a workspace, and in workspace mode the root package honours `--scan-dir`.
+- **Fix: Over-eager workspace auto-discovery**: without a `workspace:` list, only `packages/` and `apps/` are searched, and `example/`, `test/` and `tool/` packages are skipped. Previously `example/` apps and test fixtures were scanned and could report false cycles. Monorepos with other layouts should declare a `workspace:` list.
+- **Fix: Phantom graph nodes**: edges are only kept when their target file was actually scanned.
+- **New: `max_scc_size` is enforced**: any circular-dependency group larger than the limit fails the run (exit code `1`), even with `--no-fail-on-cycle`.
+- **New: Configuration warnings**: unparseable YAML, unknown keys, wrongly typed values, `allowed_imports` naming unknown layers, layers that match no files, files that belong to no layer, and unreadable source files are now reported on stderr instead of being silently ignored. `LayerValidator.coverage()`, `ArchGuardConfig.warnings` and `ScanResult.skippedFiles` expose the same data to library users.
+- **New: `part` directives** produce `library -> part` edges (type `part`, drawn dotted in DOT/Mermaid/HTML); `FileNode.parts` lists them.
+- **Improved: Directive parser** now reads the directive section token by token, so `//` or `/*` inside URIs or comments, nested block comments, annotations and import-like text inside later string literals no longer cause wrong results.
+- **Security: HTML report** escapes file paths before inserting them into the page and escapes `<`, `>` and `&` in the embedded JSON.
+- **Rename: `DepGraphConfig` is now `ArchGuardConfig`** (the old name remains as a deprecated alias). The legacy `dep_graph.yaml` file and `dep_graph_visualizer:` pubspec key still work but emit a deprecation warning; the example now uses `arch_guard.yaml`.
+- Tests write CLI output to a temporary directory instead of `example/sample_project/build/`.
+
 # 1.1.3
 
 - **Fix: Layer validator now works correctly in workspace/monorepo mode** (`LayerValidator`): Layer glob patterns such as `lib/domain/**` were silently never matching workspace-prefixed file paths (e.g. `packages/auth_pkg/lib/domain/entity.dart`). The validator now also tests the `lib/…` suffix of each path, making single-package and workspace `arch_guard.yaml` configs interchangeable with no user-side changes required.

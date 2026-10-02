@@ -12,11 +12,15 @@ class FileNode {
   /// List of raw export URIs extracted from this file.
   final List<String> exports;
 
+  /// List of raw `part` URIs declared by this file.
+  final List<String> parts;
+
   const FileNode({
     required this.relativePath,
     required this.absolutePath,
     this.imports = const [],
     this.exports = const [],
+    this.parts = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -24,6 +28,7 @@ class FileNode {
     'absolutePath': absolutePath,
     'imports': imports,
     'exports': exports,
+    'parts': parts,
   };
 
   @override

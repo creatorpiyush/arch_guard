@@ -68,7 +68,11 @@ class MermaidExporter {
       if (targetNodes.contains(edge.from) && targetNodes.contains(edge.to)) {
         final fromId = idByPath[edge.from]!;
         final toId = idByPath[edge.to]!;
-        final arrow = edge.type == 'export' ? '-. export .->' : '-->';
+        final arrow = switch (edge.type) {
+          'export' => '-. export .->',
+          'part' => '-. part .->',
+          _ => '-->',
+        };
         buffer.writeln('    $fromId $arrow $toId');
       }
     }
