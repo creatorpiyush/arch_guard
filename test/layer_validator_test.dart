@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('LayerValidator', () {
     test('detects layer boundary violations', () {
-      const config = DepGraphConfig(
+      const config = ArchGuardConfig(
         layers: {
           'domain': LayerDefinition(
             name: 'domain',
@@ -58,7 +58,7 @@ void main() {
         // `packages/auth_pkg/lib/domain/usecase.dart`.
         // Layer patterns are typically written as `lib/domain/**` (single-pkg style).
         // The validator should match both the full path and the lib-relative suffix.
-        const config = DepGraphConfig(
+        const config = ArchGuardConfig(
           layers: {
             'domain': LayerDefinition(
               name: 'domain',
@@ -105,5 +105,55 @@ void main() {
         expect(violations.first.targetLayer, equals('presentation'));
       },
     );
+  });
+
+  group('LayerValidator.coverage', () {
+    const config = ArchGuardConfig(
+      layers: {
+        'domain': LayerDefinition(name: 'domain', patterns: ['lib/domain/**']),
+        'data': LayerDefinition(name: 'data', patterns: ['lib/dta/**']),
+      },
+    );
+
+    const result = ScanResult(
+      packageName: 'clean_app',
+      files: {
+        'lib/domain/entity.dart': FileNode(
+          relativePath: 'lib/domain/entity.dart',
+          absolutePath: '/abs/lib/domain/entity.dart',
+        ),
+        'lib/data/repo.dart': FileNode(
+          relativePath: 'lib/data/repo.dart',
+          absolutePath: '/abs/lib/data/repo.dart',
+        ),
+        'lib/main.dart': FileNode(
+          relativePath: 'lib/main.dart',
+          absolutePath: '/abs/lib/main.dart',
+        ),
+      },
+      edges: [],
+    );
+
+    test('reports layers whose patterns match no files', () {
+      final coverage = LayerValidator.coverage(result: result, config: config);
+      expect(coverage.emptyLayers, equals(['data']));
+    });
+
+    test('reports files that belong to no layer', () {
+      final coverage = LayerValidator.coverage(result: result, config: config);
+      expect(
+        coverage.unassignedFiles,
+        equals(['lib/data/repo.dart', 'lib/main.dart']),
+      );
+    });
+
+    test('is empty when no layers are configured', () {
+      final coverage = LayerValidator.coverage(
+        result: result,
+        config: const ArchGuardConfig(),
+      );
+      expect(coverage.emptyLayers, isEmpty);
+      expect(coverage.unassignedFiles, isEmpty);
+    });
   });
 }

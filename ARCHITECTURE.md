@@ -77,7 +77,7 @@ flowchart TD
   - **Hub File Identification**: File node with highest combined degree ($in + out$) in the SCC.
 
 ### 3.3 Governance & Checker Subsystem (`lib/src/checker/` & `lib/src/models/config_model.dart`)
-- **`DepGraphConfig`**: Loads project configuration from `dep_graph.yaml` or `pubspec.yaml -> dep_graph_visualizer:`.
+- **`ArchGuardConfig`**: Loads project configuration from `arch_guard.yaml` or `pubspec.yaml -> arch_guard:` (legacy `dep_graph.yaml` / `dep_graph_visualizer:` still read, with a deprecation warning). Reports malformed config as warnings instead of failing silently.
 - **`LayerValidator`**: Compiles layer glob patterns (e.g. `lib/domain/**`) and validates dependency edges against declared `allowed_imports`. Detects directional violations (e.g., Domain layer importing Presentation or Data layers).
 
 ### 3.4 Inspection & Explainer Subsystem (`lib/src/graph/dependency_explainer.dart`)
@@ -98,7 +98,7 @@ flowchart TD
 sequenceDiagram
     autonumber
     participant CLI as runCli (run.dart)
-    participant Config as DepGraphConfig
+    participant Config as ArchGuardConfig
     participant Scanner as ProjectScanner
     participant Reader as ImportReader
     participant Graph as DependencyGraph
@@ -107,7 +107,7 @@ sequenceDiagram
     participant Exporters as Exporter Engines
 
     CLI->>Config: load(rootPath)
-    Config-->>CLI: DepGraphConfig (ignore globs, layer rules)
+    Config-->>CLI: ArchGuardConfig (ignore globs, layer rules)
 
     CLI->>Scanner: scan()
     Scanner->>Reader: extractDirectives() & resolveUri() (parallel batches)
@@ -119,7 +119,7 @@ sequenceDiagram
     Tarjan-->>Graph: List of SCC node groups
     Graph-->>CLI: List<Cycle> with SccComponent metrics
 
-    CLI->>Validator: validate(ScanResult, DepGraphConfig)
+    CLI->>Validator: validate(ScanResult, ArchGuardConfig)
     Validator-->>CLI: List<LayerViolation>
 
     CLI->>Exporters: export(Text, JSON, Mermaid, HTML, DOT)

@@ -8,7 +8,7 @@ class GraphEdge {
   /// Relative path of the imported/exported file.
   final String to;
 
-  /// The original directive type ('import' or 'export').
+  /// The original directive type ('import', 'export' or 'part').
   final String type;
 
   const GraphEdge({required this.from, required this.to, this.type = 'import'});
@@ -43,11 +43,15 @@ class ScanResult {
   /// Number of member packages discovered if scanning in workspace/monorepo mode.
   final int workspacePackageCount;
 
+  /// Files that matched the scan but could not be read, with the reason.
+  final Map<String, String> skippedFiles;
+
   const ScanResult({
     required this.packageName,
     required this.files,
     required this.edges,
     this.workspacePackageCount = 1,
+    this.skippedFiles = const {},
   });
 
   /// Whether this scan result represents a workspace/monorepo scan.

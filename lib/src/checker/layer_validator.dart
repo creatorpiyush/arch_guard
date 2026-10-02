@@ -28,58 +28,36 @@ class LayerViolation {
       '❌ Layer Violation: [$sourceLayer] $sourceFile -> [$targetLayer] $targetFile';
 }
 
+/// How well the configured layers cover the scanned files.
+class LayerCoverage {
+  /// Layers whose patterns matched none of the scanned files (often a typo).
+  final List<String> emptyLayers;
+
+  /// Scanned files that belong to no layer and are therefore never checked.
+  final List<String> unassignedFiles;
+
+  const LayerCoverage({
+    this.emptyLayers = const [],
+    this.unassignedFiles = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+    'emptyLayers': emptyLayers,
+    'unassignedFiles': unassignedFiles,
+  };
+}
+
 /// Validates dependency graph edges against configured Clean Architecture layers.
 class LayerValidator {
   /// Validates [result] against layer definitions in [config].
   static List<LayerViolation> validate({
     required ScanResult result,
-    required DepGraphConfig config,
+    required ArchGuardConfig config,
   }) {
     if (config.layers.isEmpty) return const [];
 
+    final resolveLayer = _layerResolver(config);
     final violations = <LayerViolation>[];
-    final layerGlobs = <String, List<Glob>>{};
-
-    // Compile globs per layer
-    config.layers.forEach((layerName, layerDef) {
-      layerGlobs[layerName] = layerDef.patterns.map((p) => Glob(p)).toList();
-    });
-
-    // Helper to determine layer of a file path.
-    //
-    // In workspace/monorepo mode, paths are prefixed with the package directory
-    // (e.g. `packages/auth_pkg/lib/domain/entity.dart`). Users typically write
-    // layer patterns relative to the package root (e.g. `lib/domain/**`).
-    //
-    // To support both single-package and workspace setups transparently, we
-    // match against:
-    //   1. The full path as-is (e.g. `packages/auth_pkg/lib/domain/entity.dart`)
-    //   2. The path starting from the first `lib/` segment, effectively
-    //      stripping the workspace package prefix (e.g. `lib/domain/entity.dart`)
-    String? resolveLayer(String path) {
-      final normalized = path.replaceAll('\\', '/');
-
-      // Derive the package-relative suffix: everything from `lib/` onward.
-      // e.g. `packages/auth_pkg/lib/domain/entity.dart` -> `lib/domain/entity.dart`
-      final libIndex = normalized.indexOf('/lib/');
-      final pkgRelativePath = libIndex >= 0
-          ? normalized.substring(libIndex + 1)
-          : null;
-
-      for (final entry in layerGlobs.entries) {
-        final globs = entry.value;
-        if (globs.any((glob) => glob.matches(normalized))) {
-          return entry.key;
-        }
-        // Also try matching the package-relative path so patterns like
-        // `lib/domain/**` work in workspace mode without any config change.
-        if (pkgRelativePath != null &&
-            globs.any((glob) => glob.matches(pkgRelativePath))) {
-          return entry.key;
-        }
-      }
-      return null;
-    }
 
     for (final edge in result.edges) {
       final sourceLayer = resolveLayer(edge.from);
@@ -106,5 +84,78 @@ class LayerValidator {
     }
 
     return violations;
+  }
+
+  /// Reports layers that matched no files and files that matched no layer.
+  static LayerCoverage coverage({
+    required ScanResult result,
+    required ArchGuardConfig config,
+  }) {
+    if (config.layers.isEmpty) return const LayerCoverage();
+
+    final resolveLayer = _layerResolver(config);
+    final usedLayers = <String>{};
+    final unassigned = <String>[];
+
+    for (final file in result.files.keys) {
+      final layer = resolveLayer(file);
+      if (layer == null) {
+        unassigned.add(file);
+      } else {
+        usedLayers.add(layer);
+      }
+    }
+
+    return LayerCoverage(
+      emptyLayers: config.layers.keys
+          .where((name) => !usedLayers.contains(name))
+          .toList(),
+      unassignedFiles: unassigned..sort(),
+    );
+  }
+
+  /// Builds a function mapping a file path to its layer name, or `null`.
+  ///
+  /// In workspace/monorepo mode, paths are prefixed with the package directory
+  /// (e.g. `packages/auth_pkg/lib/domain/entity.dart`). Users typically write
+  /// layer patterns relative to the package root (e.g. `lib/domain/**`).
+  ///
+  /// To support both single-package and workspace setups transparently, we
+  /// match against:
+  ///   1. The full path as-is (e.g. `packages/auth_pkg/lib/domain/entity.dart`)
+  ///   2. The path starting from the first `lib/` segment, effectively
+  ///      stripping the workspace package prefix (e.g. `lib/domain/entity.dart`)
+  static String? Function(String path) _layerResolver(ArchGuardConfig config) {
+    final layerGlobs = <String, List<Glob>>{};
+    config.layers.forEach((layerName, layerDef) {
+      layerGlobs[layerName] = layerDef.patterns.map((p) => Glob(p)).toList();
+    });
+
+    final cache = <String, String?>{};
+
+    return (String path) => cache.putIfAbsent(path, () {
+      final normalized = path.replaceAll('\\', '/');
+
+      // Derive the package-relative suffix: everything from `lib/` onward.
+      // e.g. `packages/auth_pkg/lib/domain/entity.dart` -> `lib/domain/entity.dart`
+      final libIndex = normalized.indexOf('/lib/');
+      final pkgRelativePath = libIndex >= 0
+          ? normalized.substring(libIndex + 1)
+          : null;
+
+      for (final entry in layerGlobs.entries) {
+        final globs = entry.value;
+        if (globs.any((glob) => glob.matches(normalized))) {
+          return entry.key;
+        }
+        // Also try matching the package-relative path so patterns like
+        // `lib/domain/**` work in workspace mode without any config change.
+        if (pkgRelativePath != null &&
+            globs.any((glob) => glob.matches(pkgRelativePath))) {
+          return entry.key;
+        }
+      }
+      return null;
+    });
   }
 }

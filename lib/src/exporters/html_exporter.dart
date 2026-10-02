@@ -114,7 +114,12 @@ class HtmlExporter {
       'cycles': cyclesJsonList,
     };
 
-    final rawJson = jsonEncode(payload);
+    // Escape markup characters so file paths can never close the surrounding
+    // <script> block; \u003c etc. are still valid JSON.
+    final rawJson = jsonEncode(payload)
+        .replaceAll('<', r'\u003c')
+        .replaceAll('>', r'\u003e')
+        .replaceAll('&', r'\u0026');
 
     final visNetworkTag = offline
         ? '<script>\n${_escapeInlineScript(visNetworkMinJs)}\n</script>'
@@ -426,6 +431,16 @@ class HtmlExporter {
     const panelImporters = document.getElementById('panel-importers');
     const panelClose = document.getElementById('panel-close');
 
+    // File paths are user data: escape before inserting into innerHTML.
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
     let selectedCycleIndex = null;
     let showOnlyCycles = false;
 
@@ -459,7 +474,7 @@ class HtmlExporter {
       arrows: 'to',
       color: e.isCycle ? { color: '#ef4444', highlight: '#f87171' } : { color: '#334155', highlight: '#64748b' },
       width: e.isCycle ? 2 : 1,
-      dashes: e.type === 'export'
+      dashes: e.type === 'export' ? true : (e.type === 'part' ? [2, 4] : false)
     })));
 
     const options = {
@@ -512,8 +527,8 @@ class HtmlExporter {
       cycleListContainer.innerHTML = graphData.cycles.map((cycle, idx) => {
         const cycleNum = idx + 1;
         const chainHtml = cycle.chain.map((step, i) => {
-          if (i === 0) return `<div class="chain-node">\${step}</div>`;
-          return `<div class="chain-node"><span class="chain-arrow">&rarr;</span> \${step}</div>`;
+          if (i === 0) return `<div class="chain-node">\${escapeHtml(step)}</div>`;
+          return `<div class="chain-node"><span class="chain-arrow">&rarr;</span> \${escapeHtml(step)}</div>`;
         }).join('');
 
         return `
@@ -633,11 +648,11 @@ class HtmlExporter {
       const incoming = graphData.edges.filter(e => e.to === nodeId).map(e => e.from);
 
       panelImports.innerHTML = outgoing.length > 0
-        ? outgoing.map(f => `<div>\${f}</div>`).join('')
+        ? outgoing.map(f => `<div>\${escapeHtml(f)}</div>`).join('')
         : '<div>None</div>';
 
       panelImporters.innerHTML = incoming.length > 0
-        ? incoming.map(f => `<div>\${f}</div>`).join('')
+        ? incoming.map(f => `<div>\${escapeHtml(f)}</div>`).join('')
         : '<div>None</div>';
 
       detailsPanel.style.display = 'block';

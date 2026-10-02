@@ -5,7 +5,7 @@ void main() async {
   await scanSinglePackageWithMetrics();
 
   print(
-    '\n=== 2. Clean Architecture Layer Boundary Check (using dep_graph.yaml) ===',
+    '\n=== 2. Clean Architecture Layer Boundary Check (using arch_guard.yaml) ===',
   );
   await validateCleanArchitectureLayers();
 
@@ -55,8 +55,8 @@ Future<void> scanSinglePackageWithMetrics() async {
 }
 
 Future<void> validateCleanArchitectureLayers() async {
-  // Load configuration directly from example/sample_project/dep_graph.yaml
-  final config = DepGraphConfig.load('example/sample_project');
+  // Load configuration directly from example/sample_project/arch_guard.yaml
+  final config = ArchGuardConfig.load('example/sample_project');
 
   final scanner = ProjectScanner(
     rootPath: 'example/sample_project',
@@ -67,7 +67,7 @@ Future<void> validateCleanArchitectureLayers() async {
   final violations = LayerValidator.validate(result: result, config: config);
 
   print(
-    'Loaded dep_graph.yaml (${config.layers.length} layers defined). Detected ${violations.length} layer violations.',
+    'Loaded arch_guard.yaml (${config.layers.length} layers defined). Detected ${violations.length} layer violations.',
   );
   for (final v in violations) {
     print('  $v');

@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/file_node.dart';
 import '../models/scan_result.dart';
+import '../models/workspace_package.dart';
 import 'default_excludes.dart';
 import 'import_reader.dart';
 import 'pubspec_reader.dart';
@@ -48,7 +49,7 @@ class ProjectScanner {
     // Discover workspace packages if enabled
     final workspacePkgs = enableWorkspace
         ? PubspecReader.discoverWorkspacePackages(absRoot)
-        : <String, dynamic>{};
+        : <String, WorkspacePackage>{};
 
     final workspaceLibMap = <String, String>{};
     workspacePkgs.forEach((name, pkg) {
@@ -56,13 +57,19 @@ class ProjectScanner {
     });
 
     final filesMap = <String, FileNode>{};
+    final skippedFiles = <String, String>{};
     final rawEdges = <_TempEdge>[];
 
-    // Determine target directories to scan
+    // Determine target directories to scan. Member packages contribute their
+    // lib directories; the root package (or a plain project) honours [scanDirs].
     final targetScanDirs = <String>[];
     if (workspacePkgs.isNotEmpty) {
       for (final pkg in workspacePkgs.values) {
-        targetScanDirs.add(pkg.libPath);
+        if (pkg.packagePath == '.') {
+          targetScanDirs.addAll(scanDirs);
+        } else {
+          targetScanDirs.add(pkg.libPath);
+        }
       }
     } else {
       targetScanDirs.addAll(scanDirs);
@@ -122,13 +129,17 @@ class ProjectScanner {
 
               final imports = <String>[];
               final exports = <String>[];
+              final parts = <String>[];
               final localRawEdges = <_TempEdge>[];
 
               for (final directive in directives) {
-                if (directive.type == 'export') {
-                  exports.add(directive.uri);
-                } else {
-                  imports.add(directive.uri);
+                switch (directive.type) {
+                  case 'export':
+                    exports.add(directive.uri);
+                  case 'part':
+                    parts.add(directive.uri);
+                  default:
+                    imports.add(directive.uri);
                 }
 
                 final resolvedTarget = ImportReader.resolveUri(
@@ -157,19 +168,23 @@ class ProjectScanner {
                 absolutePath: entity.path,
                 imports: imports,
                 exports: exports,
+                parts: parts,
               );
-            } catch (_) {
-              // Ignore unreadable files
+            } on FileSystemException catch (e) {
+              skippedFiles[relPath] = e.osError?.message ?? e.message;
+            } catch (e) {
+              skippedFiles[relPath] = e.toString();
             }
           }),
         );
       }
     }
 
-    // Filter edges: keep edges where target file is within scanned files or not excluded
+    // Keep only edges whose target was actually scanned, so files outside the
+    // scan scope (or non-existent paths) never become phantom graph nodes.
     final validEdges = <GraphEdge>[];
     for (final edge in rawEdges) {
-      if (filesMap.containsKey(edge.to) || isExcluded(edge.to) == false) {
+      if (filesMap.containsKey(edge.to)) {
         validEdges.add(
           GraphEdge(from: edge.from, to: edge.to, type: edge.type),
         );
@@ -183,6 +198,7 @@ class ProjectScanner {
       files: filesMap,
       edges: validEdges,
       workspacePackageCount: pkgCount,
+      skippedFiles: skippedFiles,
     );
   }
 }

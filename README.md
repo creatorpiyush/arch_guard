@@ -49,6 +49,10 @@ ignore:
 
 fail_on_layer_violation: true
 
+# Optional: fail when any circular-dependency group grows beyond N files,
+# even with --no-fail-on-cycle (useful for ratcheting down legacy cycles).
+max_scc_size: 5
+
 layers:
   domain:
     patterns:
@@ -72,6 +76,12 @@ layers:
 ```
 
 Or configure under `arch_guard:` in `pubspec.yaml`.
+
+Configuration problems are reported as warnings on stderr rather than silently ignored: unparseable YAML, unknown keys, wrongly typed values, layers whose patterns match no files, `allowed_imports` that name unknown layers, and files that belong to no layer (and so are never checked). The legacy `dep_graph.yaml` file and `dep_graph_visualizer:` pubspec key are still read, with a deprecation warning.
+
+### Workspaces & monorepos
+
+With `--workspace` (the default), member packages come from the root `pubspec.yaml` `workspace:` list. If there is no such list, packages under `packages/` and `apps/` are auto-discovered (ignoring `example/`, `test/` and `tool/` folders). A plain single-package project is scanned using `--scan-dir`.
 
 ---
 
@@ -189,7 +199,7 @@ void main() async {
   }
 
   // 3. Validate Clean Architecture layers
-  const config = DepGraphConfig(
+  const config = ArchGuardConfig(
     layers: {
       'domain': LayerDefinition(name: 'domain', patterns: ['lib/domain/**'], allowedImports: ['domain']),
       'presentation': LayerDefinition(name: 'presentation', patterns: ['lib/presentation/**'], allowedImports: ['presentation', 'domain']),

@@ -1,5 +1,5 @@
 name: sample_project
-description: Sample project with circular dependencies for testing dep_graph_visualizer.
+description: Sample project with circular dependencies for testing arch_guard.
 version: 1.0.0
 environment:
   sdk: ^3.0.0

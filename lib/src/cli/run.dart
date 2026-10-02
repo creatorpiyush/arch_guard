@@ -10,6 +10,7 @@ import '../exporters/mermaid_exporter.dart';
 import '../graph/dependency_explainer.dart';
 import '../graph/dependency_graph.dart';
 import '../models/config_model.dart';
+import '../models/cycle.dart';
 import '../reporters/text_reporter.dart';
 import '../scanner/project_scanner.dart';
 import 'args_config.dart';
@@ -58,7 +59,10 @@ Future<int> runCli(List<String> args) async {
   final enableWorkspace = argResults['workspace'] as bool;
 
   // Load arch_guard.yaml / dep_graph.yaml / pubspec.yaml layer rules & ignores
-  final config = DepGraphConfig.load(absProjectPath);
+  final config = ArchGuardConfig.load(absProjectPath);
+  for (final warning in config.warnings) {
+    _warn(warning, useColor);
+  }
   final mergedExcludes = [...excludes, ...config.ignorePatterns];
 
   final scanner = ProjectScanner(
@@ -75,6 +79,30 @@ Future<int> runCli(List<String> args) async {
     result: scanResult,
     config: config,
   );
+
+  scanResult.skippedFiles.forEach((file, reason) {
+    _warn('could not read $file: $reason', useColor);
+  });
+
+  final coverage = LayerValidator.coverage(result: scanResult, config: config);
+  for (final layer in coverage.emptyLayers) {
+    _warn(
+      'layer `$layer` matched no scanned files; check its patterns.',
+      useColor,
+    );
+  }
+  if (coverage.unassignedFiles.isNotEmpty) {
+    const previewCount = 5;
+    final preview = coverage.unassignedFiles.take(previewCount).join(', ');
+    final more = coverage.unassignedFiles.length > previewCount
+        ? ', ... (+${coverage.unassignedFiles.length - previewCount} more)'
+        : '';
+    _warn(
+      '${coverage.unassignedFiles.length} file(s) belong to no layer and are '
+      'not checked for layer violations: $preview$more',
+      useColor,
+    );
+  }
 
   // If explain target is specified, print explanation and exit
   if (explainTarget != null && explainTarget.isNotEmpty) {
@@ -168,7 +196,30 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
+  final maxSccSize = config.maxSccSize;
+  final oversizedSccs = maxSccSize == null
+      ? const <Cycle>[]
+      : cycles.where((c) => c.files.length > maxSccSize).toList();
+  if (oversizedSccs.isNotEmpty) {
+    final cRed = useColor ? '\x1B[31m' : '';
+    final cReset = useColor ? '\x1B[0m' : '';
+    stdout.writeln(
+      '$cRed[!] SCC SIZE LIMIT EXCEEDED (max_scc_size: $maxSccSize):$cReset',
+    );
+    for (final cycle in oversizedSccs) {
+      final id = cycle.scc?.id;
+      stdout.writeln(
+        '  Component${id != null ? ' #$id' : ''} has ${cycle.files.length} files',
+      );
+    }
+    stdout.writeln();
+  }
+
   if (layerViolations.isNotEmpty && config.failOnLayerViolation) {
+    return 1;
+  }
+
+  if (oversizedSccs.isNotEmpty) {
     return 1;
   }
 
@@ -177,4 +228,10 @@ Future<int> runCli(List<String> args) async {
   }
 
   return 0;
+}
+
+void _warn(String message, bool useColor) {
+  final cYellow = useColor ? '\x1B[33m' : '';
+  final cReset = useColor ? '\x1B[0m' : '';
+  stderr.writeln('${cYellow}Warning:$cReset $message');
 }

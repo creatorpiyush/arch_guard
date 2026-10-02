@@ -1,77 +1,27 @@
 import 'package:path/path.dart' as p;
 
-/// Directive extracted from a file (import or export).
+/// Directive extracted from a file (import, export or part).
 class ExtractedDirective {
   final String uri;
-  final String type; // 'import' or 'export'
+  final String type; // 'import', 'export' or 'part'
 
   const ExtractedDirective(this.uri, {this.type = 'import'});
 }
 
-/// Fast regex-based parser for Dart `import` and `export` directives.
+/// Lightweight Dart directive parser for `import`, `export` and `part` URIs.
+///
+/// Rather than building an AST, it walks the directive section at the top of
+/// a file token by token, skipping comments and annotations, and stops at the
+/// first declaration (Dart forbids directives after declarations). String
+/// literals are read properly, so `//` or `/*` inside a URI, and code inside
+/// later multi-line strings, never confuse it.
 class ImportReader {
-  // Matches every quoted URI on an import/export directive line.
-  static final RegExp _directiveLineRegex = RegExp(
-    r'^\s*(import|export)\s+.*?;',
-    multiLine: true,
-  );
-
-  static final RegExp _quotedUriRegex = RegExp(r'''['"]([^'"]+)['"]''');
-
-  /// Reads [content] and returns all raw import/export URIs.
-  static List<ExtractedDirective> extractDirectives(String content) {
-    final results = <ExtractedDirective>[];
-
-    // Remove block comments /* ... */
-    final noBlockComments = content.replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '');
-
-    // Pre-pass: sanitize lines and join multi-line import/export statements
-    final lines = noBlockComments.split('\n');
-    final processedBuffer = StringBuffer();
-
-    bool inDirective = false;
-
-    for (var line in lines) {
-      // Strip single line comments `// ...` unless inside strings
-      final commentIdx = line.indexOf('//');
-      var sanitized = commentIdx != -1 ? line.substring(0, commentIdx) : line;
-
-      final trimmed = sanitized.trim();
-      if (trimmed.isEmpty) continue;
-
-      final isDirectiveStart = RegExp(
-        r'^(import|export)(\s+|$)',
-      ).hasMatch(trimmed);
-
-      if (isDirectiveStart || inDirective) {
-        processedBuffer.write(' ');
-        processedBuffer.write(trimmed);
-        if (trimmed.endsWith(';')) {
-          inDirective = false;
-          processedBuffer.writeln();
-        } else {
-          inDirective = true;
-        }
-      }
-    }
-
-    final sanitizedContent = processedBuffer.toString();
-
-    for (final match in _directiveLineRegex.allMatches(sanitizedContent)) {
-      final directiveLine = match.group(0)!;
-      final directiveType = directiveLine.trimLeft().startsWith('export')
-          ? 'export'
-          : 'import';
-
-      for (final uriMatch in _quotedUriRegex.allMatches(directiveLine)) {
-        results.add(
-          ExtractedDirective(uriMatch.group(1)!, type: directiveType),
-        );
-      }
-    }
-
-    return results;
-  }
+  /// Reads [content] and returns all raw import/export/part URIs.
+  ///
+  /// Conditional imports yield every candidate URI. `part of` and `library`
+  /// directives yield nothing.
+  static List<ExtractedDirective> extractDirectives(String content) =>
+      _DirectiveScanner(content).scan();
 
   /// Resolves a raw [uri] to a package/repository-relative path.
   ///
@@ -125,4 +75,214 @@ class ImportReader {
         .replaceAll('\\', '/');
     return resolved;
   }
+}
+
+class _DirectiveScanner {
+  final String src;
+  int pos = 0;
+
+  _DirectiveScanner(this.src);
+
+  static const _quote1 = 0x27; // '
+  static const _quote2 = 0x22; // "
+
+  bool get _atEnd => pos >= src.length;
+
+  int _char([int offset = 0]) =>
+      pos + offset < src.length ? src.codeUnitAt(pos + offset) : -1;
+
+  List<ExtractedDirective> scan() {
+    final results = <ExtractedDirective>[];
+
+    if (src.startsWith('\uFEFF')) pos = 1;
+    if (src.startsWith('#!', pos)) _skipToLineEnd();
+
+    while (true) {
+      _skipTrivia();
+      if (_atEnd) break;
+
+      if (src[pos] == '@') {
+        _skipAnnotation();
+        continue;
+      }
+
+      final keyword = _peekIdentifier();
+      switch (keyword) {
+        case 'import' || 'export':
+          pos += keyword.length;
+          final (:uris, firstWord: _) = _readStatement();
+          results.addAll(uris.map((u) => ExtractedDirective(u, type: keyword)));
+        case 'part':
+          pos += keyword.length;
+          final (:uris, :firstWord) = _readStatement();
+          if (firstWord != 'of') {
+            results.addAll(
+              uris.map((u) => ExtractedDirective(u, type: 'part')),
+            );
+          }
+        case 'library':
+          pos += keyword.length;
+          _readStatement();
+        default:
+          // First declaration: no further directives are legal.
+          return results;
+      }
+    }
+
+    return results;
+  }
+
+  /// Consumes a directive up to and including `;`. Returns the string literals
+  /// found outside parentheses (so `if (dart.library.io == 'true')` conditions
+  /// are skipped) and the first identifier token, if the statement starts with one.
+  ({List<String> uris, String? firstWord}) _readStatement() {
+    final uris = <String>[];
+    String? firstWord;
+    var sawToken = false;
+    var depth = 0;
+
+    while (true) {
+      _skipTrivia();
+      if (_atEnd) break;
+      final c = src[pos];
+
+      if (c == ';') {
+        pos++;
+        break;
+      }
+
+      final literal = _tryReadString();
+      if (literal != null) {
+        if (depth == 0) uris.add(literal);
+        sawToken = true;
+        continue;
+      }
+
+      final word = _peekIdentifier();
+      if (word.isNotEmpty) {
+        if (!sawToken) firstWord = word;
+        pos += word.length;
+      } else {
+        if (c == '(') depth++;
+        if (c == ')' && depth > 0) depth--;
+        pos++;
+      }
+      sawToken = true;
+    }
+
+    return (uris: uris, firstWord: firstWord);
+  }
+
+  /// Skips `@name`, `@prefix.name` or `@name(...)` metadata.
+  void _skipAnnotation() {
+    pos++; // '@'
+    while (true) {
+      _skipTrivia();
+      final word = _peekIdentifier();
+      if (word.isEmpty) break;
+      pos += word.length;
+      _skipTrivia();
+      if (src.startsWith('.', pos)) {
+        pos++;
+        continue;
+      }
+      break;
+    }
+    _skipTrivia();
+    if (src.startsWith('(', pos)) {
+      var depth = 0;
+      while (!_atEnd) {
+        _skipTrivia();
+        if (_atEnd) break;
+        if (_tryReadString() != null) continue;
+        final c = src[pos++];
+        if (c == '(') depth++;
+        if (c == ')' && --depth == 0) break;
+      }
+    }
+  }
+
+  /// Reads a (possibly raw or triple-quoted) string literal at [pos] and
+  /// returns its contents, or returns `null` without moving if none starts here.
+  String? _tryReadString() {
+    var start = pos;
+    var raw = false;
+    if ((_char() == 0x72 || _char() == 0x52) && // r or R
+        (_char(1) == _quote1 || _char(1) == _quote2)) {
+      raw = true;
+      start++;
+    }
+    final q = start < src.length ? src.codeUnitAt(start) : -1;
+    if (q != _quote1 && q != _quote2) return null;
+
+    final quote = String.fromCharCode(q);
+    final delimiter = src.startsWith(quote * 3, start) ? quote * 3 : quote;
+    pos = start + delimiter.length;
+    final contentStart = pos;
+
+    while (!_atEnd) {
+      if (!raw && src[pos] == '\\') {
+        pos += 2;
+        continue;
+      }
+      if (src.startsWith(delimiter, pos)) {
+        final value = src.substring(contentStart, pos);
+        pos += delimiter.length;
+        return value;
+      }
+      pos++;
+    }
+    return src.substring(contentStart);
+  }
+
+  /// Skips whitespace, `//` line comments and (nestable) `/* */` block comments.
+  void _skipTrivia() {
+    while (!_atEnd) {
+      final c = _char();
+      if (c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D) {
+        pos++;
+      } else if (src.startsWith('//', pos)) {
+        _skipToLineEnd();
+      } else if (src.startsWith('/*', pos)) {
+        var depth = 0;
+        while (!_atEnd) {
+          if (src.startsWith('/*', pos)) {
+            depth++;
+            pos += 2;
+          } else if (src.startsWith('*/', pos)) {
+            pos += 2;
+            if (--depth == 0) break;
+          } else {
+            pos++;
+          }
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
+  void _skipToLineEnd() {
+    final newline = src.indexOf('\n', pos);
+    pos = newline == -1 ? src.length : newline + 1;
+  }
+
+  /// Returns the identifier starting at [pos] (without consuming it), or ''.
+  String _peekIdentifier() {
+    var end = pos;
+    while (end < src.length && _isIdentifierChar(src.codeUnitAt(end))) {
+      end++;
+    }
+    if (end == pos || _isDigit(src.codeUnitAt(pos))) return '';
+    return src.substring(pos, end);
+  }
+
+  static bool _isDigit(int c) => c >= 0x30 && c <= 0x39;
+
+  static bool _isIdentifierChar(int c) =>
+      (c >= 0x61 && c <= 0x7A) || // a-z
+      (c >= 0x41 && c <= 0x5A) || // A-Z
+      _isDigit(c) ||
+      c == 0x5F || // _
+      c == 0x24; // $
 }
