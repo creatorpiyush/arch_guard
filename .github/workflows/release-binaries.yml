@@ -1,0 +1,86 @@
+name: Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build binaries for (e.g. v1.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+          - os: macos-latest
+            target: macos-arm64
+          - os: windows-latest
+            target: windows-x64
+            ext: .exe
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Compile executable
+        shell: bash
+        run: |
+          mkdir -p dist
+          dart compile exe bin/arch_guard.dart -o "dist/arch_guard-${{ matrix.target }}${{ matrix.ext }}"
+
+      - name: Smoke test
+        shell: bash
+        run: |
+          "dist/arch_guard-${{ matrix.target }}${{ matrix.ext }}" --help
+          "dist/arch_guard-${{ matrix.target }}${{ matrix.ext }}" example/sample_project --no-fail-on-cycle -f all -o smoke_output
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arch_guard-${{ matrix.target }}
+          path: dist/*
+
+  release:
+    name: Attach binaries to GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum arch_guard-* > SHA256SUMS.txt
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: dist/*

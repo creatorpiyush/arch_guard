@@ -22,9 +22,12 @@ A pub.dev-ready CLI tool and Dart library for static architecture analysis, enfo
 
 ## Installation
 
-Add as a dependency in your `pubspec.yaml` or install globally via pub:
+Requires Dart SDK 3.8 or later (Flutter 3.32 or later).
+
+Add as a dev dependency in your `pubspec.yaml` or install globally via pub:
 
 ```bash
+dart pub add --dev arch_guard
 dart pub global activate arch_guard
 ```
 
@@ -32,6 +35,17 @@ Or run directly using `dart run` in any project or monorepo directory:
 
 ```bash
 dart run arch_guard [path] [options]
+```
+
+### Standalone binaries (no Dart SDK needed)
+
+Prebuilt executables for Linux (x64, arm64), macOS (Apple Silicon) and Windows (x64) are attached to every [GitHub Release](https://github.com/creatorpiyush/arch_guard/releases), along with a `SHA256SUMS.txt` file for checksum verification:
+
+```bash
+# Example: Linux x64 in CI
+curl -fsSL -o arch_guard https://github.com/creatorpiyush/arch_guard/releases/latest/download/arch_guard-linux-x64
+chmod +x arch_guard
+./arch_guard . --format mermaid
 ```
 
 ---

@@ -35,3 +35,8 @@ migrate_working_dir/
 
 .vscode/
 **/build/**
+# Local planning notes
+plan.md
+
+# Flutter tool metadata (not needed for a pure Dart package)
+.metadata
