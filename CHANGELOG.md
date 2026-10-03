@@ -1,3 +1,12 @@
+# 1.4.0
+
+- **New: `arch_guard init`.** Detects the project layout (Clean Architecture, Riverpod, Bloc or feature-first folders), writes a starter `arch_guard.yaml`, and previews the first scan: files per layer, violations, cycles, and the suggested next step. Options: `--preset <name|auto|none>`, `--dry-run`, `--force`.
+- **New: Layer presets.** `preset: clean_architecture | feature_first | bloc | riverpod` in the config expands to predefined layers. Entries under `layers:` override a preset layer key by key (for example only `allowed_imports`) or add new layers. `feature_first` discovers features from `lib/features/*` (or `lib/modules/*`) on every run, so each feature may import only itself and shared code.
+- **Improved: Actionable layer violations.** Each violation now shows the rule it broke (``Rule: `presentation` may only import `core`, `domain`, `presentation`.``) and the output ends with how to fix it. SARIF and Markdown reports include the rule too; `LayerViolation` gains `allowedImports`, `rule` and `suggestion`, and the JSON report includes `allowedImports`.
+- Preset layers that match no files no longer produce "matched no scanned files" warnings.
+- Library: `ArchGuardConfig.parse()` reads configuration from a string; `LayerCoverage.layerFileCounts` counts files per layer; `LayerPresets` and `LayoutDetector` are exported.
+- A bad option to `arch_guard init` now prints the `init` usage instead of the main one.
+
 # 1.3.0
 
 - **New: Baselines for legacy projects.** `--update-baseline` records today's circular dependencies and layer violations in `arch_guard_baseline.json`. When that file exists, later runs fail only on *new* problems: a known cycle may shrink, but one that grows or merges with another counts as new. Fixed entries are reported so the baseline can be tightened. Use `--baseline <path>` for a different location. Library users get `Baseline` and `BaselineComparison`.

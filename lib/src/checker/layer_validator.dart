@@ -12,13 +12,30 @@ class LayerViolation {
   /// 1-based line of the offending directive in [sourceFile], if known.
   final int? line;
 
+  /// Layers that [sourceLayer] is allowed to import (the rule that was broken).
+  final List<String> allowedImports;
+
   const LayerViolation({
     required this.sourceFile,
     required this.targetFile,
     required this.sourceLayer,
     required this.targetLayer,
     this.line,
+    this.allowedImports = const [],
   });
+
+  /// The broken rule, e.g. "`presentation` may only import `domain`, `core`."
+  String get rule => allowedImports.isEmpty
+      ? '`$sourceLayer` may not import other layers.'
+      : '`$sourceLayer` may only import '
+            '${allowedImports.map((l) => '`$l`').join(', ')}.';
+
+  /// How to resolve the violation.
+  String get suggestion =>
+      'Invert the dependency (e.g. an interface in `$sourceLayer` that '
+      '`$targetLayer` implements), move the code to a layer `$sourceLayer` '
+      'may import, or, if this dependency is intended, add `$targetLayer` to '
+      'the `allowed_imports` of `$sourceLayer`.';
 
   Map<String, dynamic> toJson() => {
     'sourceFile': sourceFile,
@@ -26,11 +43,13 @@ class LayerViolation {
     'sourceLayer': sourceLayer,
     'targetLayer': targetLayer,
     'line': ?line,
+    'allowedImports': allowedImports,
   };
 
   @override
   String toString() =>
-      '❌ Layer Violation: [$sourceLayer] $sourceFile -> [$targetLayer] $targetFile';
+      '❌ Layer Violation: [$sourceLayer] $sourceFile${line != null ? ':$line' : ''} '
+      '-> [$targetLayer] $targetFile';
 }
 
 /// How well the configured layers cover the scanned files.
@@ -41,14 +60,19 @@ class LayerCoverage {
   /// Scanned files that belong to no layer and are therefore never checked.
   final List<String> unassignedFiles;
 
+  /// Number of scanned files assigned to each layer, in configuration order.
+  final Map<String, int> layerFileCounts;
+
   const LayerCoverage({
     this.emptyLayers = const [],
     this.unassignedFiles = const [],
+    this.layerFileCounts = const {},
   });
 
   Map<String, dynamic> toJson() => {
     'emptyLayers': emptyLayers,
     'unassignedFiles': unassignedFiles,
+    'layerFileCounts': layerFileCounts,
   };
 }
 
@@ -82,6 +106,7 @@ class LayerValidator {
                 sourceLayer: sourceLayer,
                 targetLayer: targetLayer,
                 line: edge.line,
+                allowedImports: allowed,
               ),
             );
           }
@@ -100,7 +125,7 @@ class LayerValidator {
     if (config.layers.isEmpty) return const LayerCoverage();
 
     final resolveLayer = _layerResolver(config);
-    final usedLayers = <String>{};
+    final counts = {for (final name in config.layers.keys) name: 0};
     final unassigned = <String>[];
 
     for (final file in result.files.keys) {
@@ -108,15 +133,17 @@ class LayerValidator {
       if (layer == null) {
         unassigned.add(file);
       } else {
-        usedLayers.add(layer);
+        counts[layer] = counts[layer]! + 1;
       }
     }
 
     return LayerCoverage(
-      emptyLayers: config.layers.keys
-          .where((name) => !usedLayers.contains(name))
-          .toList(),
+      emptyLayers: [
+        for (final MapEntry(:key, :value) in counts.entries)
+          if (value == 0) key,
+      ],
       unassignedFiles: unassigned..sort(),
+      layerFileCounts: counts,
     );
   }
 

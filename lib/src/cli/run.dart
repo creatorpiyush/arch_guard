@@ -18,6 +18,7 @@ import '../reporters/text_reporter.dart';
 import '../scanner/project_scanner.dart';
 import '../version.dart';
 import 'args_config.dart';
+import 'init_command.dart';
 
 /// Entry point logic for CLI execution.
 Future<int> runCli(List<String> args) async {
@@ -29,12 +30,32 @@ Future<int> runCli(List<String> args) async {
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');
     stderr.writeln();
-    stderr.writeln(parser.usage);
+    stderr.writeln(
+      args.isNotEmpty && args.first == 'init'
+          ? ArgsConfig.buildInitParser().usage
+          : parser.usage,
+    );
     return 64; // Sysexit code for command-line usage error
+  }
+
+  final command = argResults.command;
+  if (command?.name == 'init') {
+    if (command!['help'] == true) {
+      stdout.writeln('Usage: arch_guard init [project_path] [options]');
+      stdout.writeln();
+      stdout.writeln(
+        'Detects the project layout and writes a starter arch_guard.yaml.',
+      );
+      stdout.writeln();
+      stdout.writeln(ArgsConfig.buildInitParser().usage);
+      return 0;
+    }
+    return runInit(command);
   }
 
   if (argResults['help'] == true) {
     stdout.writeln('Usage: arch_guard [project_path] [options]');
+    stdout.writeln('       arch_guard init [project_path] [--preset <name>]');
     stdout.writeln();
     stdout.writeln(parser.usage);
     return 0;
@@ -99,7 +120,9 @@ Future<int> runCli(List<String> args) async {
   });
 
   final coverage = LayerValidator.coverage(result: scanResult, config: config);
-  for (final layer in coverage.emptyLayers) {
+  for (final layer in coverage.emptyLayers.where(
+    (l) => !config.presetOnlyLayers.contains(l),
+  )) {
     _warn(
       'layer `$layer` matched no scanned files; check its patterns.',
       useColor,
@@ -160,8 +183,27 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln(
       '$cRed[!] ${label}LAYER BOUNDARY VIOLATIONS DETECTED (${newViolations.length}):$cReset',
     );
+    final cDim = useColor ? '\x1B[2m' : '';
     for (final v in newViolations) {
       stdout.writeln('  $v');
+      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+    }
+    final configName = config.sourcePath == null
+        ? 'arch_guard.yaml'
+        : p.basename(config.sourcePath!);
+    stdout.writeln();
+    stdout.writeln(
+      '  How to fix: invert the dependency (an interface in the importing '
+      'layer, implemented by the imported one), move the code to a layer it '
+      'may import, or, if the dependency is intended, add the layer to '
+      '`allowed_imports` in $configName.',
+    );
+    if (config.preset != null) {
+      stdout.writeln(
+        '  (Using preset `${config.preset}`: to change a layer\'s rules, list '
+        'it under `layers:` with only the keys to change, e.g. '
+        '`allowed_imports`.)',
+      );
     }
     stdout.writeln();
   }

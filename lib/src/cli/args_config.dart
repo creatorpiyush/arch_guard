@@ -1,5 +1,7 @@
 import 'package:args/args.dart';
 
+import '../models/layer_presets.dart';
+
 /// Configures the command line argument parser for arch_guard.
 class ArgsConfig {
   static ArgParser buildParser() {
@@ -115,6 +117,35 @@ class ArgsConfig {
       help: 'Print the arch_guard version.',
     );
 
+    parser.addCommand('init', buildInitParser());
+
     return parser;
+  }
+
+  /// Parser for `arch_guard init [project_path]`.
+  static ArgParser buildInitParser() {
+    return ArgParser()
+      ..addOption(
+        'preset',
+        allowed: ['auto', 'none', ...LayerPresets.names],
+        defaultsTo: 'auto',
+        help: 'Layer preset to use; `auto` detects it from the folder layout.',
+        allowedHelp: {
+          'auto': 'Detect from folders and dependencies.',
+          'none': 'Write a commented template without a preset.',
+          ...LayerPresets.descriptions,
+        },
+      )
+      ..addFlag(
+        'force',
+        negatable: false,
+        help: 'Overwrite an existing arch_guard.yaml.',
+      )
+      ..addFlag(
+        'dry-run',
+        negatable: false,
+        help: 'Print the configuration instead of writing it.',
+      )
+      ..addFlag('help', abbr: 'h', negatable: false, help: 'Print init usage.');
   }
 }

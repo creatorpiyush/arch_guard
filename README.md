@@ -36,6 +36,12 @@ dart pub add --dev arch_guard
 dart pub global activate arch_guard
 ```
 
+Then generate a starter configuration. `init` recognises Clean Architecture, Riverpod, Bloc and feature-first layouts and shows what the first scan finds:
+
+```bash
+dart run arch_guard init
+```
+
 Or run directly using `dart run` in any project or monorepo directory:
 
 ```bash
@@ -57,7 +63,7 @@ chmod +x arch_guard
 
 ## Configuration (`arch_guard.yaml` or `pubspec.yaml`)
 
-Define Clean Architecture layer rules and ignore patterns in `arch_guard.yaml` at your project root:
+The quickest start is `arch_guard init` (see [Layer presets](#layer-presets)). To write the rules yourself, define layers and ignore patterns in `arch_guard.yaml` at your project root:
 
 ```yaml
 # arch_guard.yaml
@@ -98,6 +104,56 @@ Or configure under `arch_guard:` in `pubspec.yaml`.
 
 Configuration problems are reported as warnings on stderr rather than silently ignored: unparseable YAML, unknown keys, wrongly typed values, layers whose patterns match no files, `allowed_imports` that name unknown layers, and files that belong to no layer (and so are never checked). The legacy `dep_graph.yaml` file and `dep_graph_visualizer:` pubspec key are still read, with a deprecation warning.
 
+### Layer presets
+
+Instead of listing layers yourself, pick a preset:
+
+```yaml
+# arch_guard.yaml
+preset: clean_architecture
+```
+
+| Preset | Layers | Main rules |
+| :--- | :--- | :--- |
+| `clean_architecture` | `core`, `domain`, `data`, `presentation` | `domain` imports only `core`; `presentation` may not import `data`. |
+| `riverpod` | `domain`, `data`, `application`, `presentation` | `domain` imports nothing else; `data` never imports `application` or `presentation`. |
+| `bloc` | `models`, `business_logic`, `repository`, `data_provider`, `presentation` | UI → bloc/cubit → repository → data provider; `models` everywhere. |
+| `feature_first` | `shared` + one `feature_<name>` per folder in `lib/features` (or `lib/modules`) | A feature imports only itself and `shared` (`lib/core`, `lib/shared`, `lib/common`). |
+
+Patterns use `lib/**/<layer>/**`, so `lib/domain/...` and `lib/features/auth/domain/...` both match. In a workspace, patterns are also matched from each package's `lib/` folder, so a package named `core` or `data` is not mistaken for that layer; its own `domain/`, `data/` and other folders are checked. A file belongs to the first layer whose pattern matches it. `arch_guard init` writes the expanded layers as comments in the config, so you can see exactly what a preset checks.
+
+To adjust a preset, list the layer under `layers:` with only the keys you want to change. New layer names are added:
+
+```yaml
+preset: clean_architecture
+layers:
+  presentation:
+    allowed_imports: [core, domain, presentation, data]   # allow UI -> data
+  di:
+    patterns: ["lib/di/**"]
+    allowed_imports: [core, domain, data, presentation, di]
+```
+
+### `arch_guard init`
+
+```bash
+arch_guard init                      # detect the layout and write arch_guard.yaml
+arch_guard init --preset bloc        # choose a preset (auto | none | clean_architecture | feature_first | bloc | riverpod)
+arch_guard init --dry-run            # print the config instead of writing it
+arch_guard init --force              # overwrite an existing arch_guard.yaml
+```
+
+After writing the file, `init` scans the project and prints how many files fall into each layer, how many violations and cycles exist, and what to do next (usually `--update-baseline` on an existing codebase).
+
+### Reading a layer violation
+
+```text
+❌ Layer Violation: [presentation] lib/features/auth/presentation/page.dart:3 -> [data] lib/features/auth/data/repo.dart
+   Rule: `presentation` may only import `core`, `domain`, `presentation`.
+```
+
+To fix it, either invert the dependency (put an interface in a layer the importing file may use, and implement it in the other layer), move the code to a layer it may import, or, if the dependency is intended, add the layer to `allowed_imports`.
+
 ### Workspaces & monorepos
 
 With `--workspace` (the default), member packages come from the root `pubspec.yaml` `workspace:` list. If there is no such list, packages under `packages/` and `apps/` are auto-discovered (ignoring `example/`, `test/` and `tool/` folders). A plain single-package project is scanned using `--scan-dir`.
@@ -127,9 +183,10 @@ Use `--baseline path/to/file.json` to keep the file somewhere else (paths are re
 
 ```bash
 arch_guard [project_path] [options]
+arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 ```
 
-If `[project_path]` is omitted, it defaults to current directory (`.`).
+If `[project_path]` is omitted, it defaults to current directory (`.`). See [`arch_guard init`](#arch_guard-init) for the init options.
 
 ---
 
@@ -233,7 +290,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.3.0
+      - uses: creatorpiyush/arch_guard@v1.4.0
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -267,7 +324,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.3.0
+    rev: v1.4.0
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]
