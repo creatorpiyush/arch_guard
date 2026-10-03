@@ -21,6 +21,7 @@ class ArchGuardConfig {
     'fail_on_layer_violation',
   };
 
+  /// Glob patterns of files left out of the scan.
   final List<String> ignorePatterns;
 
   /// Layers in effect: the [preset]'s layers, overridden or extended by the
@@ -38,6 +39,8 @@ class ArchGuardConfig {
   /// Maximum allowed number of files in a single strongly connected component.
   /// When set, any larger SCC fails the run even with `--no-fail-on-cycle`.
   final int? maxSccSize;
+
+  /// Whether layer violations make the run fail (exit code 1).
   final bool failOnLayerViolation;
 
   /// Human-readable problems found while loading the configuration
@@ -47,6 +50,7 @@ class ArchGuardConfig {
   /// Path of the file the configuration was loaded from, if any.
   final String? sourcePath;
 
+  /// Creates a configuration; usually built with [ArchGuardConfig.parse] or [ArchGuardConfig.load].
   const ArchGuardConfig({
     this.ignorePatterns = const [],
     this.layers = const {},
@@ -302,4 +306,5 @@ class ArchGuardConfig {
 @Deprecated('Use ArchGuardConfig instead.')
 typedef DepGraphConfig = ArchGuardConfig;
 
+/// Untyped map as returned by `package:yaml`.
 typedef DynamicMap = Map<dynamic, dynamic>;

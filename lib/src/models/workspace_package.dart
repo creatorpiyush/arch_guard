@@ -9,6 +9,7 @@ class WorkspacePackage {
   /// Relative path to `lib/` directory from repository root (e.g. `packages/auth_service/lib`).
   final String libPath;
 
+  /// Creates a workspace member package.
   const WorkspacePackage({
     required this.name,
     required this.packagePath,

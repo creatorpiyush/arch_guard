@@ -11,8 +11,13 @@ import '../version.dart';
 class SarifExporter {
   static const _infoUri = 'https://github.com/creatorpiyush/arch_guard';
 
+  /// SARIF rule id for layer violations.
   static const layerViolationRule = 'layer-violation';
+
+  /// SARIF rule id for circular dependency groups.
   static const circularDependencyRule = 'circular-dependency';
+
+  /// SARIF rule id for groups larger than `max_scc_size`.
   static const sccSizeLimitRule = 'scc-size-limit';
 
   /// Serializes the analysis to a SARIF log.

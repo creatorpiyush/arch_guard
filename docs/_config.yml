@@ -1,0 +1,5 @@
+title: arch_guard
+description: Architecture checks for Dart and Flutter. Layer rules, circular dependency detection and dependency graphs, in your terminal and CI.
+theme: jekyll-theme-cayman
+baseurl: /arch_guard
+url: https://creatorpiyush.github.io

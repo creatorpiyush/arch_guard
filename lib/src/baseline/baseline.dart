@@ -18,6 +18,7 @@ class Baseline {
   /// Known layer violations, keyed by `sourceFile -> targetFile`.
   final Set<String> layerViolations;
 
+  /// Creates a baseline holding [cycles] and [layerViolations].
   const Baseline({this.cycles = const [], this.layerViolations = const {}});
 
   /// Captures the current [cycles] and [layerViolations] as a baseline.
@@ -160,9 +161,16 @@ class Baseline {
 
 /// Current problems split into new ones and ones already in the baseline.
 class BaselineComparison {
+  /// Cycles that are not in the baseline.
   final List<Cycle> newCycles;
+
+  /// Cycles that the baseline already lists.
   final List<Cycle> knownCycles;
+
+  /// Layer violations that are not in the baseline.
   final List<LayerViolation> newViolations;
+
+  /// Layer violations that the baseline already lists.
   final List<LayerViolation> knownViolations;
 
   /// Baseline cycles that no longer occur at all.
@@ -171,6 +179,7 @@ class BaselineComparison {
   /// Baseline layer violations that no longer occur.
   final int fixedViolationCount;
 
+  /// Creates a comparison from already split problem lists.
   const BaselineComparison({
     required this.newCycles,
     required this.knownCycles,

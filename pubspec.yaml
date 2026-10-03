@@ -1,7 +1,9 @@
 name: arch_guard
 description: A CLI tool and Dart library for static architecture analysis, Clean Architecture layer governance, circular dependency metrics, and graph visualization.
 repository: https://github.com/creatorpiyush/arch_guard
-version: 1.4.0
+issue_tracker: https://github.com/creatorpiyush/arch_guard/issues
+documentation: https://creatorpiyush.github.io/arch_guard/
+version: 1.4.1
 topics:
   - clean-architecture
   - static-analysis

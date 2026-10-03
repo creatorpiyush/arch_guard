@@ -13,3 +13,5 @@ plan.md
 pubspec.lock
 action.yml
 .pre-commit-hooks.yaml
+docs/
+tool/screenshots.dart

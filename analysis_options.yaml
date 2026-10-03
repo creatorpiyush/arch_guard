@@ -4,9 +4,10 @@ analyzer:
   exclude:
     - test/fixtures/**
     - example/sample_workspace/**
+    - example/sample_project/**
 
 linter:
   rules:
-    public_member_api_docs: false
+    public_member_api_docs: true
     prefer_const_constructors: true
     avoid_print: false

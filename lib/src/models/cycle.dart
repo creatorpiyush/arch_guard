@@ -11,6 +11,7 @@ class Cycle {
   /// Optional underlying architectural SCC metrics.
   final SccComponent? scc;
 
+  /// Creates a cycle over [files], illustrated by [exampleChain].
   const Cycle({required this.files, required this.exampleChain, this.scc});
 
   /// Additional files in this strongly connected component that are not on the main example chain.
@@ -19,6 +20,7 @@ class Cycle {
     return files.where((f) => !chainSet.contains(f)).toList();
   }
 
+  /// JSON form used by the JSON exporter.
   Map<String, dynamic> toJson() => {
     'files': files,
     'exampleChain': exampleChain,

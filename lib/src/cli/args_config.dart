@@ -4,6 +4,7 @@ import '../models/layer_presets.dart';
 
 /// Configures the command line argument parser for arch_guard.
 class ArgsConfig {
+  /// Builds the parser with every arch_guard option and flag.
   static ArgParser buildParser() {
     final parser = ArgParser();
 

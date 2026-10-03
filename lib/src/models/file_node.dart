@@ -15,6 +15,7 @@ class FileNode {
   /// List of raw `part` URIs declared by this file.
   final List<String> parts;
 
+  /// Creates a node for one scanned file.
   const FileNode({
     required this.relativePath,
     required this.absolutePath,
@@ -23,6 +24,7 @@ class FileNode {
     this.parts = const [],
   });
 
+  /// JSON form used by the JSON exporter.
   Map<String, dynamic> toJson() => {
     'relativePath': relativePath,
     'absolutePath': absolutePath,

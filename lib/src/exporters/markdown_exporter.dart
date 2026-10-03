@@ -18,6 +18,7 @@ class MarkdownExporter {
   /// Most items listed per section, to stay under comment size limits.
   static const maxListedItems = 50;
 
+  /// Renders the report as Markdown, listing problems not in [baseline] first.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,

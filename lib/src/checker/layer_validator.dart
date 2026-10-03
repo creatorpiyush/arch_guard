@@ -4,9 +4,16 @@ import '../models/scan_result.dart';
 
 /// Violation record for Clean Architecture layer rule checking.
 class LayerViolation {
+  /// Path of the importing file.
   final String sourceFile;
+
+  /// Path of the imported file.
   final String targetFile;
+
+  /// Layer that [sourceFile] belongs to.
   final String sourceLayer;
+
+  /// Layer that [targetFile] belongs to.
   final String targetLayer;
 
   /// 1-based line of the offending directive in [sourceFile], if known.
@@ -15,6 +22,7 @@ class LayerViolation {
   /// Layers that [sourceLayer] is allowed to import (the rule that was broken).
   final List<String> allowedImports;
 
+  /// Creates a violation of [sourceLayer] importing [targetLayer].
   const LayerViolation({
     required this.sourceFile,
     required this.targetFile,
@@ -37,6 +45,7 @@ class LayerViolation {
       'may import, or, if this dependency is intended, add `$targetLayer` to '
       'the `allowed_imports` of `$sourceLayer`.';
 
+  /// JSON form used by the JSON exporter and the baseline.
   Map<String, dynamic> toJson() => {
     'sourceFile': sourceFile,
     'targetFile': targetFile,
@@ -63,12 +72,14 @@ class LayerCoverage {
   /// Number of scanned files assigned to each layer, in configuration order.
   final Map<String, int> layerFileCounts;
 
+  /// Creates a coverage report.
   const LayerCoverage({
     this.emptyLayers = const [],
     this.unassignedFiles = const [],
     this.layerFileCounts = const {},
   });
 
+  /// JSON form used by the JSON exporter.
   Map<String, dynamic> toJson() => {
     'emptyLayers': emptyLayers,
     'unassignedFiles': unassignedFiles,

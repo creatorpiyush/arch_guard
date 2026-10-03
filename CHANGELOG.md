@@ -1,3 +1,10 @@
+# 1.4.1
+
+- **Fixed: empty graph in the HTML report.** The page layout could let the graph canvas grow taller than the window, drawing the nodes out of view. The report header now says `arch_guard` instead of the old "Dependency Graph Visualizer" name.
+- **New: documentation site** at [creatorpiyush.github.io/arch_guard](https://creatorpiyush.github.io/arch_guard/), with a recipe per preset, the configuration reference, CI and git hook guides, and the CLI reference. The README is shorter, with screenshots and a comparison with similar tools.
+- Every public API member now has a doc comment, and `pubspec.yaml` links the documentation and issue tracker.
+- Contributor guide, security policy, and issue and pull request templates.
+
 # 1.4.0
 
 - **New: `arch_guard init`.** Detects the project layout (Clean Architecture, Riverpod, Bloc or feature-first folders), writes a starter `arch_guard.yaml`, and previews the first scan: files per layer, violations, cycles, and the suggested next step. Options: `--preset <name|auto|none>`, `--dry-run`, `--force`.
