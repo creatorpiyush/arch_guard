@@ -80,7 +80,9 @@ flowchart TD
 
 ### 3.3 Governance & Checker Subsystem (`lib/src/checker/` & `lib/src/models/config_model.dart`)
 - **`ArchGuardConfig`**: Loads project configuration from `arch_guard.yaml` or `pubspec.yaml -> arch_guard:` (legacy `dep_graph.yaml` / `dep_graph_visualizer:` still read, with a deprecation warning). Reports malformed config as warnings instead of failing silently.
-- **`LayerValidator`**: Compiles layer glob patterns (e.g. `lib/domain/**`) and validates dependency edges against declared `allowed_imports`. Detects directional violations (e.g., Domain layer importing Presentation or Data layers).
+- **`LayerPresets`** (`lib/src/models/layer_presets.dart`): Expands `preset:` into predefined layers (`clean_architecture`, `feature_first`, `bloc`, `riverpod`). `layers:` entries override preset layers key by key. `feature_first` lists `lib/features/*` at load time.
+- **`LayoutDetector`** (`lib/src/scanner/layout_detector.dart`): Guesses a preset from folder names under `lib/` and the pubspec dependencies; used by `arch_guard init` (`lib/src/cli/init_command.dart`), which writes the starter config and previews the first scan.
+- **`LayerValidator`**: Compiles layer glob patterns (e.g. `lib/domain/**`) and validates dependency edges against declared `allowed_imports`. Detects directional violations (e.g., Domain layer importing Presentation or Data layers). Each `LayerViolation` carries the source layer's `allowedImports`, so reports can state the broken rule and a fix.
 - **`Baseline`** (`lib/src/baseline/baseline.dart`): Captures known cycles and layer violations into `arch_guard_baseline.json` and splits later results into new and known (`BaselineComparison`). A cycle is known when its files are a subset of one baseline cycle; layer violations are keyed by `source -> target`. Exit codes are computed from new problems only.
 
 ### 3.4 Inspection & Explainer Subsystem (`lib/src/graph/dependency_explainer.dart`)

@@ -63,8 +63,8 @@ class SarifExporter {
         'message': {
           'text':
               '`${v.sourceFile}` (layer `${v.sourceLayer}`) imports '
-              '`${v.targetFile}` (layer `${v.targetLayer}`), which layer '
-              '`${v.sourceLayer}` is not allowed to import.',
+              '`${v.targetFile}` (layer `${v.targetLayer}`). ${v.rule} '
+              '${v.suggestion}',
         },
         'locations': [location(v.sourceFile, line: v.line)],
         'partialFingerprints': {

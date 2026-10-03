@@ -2,31 +2,10 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
-/// Layer definition for Clean Architecture / Layer boundary rules.
-class LayerDefinition {
-  final String name;
-  final List<String> patterns;
-  final List<String> allowedImports;
+import 'layer_definition.dart';
+import 'layer_presets.dart';
 
-  const LayerDefinition({
-    required this.name,
-    required this.patterns,
-    this.allowedImports = const [],
-  });
-
-  factory LayerDefinition.fromYaml(String name, Map map) {
-    final patterns =
-        (map['patterns'] as List?)?.map((e) => e.toString()).toList() ?? [];
-    final allowed =
-        (map['allowed_imports'] as List?)?.map((e) => e.toString()).toList() ??
-        [];
-    return LayerDefinition(
-      name: name,
-      patterns: patterns,
-      allowedImports: allowed,
-    );
-  }
-}
+export 'layer_definition.dart';
 
 /// Project-level configuration options loaded from `arch_guard.yaml` or `pubspec.yaml`.
 ///
@@ -36,13 +15,25 @@ class ArchGuardConfig {
   /// Top-level keys recognised in a configuration map.
   static const knownKeys = {
     'ignore',
+    'preset',
     'layers',
     'max_scc_size',
     'fail_on_layer_violation',
   };
 
   final List<String> ignorePatterns;
+
+  /// Layers in effect: the [preset]'s layers, overridden or extended by the
+  /// `layers:` section.
   final Map<String, LayerDefinition> layers;
+
+  /// Name of the layer preset in use (see [LayerPresets]), if any.
+  final String? preset;
+
+  /// Layers that come from [preset] and are not mentioned under `layers:`.
+  /// Presets cover layouts a project may only partly use, so these layers
+  /// matching no files is expected rather than a configuration mistake.
+  final Set<String> presetOnlyLayers;
 
   /// Maximum allowed number of files in a single strongly connected component.
   /// When set, any larger SCC fails the run even with `--no-fail-on-cycle`.
@@ -59,6 +50,8 @@ class ArchGuardConfig {
   const ArchGuardConfig({
     this.ignorePatterns = const [],
     this.layers = const {},
+    this.preset,
+    this.presetOnlyLayers = const {},
     this.maxSccSize,
     this.failOnLayerViolation = true,
     this.warnings = const [],
@@ -135,6 +128,7 @@ class ArchGuardConfig {
 
     return _parse(
       rawConfig,
+      rootPath: absRoot,
       source: sourceName!,
       sourcePath: sourceName.startsWith('pubspec.yaml')
           ? p.join(absRoot, 'pubspec.yaml')
@@ -143,8 +137,39 @@ class ArchGuardConfig {
     );
   }
 
+  /// Parses configuration from YAML text, as if read from [source] in the
+  /// project at [rootPath]. Problems are reported in [ArchGuardConfig.warnings].
+  static ArchGuardConfig parse(
+    String yaml, {
+    required String rootPath,
+    String source = 'arch_guard.yaml',
+  }) {
+    final warnings = <String>[];
+    Object? doc;
+    try {
+      doc = loadYaml(yaml);
+    } catch (e) {
+      warnings.add('$source: could not be parsed and was ignored ($e).');
+    }
+    if (doc is! Map) {
+      if (doc != null) {
+        warnings.add('$source: expected a YAML map at the top level.');
+      }
+      return ArchGuardConfig(warnings: warnings);
+    }
+    final absRoot = p.canonicalize(rootPath);
+    return _parse(
+      doc,
+      rootPath: absRoot,
+      source: source,
+      sourcePath: p.join(absRoot, source),
+      warnings: warnings,
+    );
+  }
+
   static ArchGuardConfig _parse(
     Map raw, {
+    required String rootPath,
     required String source,
     required String sourcePath,
     required List<String> warnings,
@@ -183,11 +208,35 @@ class ArchGuardConfig {
       );
     }
 
+    String? preset;
     final layersMap = <String, LayerDefinition>{};
+    final presetOnly = <String>{};
+    final rawPreset = raw['preset'];
+    if (rawPreset is String) {
+      final presetLayers = LayerPresets.expand(
+        rawPreset,
+        rootPath: rootPath,
+        warnings: warnings,
+      );
+      if (presetLayers == null) {
+        warnings.add(
+          '$source: unknown preset `$rawPreset` (expected one of: '
+          '${LayerPresets.names.join(', ')}).',
+        );
+      } else {
+        preset = rawPreset;
+        layersMap.addAll(presetLayers);
+        presetOnly.addAll(presetLayers.keys);
+      }
+    } else if (rawPreset != null) {
+      warnings.add('$source: `preset` must be a preset name.');
+    }
+
     final rawLayers = raw['layers'];
     if (rawLayers is Map) {
       rawLayers.forEach((key, val) {
         final name = key.toString();
+        presetOnly.remove(name);
         if (val is! Map) {
           warnings.add('$source: layer `$name` must be a map; ignoring it.');
           return;
@@ -200,12 +249,23 @@ class ArchGuardConfig {
             '$source: layer `$name` `allowed_imports` must be a list.',
           );
         }
-        final layer = LayerDefinition.fromYaml(name, {
+        var layer = LayerDefinition.fromYaml(name, {
           'patterns': val['patterns'] is List ? val['patterns'] : null,
           'allowed_imports': val['allowed_imports'] is List
               ? val['allowed_imports']
               : null,
         });
+        // Overriding a preset layer: keys left out keep the preset's values.
+        final base = layersMap[name];
+        if (base != null) {
+          layer = LayerDefinition(
+            name: name,
+            patterns: val['patterns'] is List ? layer.patterns : base.patterns,
+            allowedImports: val['allowed_imports'] is List
+                ? layer.allowedImports
+                : base.allowedImports,
+          );
+        }
         if (layer.patterns.isEmpty) {
           warnings.add('$source: layer `$name` has no patterns.');
         }
@@ -228,6 +288,8 @@ class ArchGuardConfig {
     return ArchGuardConfig(
       ignorePatterns: ignores,
       layers: layersMap,
+      preset: preset,
+      presetOnlyLayers: presetOnly,
       maxSccSize: maxScc,
       failOnLayerViolation: failOnLayer,
       warnings: warnings,

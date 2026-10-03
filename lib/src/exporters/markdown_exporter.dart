@@ -87,7 +87,7 @@ class MarkdownExporter {
       _writeCapped(b, newViolations, (v) {
         final at = v.line != null ? ':${v.line}' : '';
         return '- `${v.sourceFile}$at` (**${v.sourceLayer}**) imports '
-            '`${v.targetFile}` (**${v.targetLayer}**)';
+            '`${v.targetFile}` (**${v.targetLayer}**). ${v.rule}';
       });
       b.writeln();
     }
