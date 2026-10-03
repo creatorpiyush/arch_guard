@@ -52,6 +52,8 @@ flowchart TD
         K & L --> P[MermaidExporter]
         K & L --> Q[HtmlExporter]
         K & L --> R[DotExporter]
+        K & L --> S[SarifExporter]
+        K & L --> T[MarkdownExporter]
     end
 ```
 
@@ -79,6 +81,7 @@ flowchart TD
 ### 3.3 Governance & Checker Subsystem (`lib/src/checker/` & `lib/src/models/config_model.dart`)
 - **`ArchGuardConfig`**: Loads project configuration from `arch_guard.yaml` or `pubspec.yaml -> arch_guard:` (legacy `dep_graph.yaml` / `dep_graph_visualizer:` still read, with a deprecation warning). Reports malformed config as warnings instead of failing silently.
 - **`LayerValidator`**: Compiles layer glob patterns (e.g. `lib/domain/**`) and validates dependency edges against declared `allowed_imports`. Detects directional violations (e.g., Domain layer importing Presentation or Data layers).
+- **`Baseline`** (`lib/src/baseline/baseline.dart`): Captures known cycles and layer violations into `arch_guard_baseline.json` and splits later results into new and known (`BaselineComparison`). A cycle is known when its files are a subset of one baseline cycle; layer violations are keyed by `source -> target`. Exit codes are computed from new problems only.
 
 ### 3.4 Inspection & Explainer Subsystem (`lib/src/graph/dependency_explainer.dart`)
 - **`DependencyExplainer`**: Provides targeted file analysis via CLI `--explain <file>`. Resolves exact target files, reports SCC membership, metrics, representative cycle paths, and direct incoming/outgoing dependency lists.
@@ -89,6 +92,8 @@ flowchart TD
 - **`MermaidExporter`**: Exports Mermaid.js markdown flowchart syntax (`.mmd`) with highlighted cyclic nodes.
 - **`HtmlExporter`**: Generates single-file interactive HTML graph visualizers using `vis-network`. Implements physics stabilization freeze and `--scope cycles` graph trimming.
 - **`DotExporter`**: Exports Graphviz DOT files (`.dot`) with clustered subgraphs for each SCC.
+- **`SarifExporter`**: Emits SARIF 2.1.0 (`arch_guard.sarif`) with rules `layer-violation`, `circular-dependency` and `scc-size-limit`. Locations use the directive line recorded by the scanner and paths relative to the git repository root; `baselineState` is set when a baseline is in use.
+- **`MarkdownExporter`**: Emits a PR-comment summary (`arch_guard_report.md`) with new problems first and a collapsible Mermaid cycle graph. Used by the GitHub Action (`action.yml`) for the job summary and sticky PR comment.
 
 ---
 
@@ -122,7 +127,8 @@ sequenceDiagram
     CLI->>Validator: validate(ScanResult, ArchGuardConfig)
     Validator-->>CLI: List<LayerViolation>
 
-    CLI->>Exporters: export(Text, JSON, Mermaid, HTML, DOT)
+    CLI->>CLI: Baseline.compare() (if arch_guard_baseline.json exists)
+    CLI->>Exporters: export(Text, JSON, Mermaid, HTML, DOT, SARIF, Markdown)
     Exporters-->>CLI: Formatted output files & terminal reports
 ```
 
@@ -170,6 +176,5 @@ Given an SCC component containing node set $V_{scc} \subseteq V$ with size $N = 
 ## 7. Extensibility & Future Evolution
 
 The modular design allows straightforward future extensions:
-- **SARIF Exporter**: Adding a `SarifExporter` to output SARIF format for native GitHub Code Scanning annotations on PR diff lines.
 - **Minimum Cut Refactoring Heuristic**: Computing minimum edge cuts in SCC subgraphs to recommend exact imports to break or abstract with minimum code refactoring effort.
 - **IDE Extensions**: Exposing the Dart programmatic API (`DependencyGraph`, `DependencyExplainer`) to VS Code and IntelliJ plugins for real-time inline cycle warnings.

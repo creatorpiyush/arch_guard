@@ -157,6 +157,7 @@ class ProjectScanner {
                       from: relPath,
                       to: resolvedTarget,
                       type: directive.type,
+                      line: directive.line,
                     ),
                   );
                 }
@@ -186,7 +187,12 @@ class ProjectScanner {
     for (final edge in rawEdges) {
       if (filesMap.containsKey(edge.to)) {
         validEdges.add(
-          GraphEdge(from: edge.from, to: edge.to, type: edge.type),
+          GraphEdge(
+            from: edge.from,
+            to: edge.to,
+            type: edge.type,
+            line: edge.line,
+          ),
         );
       }
     }
@@ -207,6 +213,12 @@ class _TempEdge {
   final String from;
   final String to;
   final String type;
+  final int? line;
 
-  _TempEdge({required this.from, required this.to, required this.type});
+  _TempEdge({
+    required this.from,
+    required this.to,
+    required this.type,
+    this.line,
+  });
 }

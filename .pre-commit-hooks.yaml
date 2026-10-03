@@ -1,0 +1,8 @@
+# Hook definition for https://pre-commit.com (needs pre-commit 2.15+ for `language: dart`).
+- id: arch_guard
+  name: arch_guard
+  description: Check Dart/Flutter layer boundaries and circular dependencies.
+  entry: arch_guard
+  language: dart
+  pass_filenames: false
+  files: \.dart$

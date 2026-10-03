@@ -56,3 +56,46 @@ jobs:
 
       - name: Run unit tests
         run: dart test
+
+  action:
+    name: GitHub Action self-test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      # The sample project has known cycles, so a passing run proves the
+      # baseline/args plumbing, and the reports must exist afterwards.
+      - name: Run action from this checkout
+        id: arch_guard
+        uses: ./
+        with:
+          path: example/sample_project
+          version: source
+          args: --no-fail-on-cycle
+          comment: ${{ matrix.os == 'ubuntu-latest' }}
+
+      - name: Check action outputs
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.arch_guard.outputs.exit-code }}
+          SARIF: ${{ steps.arch_guard.outputs.sarif-file }}
+          MARKDOWN: ${{ steps.arch_guard.outputs.markdown-file }}
+        run: |
+          test "$EXIT_CODE" = "0"
+          test -f "$SARIF"
+          grep -q '"version": "2.1.0"' "$SARIF"
+          grep -q 'arch_guard-report' "$MARKDOWN"

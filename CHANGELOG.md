@@ -1,3 +1,15 @@
+# 1.3.0
+
+- **New: Baselines for legacy projects.** `--update-baseline` records today's circular dependencies and layer violations in `arch_guard_baseline.json`. When that file exists, later runs fail only on *new* problems: a known cycle may shrink, but one that grows or merges with another counts as new. Fixed entries are reported so the baseline can be tightened. Use `--baseline <path>` for a different location. Library users get `Baseline` and `BaselineComparison`.
+- **New: SARIF output (`-f sarif`)** writes `arch_guard.sarif` (SARIF 2.1.0) for GitHub Code Scanning, Azure DevOps and SARIF viewers in IDEs. Results point at the offending import line, use paths relative to the git repository root, and carry `baselineState` when a baseline is in use.
+- **New: Markdown summary (`-f markdown`)** writes `arch_guard_report.md`: new problems first, then a collapsible Mermaid graph of the cycles. Ready for PR comments and CI job summaries.
+- **New: GitHub Action.** `uses: creatorpiyush/arch_guard@v1.3.0` downloads the checksum-verified release binary, writes the Markdown summary to the job summary, keeps one up-to-date PR comment, and can upload SARIF to Code Scanning.
+- **New: pre-commit hook.** The repository ships a `.pre-commit-hooks.yaml`, and the README has recipes for pre-commit, lefthook and plain git hooks.
+- **New: `--version` flag** and the `packageVersion` constant.
+- Layer violations, graph edges and directives now record the source line (`LayerViolation.line`, `GraphEdge.line`, `ExtractedDirective.line`); the JSON report includes it.
+- `-f all` now also writes the SARIF and Markdown reports.
+- Local-only files (`plan.md`, IDE files, `build/`) are no longer included in the published package.
+
 # 1.2.1
 
 - **Wider compatibility: minimum Dart SDK lowered from 3.11 to 3.8** (Flutter 3.32+), so projects on older toolchains can add `arch_guard` as a dev dependency.

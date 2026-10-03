@@ -11,7 +11,15 @@ class GraphEdge {
   /// The original directive type ('import', 'export' or 'part').
   final String type;
 
-  const GraphEdge({required this.from, required this.to, this.type = 'import'});
+  /// 1-based line of the directive in [from], if known. Not part of equality.
+  final int? line;
+
+  const GraphEdge({
+    required this.from,
+    required this.to,
+    this.type = 'import',
+    this.line,
+  });
 
   @override
   bool operator ==(Object other) =>

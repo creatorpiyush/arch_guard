@@ -15,6 +15,18 @@ void main() {
       );
     });
 
+    test('records the 1-based line of each directive', () {
+      const code = '''// header
+import 'a.dart';
+
+/* block
+   comment */ export 'b.dart';
+part 'c.dart';
+''';
+      final directives = ImportReader.extractDirectives(code);
+      expect(directives.map((d) => d.line), equals([2, 5, 6]));
+    });
+
     test('extracts exports as well as imports', () {
       const code = '''
         import 'src/a.dart';
