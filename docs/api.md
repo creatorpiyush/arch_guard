@@ -2,8 +2,6 @@
 title: Dart API
 ---
 
-[Home](index.md) · [Presets](presets.md) · [Configuration](configuration.md) · [CI & hooks](ci.md) · [CLI](cli.md) · [Dart API](api.md)
-
 # Dart API
 
 Everything the CLI does is available from `package:arch_guard/arch_guard.dart`, for custom reports, lint dashboards or IDE tooling. The full reference is on [pub.dev](https://pub.dev/documentation/arch_guard/latest/).

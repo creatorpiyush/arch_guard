@@ -2,8 +2,6 @@
 title: CLI
 ---
 
-[Home](index.md) · [Presets](presets.md) · [Configuration](configuration.md) · [CI & hooks](ci.md) · [CLI](cli.md) · [Dart API](api.md)
-
 # CLI
 
 ```bash

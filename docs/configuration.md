@@ -2,8 +2,6 @@
 title: Configuration
 ---
 
-[Home](index.md) · [Presets](presets.md) · [Configuration](configuration.md) · [CI & hooks](ci.md) · [CLI](cli.md) · [Dart API](api.md)
-
 # Configuration
 
 arch_guard reads `arch_guard.yaml` in the project root, or an `arch_guard:` section in `pubspec.yaml`. The quickest start is `arch_guard init`, which writes the file for you (see [Presets](presets.md)).

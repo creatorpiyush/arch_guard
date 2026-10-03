@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page.url == "/" %}{{ site.title }}: {{ site.description | split: "." | first }}{% else %}{{ page.title }} · {{ site.title }}{% endif %}</title>
+  <meta name="description" content="{{ page.description | default: site.description }}">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ '/' | relative_url }}"><span class="brand-mark">◆</span> arch_guard</a>
+    <nav class="toplinks">
+      <a href="https://pub.dev/packages/arch_guard">pub.dev</a>
+      <a href="https://github.com/{{ site.repository }}">GitHub</a>
+    </nav>
+    <label class="menu-toggle" for="menu">Menu</label>
+  </header>
+  <input type="checkbox" id="menu" class="menu-checkbox" hidden>
+  <div class="shell">
+    <aside class="sidebar">
+      <nav>
+        {% for item in site.data.nav %}
+        <a href="{{ item.url | relative_url }}"{% if page.url == item.url %} class="active"{% endif %}>{{ item.title }}</a>
+        {% endfor %}
+      </nav>
+    </aside>
+    <main class="content">
+      {{ content }}
+      <footer class="footer">
+        <a href="https://github.com/{{ site.repository }}/edit/main/docs/{{ page.path }}">Edit this page</a>
+        <span>·</span>
+        <a href="https://github.com/{{ site.repository }}/issues">Report an issue</a>
+        <span>·</span>
+        <span>MIT licensed</span>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

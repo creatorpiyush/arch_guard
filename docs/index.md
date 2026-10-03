@@ -2,8 +2,6 @@
 title: arch_guard
 ---
 
-[Home](index.md) · [Presets](presets.md) · [Configuration](configuration.md) · [CI & hooks](ci.md) · [CLI](cli.md) · [Dart API](api.md)
-
 # arch_guard
 
 arch_guard keeps the architecture of a Dart or Flutter project the way you meant it. It reads every `import`, `export` and `part` directive and then:

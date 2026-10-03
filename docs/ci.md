@@ -2,8 +2,6 @@
 title: CI & hooks
 ---
 
-[Home](index.md) · [Presets](presets.md) · [Configuration](configuration.md) · [CI & hooks](ci.md) · [CLI](cli.md) · [Dart API](api.md)
-
 # CI & hooks
 
 Run arch_guard where it stops problems early: on every pull request, and optionally before each commit. Exit codes are listed on the [CLI](cli.md#exit-codes) page.

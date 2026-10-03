@@ -2,8 +2,6 @@
 title: Presets
 ---
 
-[Home](index.md) · [Presets](presets.md) · [Configuration](configuration.md) · [CI & hooks](ci.md) · [CLI](cli.md) · [Dart API](api.md)
-
 # Presets
 
 A preset is a ready-made set of layers. One line in `arch_guard.yaml` turns it on:
