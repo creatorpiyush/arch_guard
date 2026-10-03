@@ -90,6 +90,14 @@ void main() {
       },
     );
 
+    test('HtmlExporter keeps the graph canvas inside the viewport', () {
+      final html = HtmlExporter.export(result: mockResult, cycles: mockCycles);
+      // A flex item without `min-height: 0` grows with the canvas vis-network
+      // sizes to it, so the nodes end up drawn below the visible area.
+      expect(RegExp(r'main \{[^}]*min-height: 0;').hasMatch(html), isTrue);
+      expect(html, contains('<title>demo_pkg - arch_guard</title>'));
+    });
+
     test('HtmlExporter without --offline references external CDN assets', () {
       final html = HtmlExporter.export(result: mockResult, cycles: mockCycles);
       expect(html, contains('https://unpkg.com/vis-network'));
