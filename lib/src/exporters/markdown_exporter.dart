@@ -98,7 +98,7 @@ class MarkdownExporter {
       _writeCapped(b, newCycles, (c) {
         final id = c.scc?.id;
         final chain = c.exampleChain.map((f) => '`$f`').join(' → ');
-        return '- ${id != null ? '**#$id** ' : ''}(${c.files.length} files): '
+        return '- ${id != null ? '**Cycle $id** ' : ''}(${c.files.length} files): '
             '$chain';
       });
       b.writeln();
@@ -109,7 +109,7 @@ class MarkdownExporter {
       b.writeln();
       _writeCapped(b, newOversized, (c) {
         final id = c.scc?.id;
-        return '- ${id != null ? '**#$id** ' : ''}has ${c.files.length} files';
+        return '- ${id != null ? '**Cycle $id** ' : ''}has ${c.files.length} files';
       });
       b.writeln();
     }

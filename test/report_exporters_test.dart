@@ -107,6 +107,32 @@ void main() {
       expect(md, contains('```mermaid'));
     });
 
+    test('never writes #<number>, which GitHub links to issues and PRs', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: [
+          Cycle(
+            files: cycle.files,
+            exampleChain: cycle.exampleChain,
+            scc: SccComponent(
+              id: 1,
+              files: cycle.files,
+              exampleChain: cycle.exampleChain,
+              internalEdgesCount: 2,
+              averageFanIn: 1,
+              averageFanOut: 1,
+              instability: 0.5,
+              density: 1,
+              hubFile: 'lib/a.dart',
+            ),
+          ),
+        ],
+        oversizedCycles: const [],
+      );
+      expect(md, contains('**Cycle 1**'));
+      expect(md, isNot(matches(RegExp(r'#\d'))));
+    });
+
     test('reports success when every problem is in the baseline', () {
       final md = MarkdownExporter.export(
         result: result,
