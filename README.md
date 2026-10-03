@@ -120,7 +120,7 @@ preset: clean_architecture
 | `bloc` | `models`, `business_logic`, `repository`, `data_provider`, `presentation` | UI → bloc/cubit → repository → data provider; `models` everywhere. |
 | `feature_first` | `shared` + one `feature_<name>` per folder in `lib/features` (or `lib/modules`) | A feature imports only itself and `shared` (`lib/core`, `lib/shared`, `lib/common`). |
 
-Patterns use `**/<layer>/**`, so `lib/domain/...` and `lib/features/auth/domain/...` both match. A file belongs to the first layer whose pattern matches it. `arch_guard init` writes the expanded layers as comments in the config, so you can see exactly what a preset checks.
+Patterns use `lib/**/<layer>/**`, so `lib/domain/...` and `lib/features/auth/domain/...` both match. In a workspace, patterns are also matched from each package's `lib/` folder, so a package named `core` or `data` is not mistaken for that layer; its own `domain/`, `data/` and other folders are checked. A file belongs to the first layer whose pattern matches it. `arch_guard init` writes the expanded layers as comments in the config, so you can see exactly what a preset checks.
 
 To adjust a preset, list the layer under `layers:` with only the keys you want to change. New layer names are added:
 

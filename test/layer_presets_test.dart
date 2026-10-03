@@ -55,6 +55,27 @@ void main() {
       expect(coverage.unassignedFiles, equals(['lib/main.dart']));
     });
 
+    test('a workspace package named like a layer is not that layer', () {
+      final coverage = LayerValidator.coverage(
+        result: _scan(const [], [
+          'packages/core/lib/domain/user.dart',
+          'packages/core/lib/faq/data/repo.dart',
+          'packages/core/lib/network/client.dart',
+          'packages/data/lib/core/util.dart',
+          'packages/data/lib/presentation/page.dart',
+        ]),
+        config: parse('preset: clean_architecture'),
+      );
+      expect(
+        coverage.layerFileCounts,
+        equals({'core': 1, 'domain': 1, 'data': 1, 'presentation': 1}),
+      );
+      expect(
+        coverage.unassignedFiles,
+        equals(['packages/core/lib/network/client.dart']),
+      );
+    });
+
     test('lets presentation use domain but not data', () {
       final violations = LayerValidator.validate(
         result: _scan(const [
@@ -85,7 +106,7 @@ layers:
       expect(config.warnings, isEmpty);
       expect(
         config.layers['presentation']!.patterns,
-        equals(['**/presentation/**', '**/ui/**']),
+        equals(['lib/**/presentation/**', 'lib/**/ui/**']),
       );
       expect(config.layers['presentation']!.allowedImports, contains('data'));
       expect(config.layers.keys.last, equals('di'));

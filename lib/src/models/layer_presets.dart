@@ -6,8 +6,9 @@ import 'layer_definition.dart';
 
 /// Predefined layer rules selected with `preset:` in the configuration.
 ///
-/// Patterns use `**/name/**`, so they match both layer-first layouts
-/// (`lib/domain/...`) and feature-first ones (`lib/features/auth/domain/...`).
+/// Patterns use `lib/**/name/**`, so they match both layer-first layouts
+/// (`lib/domain/...`) and feature-first ones (`lib/features/auth/domain/...`),
+/// but not a workspace package that happens to be named `core` or `data`.
 /// The first layer whose patterns match a file wins, so order matters.
 class LayerPresets {
   static const cleanArchitecture = 'clean_architecture';
@@ -50,62 +51,67 @@ class LayerPresets {
     switch (name) {
       case cleanArchitecture:
         return _layers([
-          ('core', ['**/core/**'], ['core']),
-          ('domain', ['**/domain/**'], ['core', 'domain']),
-          ('data', ['**/data/**'], ['core', 'domain', 'data']),
+          ('core', ['lib/**/core/**'], ['core']),
+          ('domain', ['lib/**/domain/**'], ['core', 'domain']),
+          ('data', ['lib/**/data/**'], ['core', 'domain', 'data']),
           (
             'presentation',
-            ['**/presentation/**', '**/ui/**'],
+            ['lib/**/presentation/**', 'lib/**/ui/**'],
             ['core', 'domain', 'presentation'],
           ),
         ]);
       case bloc:
         return _layers([
-          ('models', ['**/models/**', '**/model/**'], ['models']),
+          ('models', ['lib/**/models/**', 'lib/**/model/**'], ['models']),
           (
             'business_logic',
-            ['**/bloc/**', '**/blocs/**', '**/cubit/**', '**/cubits/**'],
+            [
+              'lib/**/bloc/**',
+              'lib/**/blocs/**',
+              'lib/**/cubit/**',
+              'lib/**/cubits/**',
+            ],
             ['business_logic', 'repository', 'models'],
           ),
           (
             'repository',
-            ['**/repository/**', '**/repositories/**'],
+            ['lib/**/repository/**', 'lib/**/repositories/**'],
             ['repository', 'data_provider', 'models'],
           ),
           (
             'data_provider',
             [
-              '**/data_provider/**',
-              '**/data_providers/**',
-              '**/api/**',
-              '**/clients/**',
+              'lib/**/data_provider/**',
+              'lib/**/data_providers/**',
+              'lib/**/api/**',
+              'lib/**/clients/**',
             ],
             ['data_provider', 'models'],
           ),
           (
             'presentation',
             [
-              '**/view/**',
-              '**/views/**',
-              '**/pages/**',
-              '**/screens/**',
-              '**/widgets/**',
+              'lib/**/view/**',
+              'lib/**/views/**',
+              'lib/**/pages/**',
+              'lib/**/screens/**',
+              'lib/**/widgets/**',
             ],
             ['presentation', 'business_logic', 'models'],
           ),
         ]);
       case riverpod:
         return _layers([
-          ('domain', ['**/domain/**'], ['domain']),
-          ('data', ['**/data/**'], ['data', 'domain']),
+          ('domain', ['lib/**/domain/**'], ['domain']),
+          ('data', ['lib/**/data/**'], ['data', 'domain']),
           (
             'application',
-            ['**/application/**'],
+            ['lib/**/application/**'],
             ['application', 'domain', 'data'],
           ),
           (
             'presentation',
-            ['**/presentation/**'],
+            ['lib/**/presentation/**'],
             ['presentation', 'application', 'domain', 'data'],
           ),
         ]);
