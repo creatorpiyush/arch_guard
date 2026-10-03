@@ -2,12 +2,16 @@ import 'package:path/path.dart' as p;
 
 /// Directive extracted from a file (import, export or part).
 class ExtractedDirective {
+  /// The URI inside the directive's quotes.
   final String uri;
-  final String type; // 'import', 'export' or 'part'
+
+  /// Directive kind: `import`, `export` or `part`.
+  final String type;
 
   /// 1-based line of the directive keyword, if known.
   final int? line;
 
+  /// Creates a directive for [uri].
   const ExtractedDirective(this.uri, {this.type = 'import', this.line});
 }
 

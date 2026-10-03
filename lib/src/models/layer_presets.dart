@@ -11,9 +11,16 @@ import 'layer_definition.dart';
 /// but not a workspace package that happens to be named `core` or `data`.
 /// The first layer whose patterns match a file wins, so order matters.
 class LayerPresets {
+  /// Core, domain, data and presentation layers.
   static const cleanArchitecture = 'clean_architecture';
+
+  /// One layer per feature folder plus shared code.
   static const featureFirst = 'feature_first';
+
+  /// Layers of a typical Bloc/Cubit app.
   static const bloc = 'bloc';
+
+  /// Layers of the Riverpod app architecture.
   static const riverpod = 'riverpod';
 
   /// All preset names with a one-line description.
@@ -32,6 +39,7 @@ class LayerPresets {
         'app architecture; domain depends on nothing, data never sees the UI.',
   };
 
+  /// Names of all presets.
   static Iterable<String> get names => descriptions.keys;
 
   /// Folders searched, in order, for feature directories by [featureFirst].

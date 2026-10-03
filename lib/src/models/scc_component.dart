@@ -28,6 +28,7 @@ class SccComponent {
   /// File path acting as the main dependency hub in this component.
   final String hubFile;
 
+  /// Creates a component; usually built by `DependencyGraph`.
   const SccComponent({
     required this.id,
     required this.files,
@@ -100,6 +101,7 @@ class SccComponent {
     );
   }
 
+  /// JSON form used by the JSON exporter.
   Map<String, dynamic> toJson() => {
     'id': id,
     'files': files,

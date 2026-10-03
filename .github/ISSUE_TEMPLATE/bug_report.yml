@@ -1,0 +1,51 @@
+name: Bug report
+description: arch_guard crashed, reported something wrong, or missed a problem.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what did arch_guard do instead?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      placeholder: dart run arch_guard . -f html
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: arch_guard.yaml
+      description: Your configuration, if any.
+      render: yaml
+  - type: textarea
+    id: layout
+    attributes:
+      label: Project layout
+      description: The relevant folders and files (for example `tree lib -d -L 3`). A minimal reproduction is ideal.
+      render: text
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Run with `--no-color` and paste the output.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: arch_guard version
+      placeholder: arch_guard --version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Dart/Flutter version
+      placeholder: macOS 15, Dart 3.9.0
+    validations:
+      required: true

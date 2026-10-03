@@ -11,7 +11,7 @@ inputs:
     default: .
   version:
     description: >-
-      arch_guard release to run, e.g. `v1.3.0`. Defaults to the ref this action
+      arch_guard release to run, e.g. `v1.4.1`. Defaults to the ref this action
       is pinned to when that is a version tag, otherwise the latest release.
       `source` builds the action's own checkout instead (needs Dart on the runner).
     default: ''

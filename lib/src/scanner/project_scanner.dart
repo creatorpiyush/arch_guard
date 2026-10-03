@@ -23,6 +23,7 @@ class ProjectScanner {
   /// Whether to auto-discover and scan member packages in a Dart 3.6+ workspace or monorepo.
   final bool enableWorkspace;
 
+  /// Creates a scanner for the project at [rootPath].
   ProjectScanner({
     required this.rootPath,
     this.scanDirs = const ['lib'],

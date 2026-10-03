@@ -3,8 +3,10 @@ import '../models/scan_result.dart';
 
 /// Formats and prints scan results and detected cycles to text (terminal).
 class TextReporter {
+  /// Whether to color the output with ANSI escape codes.
   final bool useColor;
 
+  /// Creates a reporter; pass `useColor: false` for plain text.
   const TextReporter({this.useColor = true});
 
   /// Formats the complete report into a single string.

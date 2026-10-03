@@ -13,6 +13,7 @@ class LayoutDetection {
   /// Human-readable explanation of why [preset] was chosen.
   final String reason;
 
+  /// Creates a detection result.
   const LayoutDetection(this.preset, this.reason);
 }
 
@@ -32,6 +33,7 @@ class LayoutDetector {
     'node_modules',
   };
 
+  /// Guesses the preset for the project at [rootPath].
   static LayoutDetection detect(String rootPath) {
     final libFolders = _libFolderNames(rootPath);
     final deps = _dependencyNames(rootPath);

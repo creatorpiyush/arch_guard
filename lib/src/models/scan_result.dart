@@ -14,6 +14,7 @@ class GraphEdge {
   /// 1-based line of the directive in [from], if known. Not part of equality.
   final int? line;
 
+  /// Creates an edge from [from] to [to].
   const GraphEdge({
     required this.from,
     required this.to,
@@ -54,6 +55,7 @@ class ScanResult {
   /// Files that matched the scan but could not be read, with the reason.
   final Map<String, String> skippedFiles;
 
+  /// Creates a scan result.
   const ScanResult({
     required this.packageName,
     required this.files,

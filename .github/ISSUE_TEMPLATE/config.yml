@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://creatorpiyush.github.io/arch_guard/
+    about: Presets, configuration, CI recipes and the CLI reference.
+  - name: Report a security vulnerability
+    url: https://github.com/creatorpiyush/arch_guard/security/advisories/new
+    about: Please report security problems privately.

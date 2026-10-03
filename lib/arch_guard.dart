@@ -1,4 +1,20 @@
 /// Static architecture analysis, Clean Architecture layer governance, metrics, and dependency graph visualizer for Dart and Flutter projects.
+///
+/// Most people use the `arch_guard` command line tool. This library exposes
+/// the same building blocks for custom tooling:
+///
+/// ```dart
+/// final result = await ProjectScanner(rootPath: '.').scan();
+/// final cycles = DependencyGraph.fromScanResult(result)
+///     .findCircularDependencies();
+/// final violations = LayerValidator.validate(
+///   result: result,
+///   config: ArchGuardConfig.load('.'),
+/// );
+/// ```
+///
+/// See the [documentation](https://creatorpiyush.github.io/arch_guard/) for
+/// configuration, presets and CI recipes.
 library;
 
 export 'src/baseline/baseline.dart';

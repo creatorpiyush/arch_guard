@@ -134,7 +134,7 @@ class HtmlExporter {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${_htmlEscape(result.packageName)} - Dependency Graph Visualizer</title>
+  <title>${_htmlEscape(result.packageName)} - arch_guard</title>
   $visNetworkTag
   $fontsTag
   <style>
@@ -205,6 +205,9 @@ class HtmlExporter {
     }
     main {
       flex: 1;
+      /* Without this, the graph canvas keeps growing the page past the
+         viewport, pushing the drawn nodes out of view. */
+      min-height: 0;
       display: flex;
       position: relative;
     }
@@ -279,6 +282,7 @@ class HtmlExporter {
     }
     #mynetwork {
       flex: 1;
+      min-width: 0;
       height: 100%;
       background: #0f172a;
     }
@@ -368,7 +372,7 @@ class HtmlExporter {
 <body>
   <header>
     <div class="brand">
-      <h1>Dependency Graph Visualizer</h1>
+      <h1>arch_guard</h1>
       <span class="badge">${_htmlEscape(result.packageName)}</span>
     </div>
     <div class="stats">
