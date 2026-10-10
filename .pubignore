@@ -4,6 +4,7 @@
 test/fixtures/
 plan.md
 plans/
+packages/
 *.iml
 .idea/
 .vscode/

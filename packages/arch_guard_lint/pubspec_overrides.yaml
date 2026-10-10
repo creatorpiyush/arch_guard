@@ -1,0 +1,3 @@
+dependency_overrides:
+  arch_guard:
+    path: ../..

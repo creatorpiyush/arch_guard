@@ -5,6 +5,7 @@ analyzer:
     - test/fixtures/**
     - example/sample_workspace/**
     - example/sample_project/**
+    - packages/**
 
 linter:
   rules:

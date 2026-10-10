@@ -99,3 +99,32 @@ jobs:
           test -f "$SARIF"
           grep -q '"version": "2.1.0"' "$SARIF"
           grep -q 'arch_guard-report' "$MARKDOWN"
+
+  plugin:
+    name: arch_guard_lint (Dart ${{ matrix.sdk }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.10.0 is the plugin's SDK floor and resolves the oldest analyzer we support.
+        sdk: [ 3.10.0, stable ]
+    defaults:
+      run:
+        working-directory: packages/arch_guard_lint
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Run static analysis
+        run: dart analyze --fatal-infos
+
+      - name: Run tests
+        run: dart test
