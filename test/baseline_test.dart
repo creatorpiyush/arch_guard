@@ -220,4 +220,52 @@ void main() {
       expect(cmp(26).fixedMetricViolationCount, 0);
     });
   });
+
+  group('Baseline workspace violations', () {
+    WorkspaceViolation wv(String from) => WorkspaceViolation(
+      sourceFile: from,
+      targetFile: 'packages/a/lib/a.dart',
+      sourcePackage: 'core',
+      targetPackage: 'a',
+      selector: 'core',
+    );
+    final baseline = Baseline.capture(
+      cycles: const [],
+      layerViolations: const [],
+      workspaceViolations: [wv('packages/core/lib/c.dart')],
+    );
+
+    test('known, new, round-trip, old files', () {
+      final c = baseline.compare(
+        cycles: const [],
+        layerViolations: const [],
+        workspaceViolations: [
+          wv('packages/core/lib/c.dart'),
+          wv('packages/core/lib/d.dart'),
+        ],
+      );
+      expect(c.knownWorkspaceViolations, hasLength(1));
+      expect(
+        c.newWorkspaceViolations.single.sourceFile,
+        'packages/core/lib/d.dart',
+      );
+      expect(
+        c.isNewWorkspaceViolation(c.newWorkspaceViolations.single),
+        isTrue,
+      );
+      expect(
+        Baseline.fromJson(
+          jsonDecode(jsonEncode(baseline.toJson())),
+        ).workspaceViolations,
+        baseline.workspaceViolations,
+      );
+      expect(Baseline.fromJson({'version': 1}).workspaceViolations, isEmpty);
+      expect(
+        baseline
+            .compare(cycles: const [], layerViolations: const [])
+            .fixedWorkspaceViolationCount,
+        1,
+      );
+    });
+  });
 }

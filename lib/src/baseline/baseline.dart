@@ -4,6 +4,7 @@ import 'dart:io';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
 
 /// Default baseline file name, resolved relative to the scanned project.
@@ -27,6 +28,9 @@ class Baseline {
   /// A file whose value grows past this counts as new again (ratchet).
   final Map<String, int> metricViolations;
 
+  /// Known workspace rule violations, keyed by `sourceFile -> targetFile`.
+  final Set<String> workspaceViolations;
+
   /// Creates a baseline holding [cycles], [layerViolations] and
   /// [packageViolations].
   const Baseline({
@@ -34,6 +38,7 @@ class Baseline {
     this.layerViolations = const {},
     this.packageViolations = const {},
     this.metricViolations = const {},
+    this.workspaceViolations = const {},
   });
 
   /// Captures the current problems as a baseline.
@@ -42,11 +47,13 @@ class Baseline {
     required List<LayerViolation> layerViolations,
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
+    List<WorkspaceViolation> workspaceViolations = const [],
   }) => Baseline(
     cycles: cycles.map((c) => c.files.toSet()).toList(),
     layerViolations: layerViolations.map(violationKey).toSet(),
     packageViolations: packageViolations.map(packageViolationKey).toSet(),
     metricViolations: {for (final v in metricViolations) metricKey(v): v.value},
+    workspaceViolations: workspaceViolations.map(workspaceViolationKey).toSet(),
   );
 
   /// Parses a baseline from its JSON form. Throws [FormatException] if invalid.
@@ -85,11 +92,20 @@ class Baseline {
       metrics['${map['file']}|${map['metric']}'] = map['value'] as int;
     }
 
+    final workspace = <String>{};
+    for (final entry in json['workspaceViolations'] as List? ?? const []) {
+      final map = entry as Map;
+      workspace.add(
+        _key(map['sourceFile'] as String, map['targetFile'] as String),
+      );
+    }
+
     return Baseline(
       cycles: cycles,
       layerViolations: violations,
       packageViolations: packages,
       metricViolations: metrics,
+      workspaceViolations: workspace,
     );
   }
 
@@ -139,6 +155,13 @@ class Baseline {
             'value': metricViolations[key],
           },
       ],
+      'workspaceViolations': [
+        for (final key in workspaceViolations.toList()..sort())
+          {
+            'sourceFile': key.split(_separator).first,
+            'targetFile': key.split(_separator).last,
+          },
+      ],
     };
   }
 
@@ -161,6 +184,7 @@ class Baseline {
     required List<LayerViolation> layerViolations,
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
+    List<WorkspaceViolation> workspaceViolations = const [],
   }) {
     final newCycles = <Cycle>[];
     final knownCycles = <Cycle>[];
@@ -217,6 +241,19 @@ class Baseline {
       }
     }
 
+    final newWorkspace = <WorkspaceViolation>[];
+    final knownWorkspace = <WorkspaceViolation>[];
+    final seenWorkspace = <String>{};
+    for (final violation in workspaceViolations) {
+      final key = workspaceViolationKey(violation);
+      if (this.workspaceViolations.contains(key)) {
+        knownWorkspace.add(violation);
+        seenWorkspace.add(key);
+      } else {
+        newWorkspace.add(violation);
+      }
+    }
+
     return BaselineComparison(
       newCycles: newCycles,
       knownCycles: knownCycles,
@@ -237,6 +274,11 @@ class Baseline {
           .toSet()
           .difference(seenMetrics)
           .length,
+      newWorkspaceViolations: newWorkspace,
+      knownWorkspaceViolations: knownWorkspace,
+      fixedWorkspaceViolationCount: this.workspaceViolations
+          .difference(seenWorkspace)
+          .length,
     );
   }
 
@@ -251,6 +293,10 @@ class Baseline {
   /// Identity of a metric violation: `file|metric` (the value is compared
   /// separately, so a file that gets worse is new again).
   static String metricKey(MetricViolation v) => '${v.file}|${v.metric}';
+
+  /// Stable identity of a workspace rule violation: importing and imported file.
+  static String workspaceViolationKey(WorkspaceViolation v) =>
+      _key(v.sourceFile, v.targetFile);
 
   static const _separator = ' -> ';
 
@@ -296,6 +342,15 @@ class BaselineComparison {
   /// Baseline metric violations that no longer occur.
   final int fixedMetricViolationCount;
 
+  /// Workspace rule violations that are not in the baseline.
+  final List<WorkspaceViolation> newWorkspaceViolations;
+
+  /// Workspace rule violations that the baseline already lists.
+  final List<WorkspaceViolation> knownWorkspaceViolations;
+
+  /// Baseline workspace rule violations that no longer occur.
+  final int fixedWorkspaceViolationCount;
+
   /// Creates a comparison from already split problem lists.
   const BaselineComparison({
     required this.newCycles,
@@ -310,6 +365,9 @@ class BaselineComparison {
     this.newMetricViolations = const [],
     this.knownMetricViolations = const [],
     this.fixedMetricViolationCount = 0,
+    this.newWorkspaceViolations = const [],
+    this.knownWorkspaceViolations = const [],
+    this.fixedWorkspaceViolationCount = 0,
   });
 
   /// Treats every problem as new (used when there is no baseline).
@@ -318,6 +376,7 @@ class BaselineComparison {
     required List<LayerViolation> layerViolations,
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
+    List<WorkspaceViolation> workspaceViolations = const [],
   }) => BaselineComparison(
     newCycles: cycles,
     knownCycles: const [],
@@ -325,6 +384,7 @@ class BaselineComparison {
     knownViolations: const [],
     newPackageViolations: packageViolations,
     newMetricViolations: metricViolations,
+    newWorkspaceViolations: workspaceViolations,
   );
 
   /// Whether [cycle] is new relative to the baseline.
@@ -341,4 +401,8 @@ class BaselineComparison {
   /// Whether [violation] is new (or worse) relative to the baseline.
   bool isNewMetricViolation(MetricViolation violation) =>
       newMetricViolations.contains(violation);
+
+  /// Whether [violation] is new relative to the baseline.
+  bool isNewWorkspaceViolation(WorkspaceViolation violation) =>
+      newWorkspaceViolations.contains(violation);
 }
