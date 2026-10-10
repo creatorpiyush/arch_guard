@@ -61,6 +61,7 @@ layers:
 | `layers` | map | none | Layer name → `patterns` (globs), `allowed_imports` (layer names) and optional `forbidden_packages`. With a preset, overrides or adds layers. |
 | `forbidden_packages` | list | none | Packages (`dio`) or core libraries (`dart:io`) no scanned file may import. Globs allowed (`firebase_*`). Also valid inside a layer, where it applies only to that layer's files. |
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
+| `workspace_rules` | map | none | In a workspace: member selector → `allowed:` members it may import. See [Workspace rules](#workspace-rules). |
 | `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
@@ -150,3 +151,30 @@ The legacy `dep_graph.yaml` file and `dep_graph_visualizer:` pubspec key are sti
 With `--workspace` (the default), member packages come from the `workspace:` list in the root `pubspec.yaml`. Without one, packages under `packages/` and `apps/` are discovered automatically (ignoring `example/`, `test/` and `tool/` folders). Imports between packages become edges in the graph, so cross-package cycles are found too. A single-package project is scanned using `--scan-dir` (default `lib`).
 
 See [Presets → Workspaces and monorepos](presets.md#workspaces-and-monorepos) for layering advice on large monorepos.
+
+## Workspace rules
+
+Layers govern folders inside a package. `workspace_rules` govern which **packages** of a workspace may depend on which:
+
+```yaml
+workspace_rules:
+  "packages/core":
+    allowed: []                  # core depends on no other member
+  "packages/*":
+    allowed: ["packages/core"]   # shared packages may only use core
+  "apps/*":
+    allowed: ["packages/*"]      # apps may use any shared package
+```
+
+- Selectors and `allowed` entries are globs matched against a member's path (`packages/core`) or name (`core`). The root package's path is `.`.
+- The **first** selector that matches a member applies, so put specific rules before broad ones.
+- A member may always import itself. Members no selector matches are unrestricted.
+- Only imports and exports between members count. Use [`forbidden_packages`](#forbidden-packages) for pub.dev packages.
+- Each offending import is reported with its line and fails the run (exit code `1`). Adopt on existing code with `--update-baseline`.
+
+```text
+❌ Workspace Violation: [mobile] apps/mobile/lib/main.dart:3 -> [ui] packages/ui/lib/ui.dart
+   Rule: `mobile` (rule `apps/*`) may only import members matching `packages/core`.
+```
+
+You get a warning for a selector or `allowed` entry that matches no member, and when `workspace_rules` is set in a project that isn't a workspace.

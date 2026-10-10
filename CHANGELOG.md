@@ -1,8 +1,9 @@
 # 1.6.0
 
 - **New: metric limits.** `metrics: max_fan_out / max_fan_in` fail the run when a file imports, or is imported by, too many project files. Baselines ratchet: a known file that gets worse fails again. Reports list the most coupled files (`hotspots`, default 10) in Markdown and JSON, and in the terminal when limits are set. SARIF rule `metric-limit`. Library: `FileMetrics`, `MetricValidator`.
+- **New: `workspace_rules`.** In a Dart workspace or `packages/`/`apps/` monorepo, declare which members may import which (`apps/*` → `packages/*`, never the reverse). Violations point at the import line, fail the run, and work with baselines, SARIF (`workspace-dependency`), Markdown and JSON. Library: `WorkspaceValidator`, `WorkspaceViolation`, `ScanResult.packages`.
 - **Fixed: unstable cycle order.** Files and edges are now sorted, so cycle numbering and every report are identical between runs.
-- Baseline files gain a `metricViolations` list. Older baselines still load.
+- Baseline files gain `metricViolations` and `workspaceViolations` lists. Older baselines still load.
 
 # 1.5.0
 
