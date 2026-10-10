@@ -4,6 +4,7 @@ import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/workspace_validator.dart';
 import '../graph/dependency_graph.dart';
 import '../models/config_model.dart';
 import '../models/cycle.dart';
@@ -40,6 +41,13 @@ class ArchAnalysis {
   /// Files over a `metrics:` limit.
   final List<MetricViolation> metricViolations;
 
+  /// Imports between workspace members that `workspace_rules` forbids.
+  final List<WorkspaceViolation> workspaceViolations;
+
+  /// Problems with the configuration found while analysing (for example
+  /// `workspace_rules` in a project that isn't a workspace).
+  final List<String> warnings;
+
   /// Cycles larger than `max_scc_size`.
   final List<Cycle> oversizedCycles;
 
@@ -63,6 +71,8 @@ class ArchAnalysis {
     required this.oversizedCycles,
     this.fileMetrics = const [],
     this.metricViolations = const [],
+    this.workspaceViolations = const [],
+    this.warnings = const [],
     required this.coverage,
     required this.baselinePath,
     this.baseline,
@@ -89,6 +99,10 @@ class ArchAnalysis {
       .take(config.hotspotCount)
       .toList();
 
+  /// Workspace rule violations not in the baseline.
+  List<WorkspaceViolation> get newWorkspaceViolations =>
+      baseline?.newWorkspaceViolations ?? workspaceViolations;
+
   /// Oversized cycles that are also new.
   List<Cycle> get newOversizedCycles =>
       oversizedCycles.where(newCycles.contains).toList();
@@ -105,6 +119,9 @@ class ArchAnalysis {
         'Forbidden package: ${at(v.sourceFile, v.line)} imports ${v.uri}. '
             '${v.rule}',
       for (final v in newMetricViolations) 'Metric limit: ${v.rule}',
+      for (final v in newWorkspaceViolations)
+        'Workspace rule: ${at(v.sourceFile, v.line)} imports ${v.targetFile}. '
+            '${v.rule}',
       if (config.failOnLayerViolation)
         for (final v in newLayerViolations)
           'Layer violation: ${at(v.sourceFile, v.line)} '
@@ -155,6 +172,20 @@ class ArchAnalysis {
       metrics: fileMetrics,
       config: config,
     );
+    final workspaceViolations = WorkspaceValidator.validate(
+      result: scan,
+      config: config,
+    );
+    final warnings = <String>[
+      if (config.workspaceRules.isNotEmpty && scan.packages.isEmpty)
+        'workspace_rules is ignored: this project is not a workspace.',
+      if (scan.packages.isNotEmpty)
+        for (final pattern in WorkspaceValidator.unmatchedPatterns(
+          result: scan,
+          config: config,
+        ))
+          'workspace_rules: `$pattern` matches no workspace member.',
+    ];
     final maxScc = config.maxSccSize;
     final absBaseline = p.isAbsolute(baselinePath)
         ? baselinePath
@@ -170,6 +201,8 @@ class ArchAnalysis {
       packageViolations: packageViolations,
       fileMetrics: fileMetrics,
       metricViolations: metricViolations,
+      workspaceViolations: workspaceViolations,
+      warnings: warnings,
       oversizedCycles: maxScc == null
           ? const []
           : cycles.where((c) => c.files.length > maxScc).toList(),
@@ -180,6 +213,7 @@ class ArchAnalysis {
         layerViolations: layerViolations,
         packageViolations: packageViolations,
         metricViolations: metricViolations,
+        workspaceViolations: workspaceViolations,
       ),
     );
   }

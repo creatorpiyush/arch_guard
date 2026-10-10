@@ -4,6 +4,7 @@ import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 import '../version.dart';
@@ -21,6 +22,9 @@ class SarifExporter {
 
   /// SARIF rule id for files over a `metrics:` limit.
   static const metricLimitRule = 'metric-limit';
+
+  /// SARIF rule id for imports between workspace members that the rules forbid.
+  static const workspaceDependencyRule = 'workspace-dependency';
 
   /// SARIF rule id for circular dependency groups.
   static const circularDependencyRule = 'circular-dependency';
@@ -40,6 +44,7 @@ class SarifExporter {
     List<LayerViolation> layerViolations = const [],
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
+    List<WorkspaceViolation> workspaceViolations = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -116,6 +121,25 @@ class SarifExporter {
           'archGuard/v1': '$metricLimitRule:${Baseline.metricKey(v)}',
         },
         'baselineState': ?state(baseline?.isNewMetricViolation(v) ?? true),
+      });
+    }
+
+    for (final v in workspaceViolations) {
+      results.add({
+        'ruleId': workspaceDependencyRule,
+        'level': 'error',
+        'message': {
+          'text':
+              '`${v.sourceFile}` (`${v.sourcePackage}`) imports '
+              '`${v.targetFile}` (`${v.targetPackage}`). ${v.rule} '
+              '${v.suggestion}',
+        },
+        'locations': [location(v.sourceFile, line: v.line)],
+        'partialFingerprints': {
+          'archGuard/v1':
+              '$workspaceDependencyRule:${Baseline.workspaceViolationKey(v)}',
+        },
+        'baselineState': ?state(baseline?.isNewWorkspaceViolation(v) ?? true),
       });
     }
 
@@ -238,6 +262,23 @@ class SarifExporter {
         'text':
             'A file imports, or is imported by, more project files than '
             '`metrics: max_fan_out` / `max_fan_in` in arch_guard.yaml allow.',
+      },
+      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'defaultConfiguration': {'level': 'error'},
+      'properties': {
+        'tags': ['architecture', 'maintainability'],
+      },
+    },
+    {
+      'id': workspaceDependencyRule,
+      'name': 'WorkspaceDependency',
+      'shortDescription': {
+        'text': 'Import between workspace members that the rules forbid',
+      },
+      'fullDescription': {
+        'text':
+            'A file in one workspace member imports a file in another member '
+            'that `workspace_rules` in arch_guard.yaml does not allow.',
       },
       'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
       'defaultConfiguration': {'level': 'error'},

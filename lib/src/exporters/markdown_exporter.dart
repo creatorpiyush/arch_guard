@@ -2,6 +2,7 @@ import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
 import '../models/file_metrics.dart';
 import '../models/scan_result.dart';
@@ -29,6 +30,7 @@ class MarkdownExporter {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<FileMetrics> hotspots = const [],
+    List<WorkspaceViolation> workspaceViolations = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -40,17 +42,20 @@ class MarkdownExporter {
           layerViolations: layerViolations,
           packageViolations: packageViolations,
           metricViolations: metricViolations,
+          workspaceViolations: workspaceViolations,
         );
     final newCycles = comparison.newCycles;
     final newViolations = comparison.newViolations;
     final newPackages = comparison.newPackageViolations;
     final newMetrics = comparison.newMetricViolations;
+    final newWorkspace = comparison.newWorkspaceViolations;
     final newOversized = oversizedCycles.where(comparison.isNewCycle).toList();
     final hasNew =
         newCycles.isNotEmpty ||
         newViolations.isNotEmpty ||
         newPackages.isNotEmpty ||
         newMetrics.isNotEmpty ||
+        newWorkspace.isNotEmpty ||
         newOversized.isNotEmpty;
 
     final b = StringBuffer()
@@ -67,7 +72,8 @@ class MarkdownExporter {
     } else if (cycles.isEmpty &&
         layerViolations.isEmpty &&
         packageViolations.isEmpty &&
-        metricViolations.isEmpty) {
+        metricViolations.isEmpty &&
+        workspaceViolations.isEmpty) {
       b.writeln('✅ **No circular dependencies or layer violations.**');
     } else {
       b.writeln(
@@ -94,6 +100,10 @@ class MarkdownExporter {
       ..writeln(
         '| Metric limit violations | ${metricViolations.length} | '
         '${newMetrics.length} |',
+      )
+      ..writeln(
+        '| Workspace rule violations | ${workspaceViolations.length} | '
+        '${newWorkspace.length} |',
       );
     if (maxSccSize != null) {
       b.writeln(
@@ -122,6 +132,17 @@ class MarkdownExporter {
       _writeCapped(b, newPackages, (v) {
         final at = v.line != null ? ':${v.line}' : '';
         return '- `${v.sourceFile}$at` imports `${v.uri}`. ${v.rule}';
+      });
+      b.writeln();
+    }
+
+    if (newWorkspace.isNotEmpty) {
+      b.writeln('### New workspace rule violations');
+      b.writeln();
+      _writeCapped(b, newWorkspace, (v) {
+        final at = v.line != null ? ':${v.line}' : '';
+        return '- `${v.sourceFile}$at` (**${v.sourcePackage}**) imports '
+            '`${v.targetFile}` (**${v.targetPackage}**). ${v.rule}';
       });
       b.writeln();
     }
@@ -199,14 +220,16 @@ class MarkdownExporter {
         (baseline.fixedCycleCount > 0 ||
             baseline.fixedViolationCount > 0 ||
             baseline.fixedPackageViolationCount > 0 ||
-            baseline.fixedMetricViolationCount > 0)) {
+            baseline.fixedMetricViolationCount > 0 ||
+            baseline.fixedWorkspaceViolationCount > 0)) {
       b
         ..writeln(
           '🎉 ${baseline.fixedCycleCount} cycle group(s), '
           '${baseline.fixedViolationCount} layer violation(s), '
           '${baseline.fixedPackageViolationCount} forbidden package '
-          'import(s) and ${baseline.fixedMetricViolationCount} metric limit '
-          'violation(s) from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
+          'import(s), ${baseline.fixedMetricViolationCount} metric limit '
+          'violation(s) and ${baseline.fixedWorkspaceViolationCount} '
+          'workspace rule violation(s) from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
           'this in.',
         )
         ..writeln();

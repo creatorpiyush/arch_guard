@@ -38,6 +38,52 @@ void main() {
     line: 1,
   );
 
+  group('workspace rules in reports', () {
+    const wv = WorkspaceViolation(
+      sourceFile: 'apps/mobile/lib/m.dart',
+      targetFile: 'packages/ui/lib/ui.dart',
+      sourcePackage: 'mobile',
+      targetPackage: 'ui',
+      selector: 'apps/*',
+      allowed: ['packages/core'],
+      line: 3,
+    );
+
+    test('SARIF', () {
+      final log = jsonDecode(
+        SarifExporter.export(
+          result: result,
+          cycles: const [],
+          workspaceViolations: [wv],
+        ),
+      );
+      final hit = log['runs'][0]['results'][0];
+      expect(hit['ruleId'], 'workspace-dependency');
+      expect(hit['locations'][0]['physicalLocation']['region']['startLine'], 3);
+    });
+
+    test('Markdown', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        workspaceViolations: [wv],
+      );
+      expect(md, contains('### New workspace rule violations'));
+      expect(md, contains('| Workspace rule violations | 1 | 1 |'));
+    });
+
+    test('JSON', () {
+      final json = jsonDecode(
+        JsonExporter.export(
+          result: result,
+          cycles: const [],
+          workspaceViolations: [wv.toJson()],
+        ),
+      );
+      expect(json['workspaceViolations'][0]['targetPackage'], 'ui');
+    });
+  });
+
   group('metric limits in reports', () {
     const mv = MetricViolation(
       file: 'lib/a.dart',

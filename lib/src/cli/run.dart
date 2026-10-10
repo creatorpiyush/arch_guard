@@ -102,7 +102,7 @@ Future<int> runCli(List<String> args) async {
     return 2;
   }
   final config = analysis.config;
-  for (final warning in config.warnings) {
+  for (final warning in [...config.warnings, ...analysis.warnings]) {
     _warn(warning, useColor);
   }
   final scanResult = analysis.scan;
@@ -117,6 +117,8 @@ Future<int> runCli(List<String> args) async {
   final newPackageViolations = analysis.newPackageViolations;
   final metricViolations = analysis.metricViolations;
   final newMetricViolations = analysis.newMetricViolations;
+  final workspaceViolations = analysis.workspaceViolations;
+  final newWorkspaceViolations = analysis.newWorkspaceViolations;
 
   scanResult.skippedFiles.forEach((file, reason) {
     _warn('could not read $file: $reason', useColor);
@@ -215,6 +217,22 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
+  if (newWorkspaceViolations.isNotEmpty) {
+    final label = comparison == null ? '' : 'NEW ';
+    final cDim = useColor ? '\x1B[2m' : '';
+    stdout.writeln(
+      '$cRed[!] ${label}WORKSPACE RULE VIOLATIONS '
+      '(${newWorkspaceViolations.length}):$cReset',
+    );
+    for (final v in newWorkspaceViolations) {
+      stdout.writeln('  $v');
+      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+    }
+    stdout.writeln();
+    stdout.writeln('  How to fix: ${newWorkspaceViolations.first.suggestion}');
+    stdout.writeln();
+  }
+
   if (newMetricViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
     final cDim = useColor ? '\x1B[2m' : '';
@@ -255,20 +273,23 @@ Future<int> runCli(List<String> args) async {
       '${comparison.knownViolations.length} layer violation(s), '
       '${comparison.knownPackageViolations.length} forbidden package '
       'import(s), ${comparison.knownMetricViolations.length} metric limit '
-      'violation(s)',
+      'violation(s), ${comparison.knownWorkspaceViolations.length} workspace '
+      'rule violation(s)',
     );
     final newColor =
         newCycles.isEmpty &&
             newViolations.isEmpty &&
             newPackageViolations.isEmpty &&
-            newMetricViolations.isEmpty
+            newMetricViolations.isEmpty &&
+            newWorkspaceViolations.isEmpty
         ? cGreen
         : cRed;
     stdout.writeln(
       '  New:             $newColor${newCycles.length} cycle group(s), '
       '${newViolations.length} layer violation(s), '
       '${newPackageViolations.length} forbidden package import(s), '
-      '${newMetricViolations.length} metric limit violation(s)$cReset',
+      '${newMetricViolations.length} metric limit violation(s), '
+      '${newWorkspaceViolations.length} workspace rule violation(s)$cReset',
     );
     for (final cycle in newCycles) {
       final id = cycle.scc?.id;
@@ -280,13 +301,15 @@ Future<int> runCli(List<String> args) async {
     if (comparison.fixedCycleCount > 0 ||
         comparison.fixedViolationCount > 0 ||
         comparison.fixedPackageViolationCount > 0 ||
-        comparison.fixedMetricViolationCount > 0) {
+        comparison.fixedMetricViolationCount > 0 ||
+        comparison.fixedWorkspaceViolationCount > 0) {
       stdout.writeln(
         '  $cGreen${comparison.fixedCycleCount} cycle group(s), '
         '${comparison.fixedViolationCount} layer violation(s), '
         '${comparison.fixedPackageViolationCount} forbidden package '
-        'import(s) and ${comparison.fixedMetricViolationCount} metric limit '
-        'violation(s) in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
+        'import(s), ${comparison.fixedMetricViolationCount} metric limit '
+        'violation(s) and ${comparison.fixedWorkspaceViolationCount} '
+        'workspace rule violation(s) in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
     }
     stdout.writeln();
@@ -334,6 +357,9 @@ Future<int> runCli(List<String> args) async {
         packageViolations: packageViolations.map((v) => v.toJson()).toList(),
         metricViolations: metricViolations.map((v) => v.toJson()).toList(),
         hotspots: analysis.hotspots.map((m) => m.toJson()).toList(),
+        workspaceViolations: workspaceViolations
+            .map((v) => v.toJson())
+            .toList(),
       );
       File(jsonPath).writeAsStringSync(jsonContent);
       stdout.writeln('Exported JSON data report to: $jsonPath');
@@ -358,6 +384,7 @@ Future<int> runCli(List<String> args) async {
         layerViolations: layerViolations,
         packageViolations: packageViolations,
         metricViolations: metricViolations,
+        workspaceViolations: workspaceViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -378,6 +405,7 @@ Future<int> runCli(List<String> args) async {
         packageViolations: packageViolations,
         metricViolations: metricViolations,
         hotspots: analysis.hotspots,
+        workspaceViolations: workspaceViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -407,18 +435,22 @@ Future<int> runCli(List<String> args) async {
       layerViolations: layerViolations,
       packageViolations: packageViolations,
       metricViolations: metricViolations,
+      workspaceViolations: workspaceViolations,
     ).save(baselinePath);
     stdout.writeln(
       '${cGreen}Baseline written to $baselinePath$cReset '
       '(${cycles.length} cycle group(s), ${layerViolations.length} layer '
       'violation(s), ${packageViolations.length} forbidden package '
-      'import(s), ${metricViolations.length} metric limit violation(s)). '
+      'import(s), ${metricViolations.length} metric limit violation(s), '
+      '${workspaceViolations.length} workspace rule violation(s)). '
       'Commit it; later runs fail only on new problems.',
     );
     return 0;
   }
 
-  if (newPackageViolations.isNotEmpty || newMetricViolations.isNotEmpty) {
+  if (newPackageViolations.isNotEmpty ||
+      newMetricViolations.isNotEmpty ||
+      newWorkspaceViolations.isNotEmpty) {
     return 1;
   }
 

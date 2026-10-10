@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:arch_guard/arch_guard.dart';
+import 'package:arch_guard/src/cli/run.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -138,5 +139,47 @@ workspace_rules:
       ),
       ['aps/*', 'corr'],
     );
+  });
+
+  test(
+    'end to end: CLI fails, baseline accepts, non-workspace warns',
+    () async {
+      write('arch_guard.yaml', '''
+workspace_rules:
+  "packages/core":
+    allowed: []
+  "packages/*":
+    allowed: ["packages/core"]
+  "apps/*":
+    allowed: ["packages/core"]
+''');
+      final a = await ArchAnalysis.run(projectPath: dir.path);
+      expect(
+        a.workspaceViolations.map(
+          (v) => '${v.sourcePackage}>${v.targetPackage}',
+        ),
+        ['mobile>ui'],
+      );
+      expect(
+        a.failures(failOnCycle: false).single,
+        startsWith('Workspace rule:'),
+      );
+
+      expect(await runCli([dir.path]), 1);
+      expect(await runCli([dir.path, '--update-baseline']), 0);
+      expect(await runCli([dir.path]), 0);
+    },
+  );
+
+  test('workspace_rules in a single package only warns', () async {
+    final single = Directory.systemTemp.createTempSync('arch_guard_single_');
+    addTearDown(() => single.deleteSync(recursive: true));
+    File(p.join(single.path, 'pubspec.yaml')).writeAsStringSync('name: app\n');
+    File(
+      p.join(single.path, 'arch_guard.yaml'),
+    ).writeAsStringSync('workspace_rules:\n  core:\n    allowed: []\n');
+    final a = await ArchAnalysis.run(projectPath: single.path);
+    expect(a.workspaceViolations, isEmpty);
+    expect(a.warnings, contains(contains('workspace_rules is ignored')));
   });
 }
