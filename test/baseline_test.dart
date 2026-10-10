@@ -180,4 +180,44 @@ void main() {
       expect(c.newPackageViolations, hasLength(1));
     });
   });
+
+  group('Baseline metric ratchet', () {
+    MetricViolation mv(int value) => MetricViolation(
+      file: 'lib/god.dart',
+      metric: 'fan_out',
+      value: value,
+      limit: 20,
+    );
+    final baseline = Baseline.capture(
+      cycles: const [],
+      layerViolations: const [],
+      metricViolations: [mv(25)],
+    );
+
+    BaselineComparison cmp(int value) => baseline.compare(
+      cycles: const [],
+      layerViolations: const [],
+      metricViolations: [mv(value)],
+    );
+
+    test('same or lower is known; higher is new', () {
+      expect(cmp(25).newMetricViolations, isEmpty);
+      expect(cmp(24).knownMetricViolations, hasLength(1));
+      expect(cmp(26).newMetricViolations, hasLength(1));
+    });
+
+    test('round-trips and old files load', () {
+      final again = Baseline.fromJson(
+        jsonDecode(jsonEncode(baseline.toJson())),
+      );
+      expect(again.metricViolations, {'lib/god.dart|fan_out': 25});
+      expect(Baseline.fromJson({'version': 1}).metricViolations, isEmpty);
+    });
+
+    test('fixed when the file is back under the limit', () {
+      final c = baseline.compare(cycles: const [], layerViolations: const []);
+      expect(c.fixedMetricViolationCount, 1);
+      expect(cmp(26).fixedMetricViolationCount, 0);
+    });
+  });
 }
