@@ -27,6 +27,7 @@ dart run arch_guard          # checks the project
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
 - 📌 **Baselines for existing code.** Record today's problems once; CI then fails only on *new* ones.
 - 🧪 **Architecture tests.** `await expectArchitecture();` in `dart test` / `flutter test` runs the same checks. See [Testing](https://creatorpiyush.github.io/arch_guard/testing.html).
+- 💡 **IDE warnings.** The `arch_guard_lint` analyzer plugin underlines layer violations and forbidden imports as you type. See [IDE](https://creatorpiyush.github.io/arch_guard/ide.html).
 - 🤖 **CI-ready.** A GitHub Action that comments on PRs, SARIF for GitHub Code Scanning, Markdown job summaries, pre-commit hooks, standalone binaries.
 - 🎨 **Graphs.** Interactive HTML (works offline), Mermaid, Graphviz DOT and JSON.
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.
@@ -43,7 +44,7 @@ dart run arch_guard          # checks the project
 | Baseline for legacy code | ✅ | ✅ | – | – |
 | Dependency graph output | HTML, Mermaid, DOT, JSON | DOT (`analyze-structure`) | – | DOT, JSON |
 | PR comment / SARIF / GitHub Action | ✅ | CI integrations on paid plans | – | – |
-| Warnings in the IDE | – | ✅ | ✅ (analyzer plugin) | – |
+| Warnings in the IDE | ✅ (`arch_guard_lint` analyzer plugin) | ✅ | ✅ (analyzer plugin) | – |
 
 DCM is a full linting suite with hundreds of rules; import_lint shows import rules right in your editor; lakos focuses on graph metrics. arch_guard is built for one job: making architecture rules easy to adopt, including on a large existing codebase, and enforced on every pull request. *Comparison based on each tool's public documentation in October 2026; corrections welcome.*
 
