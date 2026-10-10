@@ -61,6 +61,7 @@ layers:
 | `layers` | map | none | Layer name → `patterns` (globs), `allowed_imports` (layer names) and optional `forbidden_packages`. With a preset, overrides or adds layers. |
 | `forbidden_packages` | list | none | Packages (`dio`) or core libraries (`dart:io`) no scanned file may import. Globs allowed (`firebase_*`). Also valid inside a layer, where it applies only to that layer's files. |
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
+| `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
 ## How layers are matched
@@ -109,6 +110,29 @@ layers:
 ```
 
 Forbidden imports always fail the run (exit code `1`); `fail_on_layer_violation` does not apply to them. To adopt the rule on existing code, run `arch_guard --update-baseline` once.
+
+## Metric limits
+
+Keep files from turning into hubs that everything depends on, or that depend on everything:
+
+```yaml
+metrics:
+  max_fan_out: 20   # a file may import at most 20 project files
+  max_fan_in: 40    # at most 40 project files may import it
+  hotspots: 10      # most-coupled files to list in reports (0 = none)
+```
+
+- Only files inside the scanned project count; `package:` imports of other packages don't.
+- Each imported file counts once, however many directives point at it. `part` files don't count.
+- A file over a limit fails the run (exit code `1`) and is reported with its numbers:
+
+  ```text
+  ❌ Metric Limit: lib/app/router.dart fan_out=27 (max 20)
+     Rule: `lib/app/router.dart` imports 27 files (max_fan_out: 20).
+  ```
+
+- With a baseline, a known file passes while its number stays the same or drops, and **fails again if it grows**. That makes the limit a ratchet for legacy hubs.
+- Markdown and JSON reports always list the most coupled files (fan-in + fan-out). The terminal lists the top five when `metrics:` limits are set.
 
 ## Warnings
 

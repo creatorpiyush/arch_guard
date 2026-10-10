@@ -1,3 +1,9 @@
+# 1.6.0
+
+- **New: metric limits.** `metrics: max_fan_out / max_fan_in` fail the run when a file imports, or is imported by, too many project files. Baselines ratchet: a known file that gets worse fails again. Reports list the most coupled files (`hotspots`, default 10) in Markdown and JSON, and in the terminal when limits are set. SARIF rule `metric-limit`. Library: `FileMetrics`, `MetricValidator`.
+- **Fixed: unstable cycle order.** Files and edges are now sorted, so cycle numbering and every report are identical between runs.
+- Baseline files gain a `metricViolations` list. Older baselines still load.
+
 # 1.5.0
 
 - **New: `forbidden_packages`.** Rule out packages and core libraries for the whole project (top-level key) or per layer (e.g. `domain` may not import `flutter` or `dart:io`). Entries are package names or globs (`firebase_*`). Violations fail the run, point at the import line, and work with baselines, SARIF (`forbidden-package` rule), Markdown and JSON reports.

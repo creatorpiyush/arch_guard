@@ -23,6 +23,7 @@ dart run arch_guard          # checks the project
 
 - 🛡️ **Layer rules.** Say which layers may import which (`domain` must not import `data`); every violation shows the import line and the rule it breaks.
 - 🚫 **Forbidden packages.** Keep `flutter`, `dart:io` or any package out of a layer (or the whole project), with globs like `firebase_*`.
+- 📏 **Metric limits and hotspots.** `max_fan_out` / `max_fan_in` stop files from becoming hubs; reports list the most coupled files.
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
 - 📌 **Baselines for existing code.** Record today's problems once; CI then fails only on *new* ones.
@@ -130,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.4.1
+      - uses: creatorpiyush/arch_guard@v1.6.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).
