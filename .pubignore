@@ -4,7 +4,8 @@
 test/fixtures/
 plan.md
 plans/
-packages/
+# Separate package, published on its own (tool/publish_arch_guard_lint.sh).
+arch_guard_lint/
 *.iml
 .idea/
 .vscode/
@@ -17,3 +18,4 @@ action.yml
 .pre-commit-hooks.yaml
 docs/
 tool/screenshots.dart
+tool/publish_arch_guard_lint.sh

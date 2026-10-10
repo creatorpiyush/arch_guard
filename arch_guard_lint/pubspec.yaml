@@ -1,7 +1,7 @@
 name: arch_guard_lint
 description: Analyzer plugin that shows arch_guard layer violations and forbidden package imports as warnings in your IDE and in dart analyze.
 version: 0.1.0
-repository: https://github.com/creatorpiyush/arch_guard/tree/main/packages/arch_guard_lint
+repository: https://github.com/creatorpiyush/arch_guard/tree/main/arch_guard_lint
 issue_tracker: https://github.com/creatorpiyush/arch_guard/issues
 documentation: https://creatorpiyush.github.io/arch_guard/ide.html
 topics:

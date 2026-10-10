@@ -110,7 +110,7 @@ jobs:
         sdk: [ 3.10.0, stable ]
     defaults:
       run:
-        working-directory: packages/arch_guard_lint
+        working-directory: arch_guard_lint
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -5,7 +5,7 @@ analyzer:
     - test/fixtures/**
     - example/sample_workspace/**
     - example/sample_project/**
-    - packages/**
+    - arch_guard_lint/**
 
 linter:
   rules:
