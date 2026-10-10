@@ -56,4 +56,87 @@ workspace_rules:
       hasLength(1),
     );
   });
+
+  WorkspacePackage pkg(String name, String path) => WorkspacePackage(
+    name: name,
+    packagePath: path,
+    libPath: path == '.' ? 'lib' : '$path/lib',
+  );
+
+  ScanResult ws(List<GraphEdge> edges) => ScanResult(
+    packageName: 'root',
+    files: const {},
+    edges: edges,
+    workspacePackageCount: 5,
+    packages: [
+      pkg('root', '.'),
+      pkg('mobile', 'apps/mobile'),
+      pkg('a', 'packages/a'),
+      pkg('a_extras', 'packages/a_extras'),
+      pkg('core', 'packages/core'),
+    ],
+  );
+
+  ArchGuardConfig rules(String yaml) =>
+      ArchGuardConfig.parse(yaml, rootPath: Directory.systemTemp.path);
+
+  test('reports imports against the first matching rule', () {
+    final config = rules('''
+workspace_rules:
+  core:
+    allowed: []
+  "packages/*":
+    allowed: [core]
+''');
+    final v = WorkspaceValidator.validate(
+      result: ws(const [
+        GraphEdge(
+          from: 'packages/core/lib/c.dart',
+          to: 'packages/a/lib/a.dart',
+          line: 2,
+        ),
+        GraphEdge(
+          from: 'packages/a/lib/a.dart',
+          to: 'packages/core/lib/c.dart',
+        ),
+        GraphEdge(
+          from: 'packages/a_extras/lib/x.dart',
+          to: 'packages/a/lib/a.dart',
+          line: 7,
+        ),
+        GraphEdge(from: 'packages/a/lib/a.dart', to: 'packages/a/lib/b.dart'),
+        GraphEdge(from: 'apps/mobile/lib/m.dart', to: 'packages/a/lib/a.dart'),
+      ]),
+      config: config,
+    );
+    expect(
+      v.map((x) => '${x.sourcePackage}>${x.targetPackage}@${x.selector}'),
+      ['core>a@core', 'a_extras>a@packages/*'],
+    );
+    expect(v.first.line, 2);
+    expect(v.first.rule, contains('may not import other workspace members'));
+    expect(v.last.rule, contains('may only import members matching `core`'));
+  });
+
+  test('root package files belong to "."', () {
+    final config = rules('workspace_rules:\n  ".":\n    allowed: []\n');
+    final v = WorkspaceValidator.validate(
+      result: ws(const [
+        GraphEdge(from: 'lib/main.dart', to: 'packages/core/lib/c.dart'),
+      ]),
+      config: config,
+    );
+    expect(v.single.sourcePackage, 'root');
+  });
+
+  test('unmatched selectors and allowed entries are listed', () {
+    final config = rules('workspace_rules:\n  "aps/*":\n    allowed: [corr]\n');
+    expect(
+      WorkspaceValidator.unmatchedPatterns(
+        result: ws(const []),
+        config: config,
+      ),
+      ['aps/*', 'corr'],
+    );
+  });
 }

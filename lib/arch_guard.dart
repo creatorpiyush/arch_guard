@@ -22,6 +22,7 @@ export 'src/baseline/baseline.dart';
 export 'src/checker/layer_validator.dart';
 export 'src/checker/metric_validator.dart';
 export 'src/checker/package_validator.dart';
+export 'src/checker/workspace_validator.dart';
 export 'src/exporters/dot_exporter.dart';
 export 'src/exporters/html_exporter.dart';
 export 'src/exporters/json_exporter.dart';
