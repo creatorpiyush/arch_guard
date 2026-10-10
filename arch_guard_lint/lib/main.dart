@@ -1,3 +1,9 @@
+/// Analyzer plugin that reports arch_guard layer violations and forbidden
+/// package imports as warnings.
+///
+/// Enable it in `analysis_options.yaml`; see the package README.
+library;
+
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
@@ -9,6 +15,9 @@ final plugin = ArchGuardPlugin();
 
 /// Reports arch_guard rules (from `arch_guard.yaml`) as analyzer warnings.
 class ArchGuardPlugin extends Plugin {
+  /// Creates the plugin; the analysis server uses [plugin].
+  ArchGuardPlugin();
+
   @override
   String get name => 'arch_guard';
 
