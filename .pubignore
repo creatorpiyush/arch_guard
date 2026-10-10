@@ -3,6 +3,7 @@
 # files that are gitignored must be listed here too.
 test/fixtures/
 plan.md
+plans/
 *.iml
 .idea/
 .vscode/
