@@ -1,0 +1,35 @@
+name: Publish arch_guard_lint to pub.dev
+
+# Push a tag like `arch_guard_lint-v0.1.1`. Needs automated publishing enabled
+# on pub.dev for arch_guard_lint with tag pattern `arch_guard_lint-v{{version}}`.
+on:
+  push:
+    tags:
+      - 'arch_guard_lint-v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for pub.dev
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Also configures pub.dev authentication from the OIDC token.
+      - name: Setup Dart SDK
+        uses: dart-lang/setup-dart@v1
+
+      - name: Check tag matches pubspec version
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version: *//p' arch_guard_lint/pubspec.yaml)
+          if [ "${GITHUB_REF_NAME}" != "arch_guard_lint-v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match arch_guard_lint/pubspec.yaml version ${version}."
+            exit 1
+          fi
+
+      # --force: skips the prompt; the only expected warning is that the
+      # analyzer plugin entry point must be lib/main.dart.
+      - name: Publish
+        run: tool/publish_arch_guard_lint.sh --force
