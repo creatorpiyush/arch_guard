@@ -22,6 +22,7 @@ class ArchGuardConfig {
     'max_scc_size',
     'fail_on_layer_violation',
     'forbidden_packages',
+    'metrics',
   };
 
   /// Glob patterns of files left out of the scan.
@@ -50,6 +51,18 @@ class ArchGuardConfig {
   /// [LayerDefinition.forbiddenPackages] for the per-layer form).
   final List<String> forbiddenPackages;
 
+  /// Most project files one file may import (`metrics: max_fan_out`).
+  final int? maxFanOut;
+
+  /// Most project files that may import one file (`metrics: max_fan_in`).
+  final int? maxFanIn;
+
+  /// How many most-coupled files reports list (`metrics: hotspots`).
+  final int hotspotCount;
+
+  /// Whether any metric limit is configured.
+  bool get hasMetricRules => maxFanOut != null || maxFanIn != null;
+
   /// Human-readable problems found while loading the configuration
   /// (unparseable YAML, wrong value types, unknown keys, legacy names).
   final List<String> warnings;
@@ -66,6 +79,9 @@ class ArchGuardConfig {
     this.maxSccSize,
     this.failOnLayerViolation = true,
     this.forbiddenPackages = const [],
+    this.maxFanOut,
+    this.maxFanIn,
+    this.hotspotCount = 10,
     this.warnings = const [],
     this.sourcePath,
   });
@@ -259,6 +275,37 @@ class ArchGuardConfig {
       warnings.add('$source: `forbidden_packages` must be a list.');
     }
 
+    int? maxFanOut;
+    int? maxFanIn;
+    var hotspots = 10;
+    final rawMetrics = raw['metrics'];
+    if (rawMetrics is Map) {
+      int? positive(String key, {bool allowZero = false}) {
+        final v = rawMetrics[key];
+        if (v == null) return null;
+        if (v is int && (v > 0 || (allowZero && v == 0))) return v;
+        warnings.add(
+          '$source: `metrics: $key` must be a '
+          '${allowZero ? 'non-negative' : 'positive'} integer.',
+        );
+        return null;
+      }
+
+      for (final key in rawMetrics.keys) {
+        if (!const {'max_fan_out', 'max_fan_in', 'hotspots'}.contains('$key')) {
+          warnings.add(
+            '$source: unknown key `metrics: $key` (expected one of: '
+            'max_fan_out, max_fan_in, hotspots).',
+          );
+        }
+      }
+      maxFanOut = positive('max_fan_out');
+      maxFanIn = positive('max_fan_in');
+      hotspots = positive('hotspots', allowZero: true) ?? 10;
+    } else if (rawMetrics != null) {
+      warnings.add('$source: `metrics` must be a map.');
+    }
+
     String? preset;
     final layersMap = <String, LayerDefinition>{};
     final presetOnly = <String>{};
@@ -368,6 +415,9 @@ class ArchGuardConfig {
       maxSccSize: maxScc,
       failOnLayerViolation: failOnLayer,
       forbiddenPackages: forbidden,
+      maxFanOut: maxFanOut,
+      maxFanIn: maxFanIn,
+      hotspotCount: hotspots,
       warnings: warnings,
       sourcePath: sourcePath,
     );
