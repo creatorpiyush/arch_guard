@@ -1,3 +1,9 @@
+# 1.5.0
+
+- **New: `forbidden_packages`.** Rule out packages and core libraries for the whole project (top-level key) or per layer (e.g. `domain` may not import `flutter` or `dart:io`). Entries are package names or globs (`firebase_*`). Violations fail the run, point at the import line, and work with baselines, SARIF (`forbidden-package` rule), Markdown and JSON reports.
+- Library: `PackageValidator`, `PackageViolation`, `PackageImport` and `ScanResult.packageImports`; `LayerValidator.layerResolver()` is now public.
+- Baseline files gain a `packageViolations` list. Older baselines still load.
+
 # 1.4.1
 
 - **Fixed: empty graph in the HTML report.** The page layout could let the graph canvas grow taller than the window, drawing the nodes out of view. The report header now says `arch_guard` instead of the old "Dependency Graph Visualizer" name.

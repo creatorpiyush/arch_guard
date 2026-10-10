@@ -22,6 +22,7 @@ dart run arch_guard          # checks the project
 ## Features
 
 - 🛡️ **Layer rules.** Say which layers may import which (`domain` must not import `data`); every violation shows the import line and the rule it breaks.
+- 🚫 **Forbidden packages.** Keep `flutter`, `dart:io` or any package out of a layer (or the whole project), with globs like `firebase_*`.
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
 - 📌 **Baselines for existing code.** Record today's problems once; CI then fails only on *new* ones.
@@ -143,8 +144,8 @@ arch_guard . -f sarif -f markdown -o build/reports         # for CI
 
 | Exit code | Meaning |
 | :---: | :--- |
-| `0` | No cycles or layer violations (or none new, with a baseline). |
-| `1` | Cycles or layer violations found. |
+| `0` | No cycles, layer violations or forbidden imports (or none new, with a baseline). |
+| `1` | Cycles, layer violations or forbidden package imports found. |
 | `2` | Scan error: missing directory, unreadable project or invalid baseline. |
 | `64` | Invalid flags or arguments. |
 

@@ -63,6 +63,15 @@ layers:
     allowed_imports: [core, domain, presentation, data]
 ```
 
+Keep Flutter and platform code out of `domain` with [`forbidden_packages`](configuration.md#forbidden-packages):
+
+```yaml
+preset: clean_architecture
+layers:
+  domain:
+    forbidden_packages: [flutter, "flutter_*", "dart:ui", "dart:io"]
+```
+
 ## Riverpod
 
 Follows the [Riverpod app architecture](https://codewithandrea.com/articles/flutter-app-architecture-riverpod-introduction/) with `domain`, `data`, `application` and `presentation` folders. `init` picks it when it finds an `application/` folder and a Riverpod dependency.
