@@ -249,6 +249,8 @@ class ProjectScanner {
       workspacePackageCount: pkgCount,
       skippedFiles: skippedFiles,
       packageImports: packageImports,
+      packages: workspacePkgs.values.toList()
+        ..sort((a, b) => a.packagePath.compareTo(b.packagePath)),
     );
   }
 }

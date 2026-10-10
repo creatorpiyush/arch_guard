@@ -23,6 +23,7 @@ class ArchGuardConfig {
     'fail_on_layer_violation',
     'forbidden_packages',
     'metrics',
+    'workspace_rules',
   };
 
   /// Glob patterns of files left out of the scan.
@@ -57,6 +58,10 @@ class ArchGuardConfig {
   /// Most project files that may import one file (`metrics: max_fan_in`).
   final int? maxFanIn;
 
+  /// Workspace dependency rules: member selector → members it may import.
+  /// Selectors and entries are globs on a member's path or name.
+  final Map<String, List<String>> workspaceRules;
+
   /// How many most-coupled files reports list (`metrics: hotspots`).
   final int hotspotCount;
 
@@ -82,6 +87,7 @@ class ArchGuardConfig {
     this.maxFanOut,
     this.maxFanIn,
     this.hotspotCount = 10,
+    this.workspaceRules = const {},
     this.warnings = const [],
     this.sourcePath,
   });
@@ -306,6 +312,38 @@ class ArchGuardConfig {
       warnings.add('$source: `metrics` must be a map.');
     }
 
+    final workspaceRules = <String, List<String>>{};
+    final rawRules = raw['workspace_rules'];
+    if (rawRules is Map) {
+      rawRules.forEach((key, val) {
+        final selector = key.toString();
+        if (_validGlobs(
+          [selector],
+          'workspace_rules selector',
+          source,
+          warnings,
+        ).isEmpty) {
+          return;
+        }
+        final rawAllowed = val is Map ? val['allowed'] : null;
+        if (rawAllowed is! List) {
+          warnings.add(
+            '$source: workspace_rules `$selector` needs an `allowed:` list; '
+            'ignoring it.',
+          );
+          return;
+        }
+        workspaceRules[selector] = _validGlobs(
+          rawAllowed.map((e) => e.toString()),
+          'workspace_rules `$selector` `allowed`',
+          source,
+          warnings,
+        );
+      });
+    } else if (rawRules != null) {
+      warnings.add('$source: `workspace_rules` must be a map.');
+    }
+
     String? preset;
     final layersMap = <String, LayerDefinition>{};
     final presetOnly = <String>{};
@@ -418,6 +456,7 @@ class ArchGuardConfig {
       maxFanOut: maxFanOut,
       maxFanIn: maxFanIn,
       hotspotCount: hotspots,
+      workspaceRules: workspaceRules,
       warnings: warnings,
       sourcePath: sourcePath,
     );
