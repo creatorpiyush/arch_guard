@@ -24,12 +24,18 @@ fail_on_layer_violation: true
 # even with --no-fail-on-cycle (useful for ratcheting down legacy cycles).
 max_scc_size: 5
 
+# Optional: packages or core libraries no file may import.
+forbidden_packages:
+  - "dart:mirrors"
+
 layers:
   domain:
     patterns:
       - "lib/**/domain/**"
     allowed_imports:
       - "domain"
+    # Only for files in this layer.
+    forbidden_packages: [flutter, "dart:ui"]
 
   data:
     patterns:
@@ -52,7 +58,8 @@ layers:
 | :--- | :--- | :--- | :--- |
 | `ignore` | list of globs | none | Extra files to leave out of the scan. Generated files such as `*.g.dart` and `*.freezed.dart` are always skipped. |
 | `preset` | string | none | One of `clean_architecture`, `feature_first`, `bloc`, `riverpod`. See [Presets](presets.md). |
-| `layers` | map | none | Layer name → `patterns` (globs) and `allowed_imports` (layer names). With a preset, overrides or adds layers. |
+| `layers` | map | none | Layer name → `patterns` (globs), `allowed_imports` (layer names) and optional `forbidden_packages`. With a preset, overrides or adds layers. |
+| `forbidden_packages` | list | none | Packages (`dio`) or core libraries (`dart:io`) no scanned file may import. Globs allowed (`firebase_*`). Also valid inside a layer, where it applies only to that layer's files. |
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
@@ -76,6 +83,32 @@ The line shows the importing file and line, both layers, and the rule that was b
 1. **Invert the dependency.** Put an interface in a layer the importing file may use and implement it in the other layer.
 2. **Move the code** to a layer the importing file may import.
 3. **Allow it**, if the dependency is intended, by adding the layer to `allowed_imports`.
+
+## Forbidden packages
+
+`forbidden_packages` keeps packages and core libraries out of code that should not depend on them:
+
+```yaml
+forbidden_packages: ["dart:mirrors"]   # no file may import these
+layers:
+  domain:
+    patterns: ["lib/**/domain/**"]
+    forbidden_packages: [flutter, "flutter_*", "dart:ui", "dart:io"]
+```
+
+- Entries are **package names**, not URIs: `http`, not `package:http/http.dart` (a URI is shortened to its package name).
+- Entries are globs on the whole name: `flutter` matches only `package:flutter/...`; `flutter*` also matches `flutter_bloc`.
+- Core libraries are written as `dart:io`; `dart:*` matches all of them.
+- `import` and `export` directives both count, including every URI of a conditional import. `part` directives don't.
+- A file's own package is never forbidden. Other packages of the same workspace can be.
+- A top-level entry wins over a layer entry when both match; each directive is reported once.
+
+```text
+❌ Forbidden Package: [domain] lib/features/auth/domain/user.dart:1 -> package:flutter/foundation.dart
+   Rule: Layer `domain` may not import `flutter` (forbidden_packages: `flutter`).
+```
+
+Forbidden imports always fail the run (exit code `1`); `fail_on_layer_violation` does not apply to them. To adopt the rule on existing code, run `arch_guard --update-baseline` once.
 
 ## Warnings
 

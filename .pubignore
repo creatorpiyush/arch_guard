@@ -3,6 +3,9 @@
 # files that are gitignored must be listed here too.
 test/fixtures/
 plan.md
+plans/
+# Separate package, published on its own (tool/publish_arch_guard_lint.sh).
+arch_guard_lint/
 *.iml
 .idea/
 .vscode/
@@ -15,3 +18,4 @@ action.yml
 .pre-commit-hooks.yaml
 docs/
 tool/screenshots.dart
+tool/publish_arch_guard_lint.sh

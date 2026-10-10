@@ -29,6 +29,57 @@ void main() {
     targetLayer: 'ui',
     line: 2,
   );
+  const packageViolation = PackageViolation(
+    sourceFile: 'lib/c.dart',
+    uri: 'package:flutter/material.dart',
+    package: 'flutter',
+    pattern: 'flutter',
+    layer: 'domain',
+    line: 1,
+  );
+
+  group('forbidden packages in reports', () {
+    test('SARIF reports them under forbidden-package at the import line', () {
+      final log = jsonDecode(
+        SarifExporter.export(
+          result: result,
+          cycles: const [],
+          packageViolations: [packageViolation],
+        ),
+      );
+      final run = log['runs'][0];
+      final hit = (run['results'] as List).single;
+      expect(hit['ruleId'], 'forbidden-package');
+      expect(hit['level'], 'error');
+      expect(hit['locations'][0]['physicalLocation']['region']['startLine'], 1);
+      expect(
+        (run['tool']['driver']['rules'] as List).map((r) => r['id']),
+        contains('forbidden-package'),
+      );
+    });
+
+    test('Markdown lists new ones and counts them', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        packageViolations: [packageViolation],
+      );
+      expect(md, contains('### New forbidden package imports'));
+      expect(md, contains('| Forbidden package imports | 1 | 1 |'));
+      expect(md, contains('`lib/c.dart:1`'));
+    });
+
+    test('JSON includes them', () {
+      final json = jsonDecode(
+        JsonExporter.export(
+          result: result,
+          cycles: const [],
+          packageViolations: [packageViolation.toJson()],
+        ),
+      );
+      expect(json['packageViolations'][0]['package'], 'flutter');
+    });
+  });
 
   group('SarifExporter', () {
     Map<String, dynamic> export({BaselineComparison? baseline}) =>

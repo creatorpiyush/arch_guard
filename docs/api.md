@@ -53,10 +53,13 @@ void main() async {
 
 | Class | Purpose |
 | :--- | :--- |
+| `ArchAnalysis` | Runs a full analysis in one call (`ArchAnalysis.run()`): scan, cycles, layer and package rules, baseline. `failures()` lists what would fail the CLI. |
+| `expectArchitecture()` | In `package:arch_guard/testing.dart`: runs `ArchAnalysis` and throws `ArchitectureViolationException` on failures. See [Testing](testing.md). |
 | `ProjectScanner` | Finds Dart files (and workspace packages) and reads their directives into a `ScanResult`. |
 | `DependencyGraph` | Builds the graph and finds strongly connected components (`findCircularDependencies`). |
 | `ArchGuardConfig` | Loads `arch_guard.yaml` / `pubspec.yaml`, including presets. |
 | `LayerValidator` | Checks edges against layers (`validate`) and reports layer coverage (`coverage`). |
+| `PackageValidator` | Checks `ScanResult.packageImports` against `forbidden_packages` (`validate`), or one import at a time (`checker`). Yields `PackageViolation`s. |
 | `Baseline` | Reads, writes and compares against `arch_guard_baseline.json`. |
 | `LayoutDetector` | Guesses a preset from the folder layout, as `init` does. |
 | `DependencyExplainer` | Explains one file's imports, importers and cycle membership. |

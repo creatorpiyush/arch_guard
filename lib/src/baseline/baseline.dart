@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../checker/layer_validator.dart';
+import '../checker/package_validator.dart';
 import '../models/cycle.dart';
 
 /// Default baseline file name, resolved relative to the scanned project.
@@ -18,16 +19,26 @@ class Baseline {
   /// Known layer violations, keyed by `sourceFile -> targetFile`.
   final Set<String> layerViolations;
 
-  /// Creates a baseline holding [cycles] and [layerViolations].
-  const Baseline({this.cycles = const [], this.layerViolations = const {}});
+  /// Known forbidden-package imports, keyed by `sourceFile -> package`.
+  final Set<String> packageViolations;
 
-  /// Captures the current [cycles] and [layerViolations] as a baseline.
+  /// Creates a baseline holding [cycles], [layerViolations] and
+  /// [packageViolations].
+  const Baseline({
+    this.cycles = const [],
+    this.layerViolations = const {},
+    this.packageViolations = const {},
+  });
+
+  /// Captures the current problems as a baseline.
   factory Baseline.capture({
     required List<Cycle> cycles,
     required List<LayerViolation> layerViolations,
+    List<PackageViolation> packageViolations = const [],
   }) => Baseline(
     cycles: cycles.map((c) => c.files.toSet()).toList(),
     layerViolations: layerViolations.map(violationKey).toSet(),
+    packageViolations: packageViolations.map(packageViolationKey).toSet(),
   );
 
   /// Parses a baseline from its JSON form. Throws [FormatException] if invalid.
@@ -54,7 +65,17 @@ class Baseline {
       );
     }
 
-    return Baseline(cycles: cycles, layerViolations: violations);
+    final packages = <String>{};
+    for (final entry in json['packageViolations'] as List? ?? const []) {
+      final map = entry as Map;
+      packages.add(_key(map['sourceFile'] as String, map['package'] as String));
+    }
+
+    return Baseline(
+      cycles: cycles,
+      layerViolations: violations,
+      packageViolations: packages,
+    );
   }
 
   /// Loads the baseline at [path], or returns `null` if the file is missing.
@@ -88,6 +109,13 @@ class Baseline {
             'targetFile': key.split(_separator).last,
           },
       ],
+      'packageViolations': [
+        for (final key in packageViolations.toList()..sort())
+          {
+            'sourceFile': key.split(_separator).first,
+            'package': key.split(_separator).last,
+          },
+      ],
     };
   }
 
@@ -108,6 +136,7 @@ class Baseline {
   BaselineComparison compare({
     required List<Cycle> cycles,
     required List<LayerViolation> layerViolations,
+    List<PackageViolation> packageViolations = const [],
   }) {
     final newCycles = <Cycle>[];
     final knownCycles = <Cycle>[];
@@ -137,6 +166,19 @@ class Baseline {
       }
     }
 
+    final newPackages = <PackageViolation>[];
+    final knownPackages = <PackageViolation>[];
+    final seenPackages = <String>{};
+    for (final violation in packageViolations) {
+      final key = packageViolationKey(violation);
+      if (this.packageViolations.contains(key)) {
+        knownPackages.add(violation);
+        seenPackages.add(key);
+      } else {
+        newPackages.add(violation);
+      }
+    }
+
     return BaselineComparison(
       newCycles: newCycles,
       knownCycles: knownCycles,
@@ -146,12 +188,21 @@ class Baseline {
       fixedViolationCount: this.layerViolations
           .difference(seenViolations)
           .length,
+      newPackageViolations: newPackages,
+      knownPackageViolations: knownPackages,
+      fixedPackageViolationCount: this.packageViolations
+          .difference(seenPackages)
+          .length,
     );
   }
 
   /// Stable identity of a layer violation, independent of layer names and lines.
   static String violationKey(LayerViolation v) =>
       _key(v.sourceFile, v.targetFile);
+
+  /// Stable identity of a forbidden-package import: file and package.
+  static String packageViolationKey(PackageViolation v) =>
+      _key(v.sourceFile, v.package);
 
   static const _separator = ' -> ';
 
@@ -179,6 +230,15 @@ class BaselineComparison {
   /// Baseline layer violations that no longer occur.
   final int fixedViolationCount;
 
+  /// Forbidden package imports that are not in the baseline.
+  final List<PackageViolation> newPackageViolations;
+
+  /// Forbidden package imports that the baseline already lists.
+  final List<PackageViolation> knownPackageViolations;
+
+  /// Baseline forbidden package imports that no longer occur.
+  final int fixedPackageViolationCount;
+
   /// Creates a comparison from already split problem lists.
   const BaselineComparison({
     required this.newCycles,
@@ -187,17 +247,22 @@ class BaselineComparison {
     required this.knownViolations,
     this.fixedCycleCount = 0,
     this.fixedViolationCount = 0,
+    this.newPackageViolations = const [],
+    this.knownPackageViolations = const [],
+    this.fixedPackageViolationCount = 0,
   });
 
   /// Treats every problem as new (used when there is no baseline).
   factory BaselineComparison.allNew({
     required List<Cycle> cycles,
     required List<LayerViolation> layerViolations,
+    List<PackageViolation> packageViolations = const [],
   }) => BaselineComparison(
     newCycles: cycles,
     knownCycles: const [],
     newViolations: layerViolations,
     knownViolations: const [],
+    newPackageViolations: packageViolations,
   );
 
   /// Whether [cycle] is new relative to the baseline.
@@ -206,4 +271,8 @@ class BaselineComparison {
   /// Whether [violation] is new relative to the baseline.
   bool isNewViolation(LayerViolation violation) =>
       newViolations.contains(violation);
+
+  /// Whether [violation] is new relative to the baseline.
+  bool isNewPackageViolation(PackageViolation violation) =>
+      newPackageViolations.contains(violation);
 }

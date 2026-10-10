@@ -1,3 +1,13 @@
+# 1.5.0
+
+- **New: `forbidden_packages`.** Rule out packages and core libraries for the whole project (top-level key) or per layer (e.g. `domain` may not import `flutter` or `dart:io`). Entries are package names or globs (`firebase_*`). Violations fail the run, point at the import line, and work with baselines, SARIF (`forbidden-package` rule), Markdown and JSON reports.
+- Library: `PackageValidator`, `PackageViolation`, `PackageImport` and `ScanResult.packageImports`; `LayerValidator.layerResolver()` is now public.
+- Baseline files gain a `packageViolations` list. Older baselines still load.
+- Invalid globs in `arch_guard.yaml` (`ignore`, layer `patterns`, `forbidden_packages`) are reported as warnings and skipped instead of crashing the run. `defaultExcludePatterns` is now exported.
+- **New: `expectArchitecture()`** in `package:arch_guard/testing.dart` runs the same checks as the CLI inside `dart test` / `flutter test` and fails with a readable list of problems. Works with any test runner; no extra dependencies.
+- Library: `ArchAnalysis.run()` runs a full analysis (scan, cycles, layer and package rules, baseline) in one call; the CLI now uses it.
+- Library: `ArchGuardConfig.loadWith()` loads configuration through a custom file reader, and `LayerValidator.checker()` checks a single import. Both are used by the new `arch_guard_lint` analyzer plugin.
+
 # 1.4.1
 
 - **Fixed: empty graph in the HTML report.** The page layout could let the graph canvas grow taller than the window, drawing the nodes out of view. The report header now says `arch_guard` instead of the old "Dependency Graph Visualizer" name.

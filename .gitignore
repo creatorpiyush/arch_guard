@@ -24,6 +24,7 @@ migrate_working_dir/
 # Flutter/Dart/Pub related
 # Libraries should not include pubspec.lock, per https://dart.dev/guides/libraries/private-files#pubspeclock.
 /pubspec.lock
+/arch_guard_lint/pubspec.lock
 **/doc/api/
 .dart_tool/
 .flutter-plugins-dependencies
@@ -37,6 +38,9 @@ migrate_working_dir/
 **/build/**
 # Local planning notes
 plan.md
+plans/
+# Launch post drafts (local only)
+launch/
 
 # Flutter tool metadata (not needed for a pure Dart package)
 .metadata

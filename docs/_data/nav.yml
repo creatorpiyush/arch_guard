@@ -6,6 +6,10 @@
   url: /configuration.html
 - title: CI & hooks
   url: /ci.html
+- title: Testing
+  url: /testing.html
+- title: IDE
+  url: /ide.html
 - title: CLI
   url: /cli.html
 - title: Dart API

@@ -1,5 +1,6 @@
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
+import '../checker/package_validator.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 import 'mermaid_exporter.dart';
@@ -23,6 +24,7 @@ class MarkdownExporter {
     required ScanResult result,
     required List<Cycle> cycles,
     List<LayerViolation> layerViolations = const [],
+    List<PackageViolation> packageViolations = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -32,13 +34,16 @@ class MarkdownExporter {
         BaselineComparison.allNew(
           cycles: cycles,
           layerViolations: layerViolations,
+          packageViolations: packageViolations,
         );
     final newCycles = comparison.newCycles;
     final newViolations = comparison.newViolations;
+    final newPackages = comparison.newPackageViolations;
     final newOversized = oversizedCycles.where(comparison.isNewCycle).toList();
     final hasNew =
         newCycles.isNotEmpty ||
         newViolations.isNotEmpty ||
+        newPackages.isNotEmpty ||
         newOversized.isNotEmpty;
 
     final b = StringBuffer()
@@ -52,7 +57,9 @@ class MarkdownExporter {
             ? '❌ **Architecture problems found.**'
             : '❌ **New architecture problems found** (not in the baseline).',
       );
-    } else if (cycles.isEmpty && layerViolations.isEmpty) {
+    } else if (cycles.isEmpty &&
+        layerViolations.isEmpty &&
+        packageViolations.isEmpty) {
       b.writeln('✅ **No circular dependencies or layer violations.**');
     } else {
       b.writeln(
@@ -71,6 +78,10 @@ class MarkdownExporter {
       ..writeln(
         '| Layer violations | ${layerViolations.length} | '
         '${newViolations.length} |',
+      )
+      ..writeln(
+        '| Forbidden package imports | ${packageViolations.length} | '
+        '${newPackages.length} |',
       );
     if (maxSccSize != null) {
       b.writeln(
@@ -89,6 +100,16 @@ class MarkdownExporter {
         final at = v.line != null ? ':${v.line}' : '';
         return '- `${v.sourceFile}$at` (**${v.sourceLayer}**) imports '
             '`${v.targetFile}` (**${v.targetLayer}**). ${v.rule}';
+      });
+      b.writeln();
+    }
+
+    if (newPackages.isNotEmpty) {
+      b.writeln('### New forbidden package imports');
+      b.writeln();
+      _writeCapped(b, newPackages, (v) {
+        final at = v.line != null ? ':${v.line}' : '';
+        return '- `${v.sourceFile}$at` imports `${v.uri}`. ${v.rule}';
       });
       b.writeln();
     }
@@ -139,12 +160,15 @@ class MarkdownExporter {
     }
 
     if (baseline != null &&
-        (baseline.fixedCycleCount > 0 || baseline.fixedViolationCount > 0)) {
+        (baseline.fixedCycleCount > 0 ||
+            baseline.fixedViolationCount > 0 ||
+            baseline.fixedPackageViolationCount > 0)) {
       b
         ..writeln(
-          '🎉 ${baseline.fixedCycleCount} cycle group(s) and '
-          '${baseline.fixedViolationCount} layer violation(s) from the '
-          'baseline are fixed. Run `arch_guard --update-baseline` to lock '
+          '🎉 ${baseline.fixedCycleCount} cycle group(s), '
+          '${baseline.fixedViolationCount} layer violation(s) and '
+          '${baseline.fixedPackageViolationCount} forbidden package '
+          'import(s) from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
           'this in.',
         )
         ..writeln();

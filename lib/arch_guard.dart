@@ -17,8 +17,10 @@
 /// configuration, presets and CI recipes.
 library;
 
+export 'src/analysis/arch_analysis.dart';
 export 'src/baseline/baseline.dart';
 export 'src/checker/layer_validator.dart';
+export 'src/checker/package_validator.dart';
 export 'src/exporters/dot_exporter.dart';
 export 'src/exporters/html_exporter.dart';
 export 'src/exporters/json_exporter.dart';
@@ -36,6 +38,7 @@ export 'src/models/scc_component.dart';
 export 'src/models/workspace_package.dart';
 export 'src/reporters/text_reporter.dart';
 export 'src/scanner/project_scanner.dart';
+export 'src/scanner/default_excludes.dart';
 export 'src/scanner/layout_detector.dart';
 export 'src/scanner/pubspec_reader.dart';
 export 'src/version.dart';

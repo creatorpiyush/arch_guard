@@ -108,4 +108,97 @@ layers:
       });
     });
   });
+
+  group('forbidden_packages', () {
+    ArchGuardConfig parse(String yaml) =>
+        ArchGuardConfig.parse(yaml, rootPath: Directory.systemTemp.path);
+
+    test('reads top-level and per-layer lists', () {
+      final config = parse('''
+forbidden_packages:
+  - "dart:mirrors"
+  - "package:http/http.dart"
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    forbidden_packages: [flutter, "dart:ui"]
+''');
+      expect(config.warnings, isEmpty);
+      expect(config.forbiddenPackages, ['dart:mirrors', 'http']);
+      expect(config.layers['domain']!.forbiddenPackages, [
+        'flutter',
+        'dart:ui',
+      ]);
+    });
+
+    test('a layer override keeps the preset patterns and allowed_imports', () {
+      final config = parse('''
+preset: clean_architecture
+layers:
+  domain:
+    forbidden_packages: [flutter]
+''');
+      final domain = config.layers['domain']!;
+      expect(domain.forbiddenPackages, ['flutter']);
+      expect(domain.patterns, isNotEmpty);
+      expect(config.presetOnlyLayers, isNot(contains('domain')));
+    });
+
+    test('warns when not a list', () {
+      final config = parse('''
+forbidden_packages: flutter
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    forbidden_packages: flutter
+''');
+      expect(config.forbiddenPackages, isEmpty);
+      expect(
+        config.warnings,
+        containsAll([
+          contains('`forbidden_packages` must be a list'),
+          contains('layer `domain` `forbidden_packages` must be a list'),
+        ]),
+      );
+    });
+  });
+
+  test('loadWith reads files through the given reader', () {
+    final files = {
+      'pubspec.yaml': 'name: app\narch_guard:\n  forbidden_packages: [http]\n',
+    };
+    final config = ArchGuardConfig.loadWith(
+      Directory.systemTemp.path,
+      (name) => files[name],
+    );
+    expect(config.forbiddenPackages, ['http']);
+    expect(config.sourcePath, endsWith('pubspec.yaml'));
+  });
+
+  test('loadWith treats a throwing reader as a missing file', () {
+    final config = ArchGuardConfig.loadWith(
+      Directory.systemTemp.path,
+      (name) => throw const FileSystemException('denied'),
+    );
+    expect(config.layers, isEmpty);
+  });
+
+  test('drops invalid globs with a warning instead of throwing later', () {
+    final config = ArchGuardConfig.parse('''
+ignore: ["lib/[x"]
+forbidden_packages: ["firebase_["]
+layers:
+  domain:
+    patterns: ["lib/{domain/**", "lib/core/**"]
+    forbidden_packages: ["x["]
+''', rootPath: Directory.systemTemp.path);
+    expect(config.ignorePatterns, isEmpty);
+    expect(config.forbiddenPackages, isEmpty);
+    expect(config.layers['domain']!.patterns, ['lib/core/**']);
+    expect(config.layers['domain']!.forbiddenPackages, isEmpty);
+    expect(
+      config.warnings.where((w) => w.contains('is not a valid glob')),
+      hasLength(4),
+    );
+  });
 }

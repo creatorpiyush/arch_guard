@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'package:glob/glob.dart';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
 import 'layer_definition.dart';
 import 'layer_presets.dart';
+import 'scan_result.dart';
 
 export 'layer_definition.dart';
 
@@ -19,6 +21,7 @@ class ArchGuardConfig {
     'layers',
     'max_scc_size',
     'fail_on_layer_violation',
+    'forbidden_packages',
   };
 
   /// Glob patterns of files left out of the scan.
@@ -43,6 +46,10 @@ class ArchGuardConfig {
   /// Whether layer violations make the run fail (exit code 1).
   final bool failOnLayerViolation;
 
+  /// Packages and core libraries no scanned file may import (see
+  /// [LayerDefinition.forbiddenPackages] for the per-layer form).
+  final List<String> forbiddenPackages;
+
   /// Human-readable problems found while loading the configuration
   /// (unparseable YAML, wrong value types, unknown keys, legacy names).
   final List<String> warnings;
@@ -58,6 +65,7 @@ class ArchGuardConfig {
     this.presetOnlyLayers = const {},
     this.maxSccSize,
     this.failOnLayerViolation = true,
+    this.forbiddenPackages = const [],
     this.warnings = const [],
     this.sourcePath,
   });
@@ -66,13 +74,32 @@ class ArchGuardConfig {
   /// Priority: `arch_guard.yaml` > `dep_graph.yaml` > `pubspec.yaml (arch_guard)` > `pubspec.yaml (dep_graph_visualizer)`.
   static ArchGuardConfig load(String rootPath) {
     final absRoot = p.canonicalize(rootPath);
+    return loadWith(absRoot, (name) {
+      final file = File(p.join(absRoot, name));
+      return file.existsSync() ? file.readAsStringSync() : null;
+    });
+  }
+
+  /// Like [load], but reads files through [readFile], which gets a file name
+  /// relative to [rootPath] and returns its contents or `null` if missing.
+  /// Used by the analyzer plugin to read unsaved editor buffers.
+  static ArchGuardConfig loadWith(
+    String rootPath,
+    String? Function(String fileName) readFile,
+  ) {
+    final absRoot = p.canonicalize(rootPath);
     final warnings = <String>[];
 
     Map? readYamlMap(String fileName) {
-      final file = File(p.join(absRoot, fileName));
-      if (!file.existsSync()) return null;
+      String? text;
       try {
-        final doc = loadYaml(file.readAsStringSync());
+        text = readFile(fileName);
+      } catch (_) {
+        return null;
+      }
+      if (text == null) return null;
+      try {
+        final doc = loadYaml(text);
         if (doc is Map) return doc;
         if (doc != null) {
           warnings.add('$fileName: expected a YAML map at the top level.');
@@ -189,7 +216,14 @@ class ArchGuardConfig {
     final ignores = <String>[];
     final rawIgnore = raw['ignore'];
     if (rawIgnore is List) {
-      ignores.addAll(rawIgnore.map((e) => e.toString()));
+      ignores.addAll(
+        _validGlobs(
+          rawIgnore.map((e) => e.toString()),
+          '`ignore`',
+          source,
+          warnings,
+        ),
+      );
     } else if (rawIgnore != null) {
       warnings.add('$source: `ignore` must be a list of glob patterns.');
     }
@@ -210,6 +244,19 @@ class ArchGuardConfig {
       warnings.add(
         '$source: `fail_on_layer_violation` must be true or false; using true.',
       );
+    }
+
+    var forbidden = const <String>[];
+    final rawForbidden = raw['forbidden_packages'];
+    if (rawForbidden is List) {
+      forbidden = _validGlobs(
+        _packageEntries(rawForbidden),
+        '`forbidden_packages`',
+        source,
+        warnings,
+      );
+    } else if (rawForbidden != null) {
+      warnings.add('$source: `forbidden_packages` must be a list.');
     }
 
     String? preset;
@@ -253,10 +300,31 @@ class ArchGuardConfig {
             '$source: layer `$name` `allowed_imports` must be a list.',
           );
         }
+        final rawLayerForbidden = val['forbidden_packages'];
+        if (rawLayerForbidden != null && rawLayerForbidden is! List) {
+          warnings.add(
+            '$source: layer `$name` `forbidden_packages` must be a list.',
+          );
+        }
         var layer = LayerDefinition.fromYaml(name, {
-          'patterns': val['patterns'] is List ? val['patterns'] : null,
+          'patterns': val['patterns'] is List
+              ? _validGlobs(
+                  (val['patterns'] as List).map((e) => e.toString()),
+                  'layer `$name` `patterns`',
+                  source,
+                  warnings,
+                )
+              : null,
           'allowed_imports': val['allowed_imports'] is List
               ? val['allowed_imports']
+              : null,
+          'forbidden_packages': rawLayerForbidden is List
+              ? _validGlobs(
+                  _packageEntries(rawLayerForbidden),
+                  'layer `$name` `forbidden_packages`',
+                  source,
+                  warnings,
+                )
               : null,
         });
         // Overriding a preset layer: keys left out keep the preset's values.
@@ -268,6 +336,9 @@ class ArchGuardConfig {
             allowedImports: val['allowed_imports'] is List
                 ? layer.allowedImports
                 : base.allowedImports,
+            forbiddenPackages: rawLayerForbidden is List
+                ? layer.forbiddenPackages
+                : base.forbiddenPackages,
           );
         }
         if (layer.patterns.isEmpty) {
@@ -296,10 +367,41 @@ class ArchGuardConfig {
       presetOnlyLayers: presetOnly,
       maxSccSize: maxScc,
       failOnLayerViolation: failOnLayer,
+      forbiddenPackages: forbidden,
       warnings: warnings,
       sourcePath: sourcePath,
     );
   }
+}
+
+/// `package:http/http.dart` → `http`; everything else is kept as written.
+List<String> _packageEntries(List raw) => [
+  for (final e in raw)
+    if (e.toString().trim() case final s when s.isNotEmpty)
+      s.startsWith('package:') ? (PackageImport.packageOf(s) ?? s) : s,
+];
+
+/// Keeps the entries that are valid globs and warns about the others, so a
+/// typo in the config never throws later (in the CLI or the analyzer plugin).
+List<String> _validGlobs(
+  Iterable<String> entries,
+  String what,
+  String source,
+  List<String> warnings,
+) {
+  final valid = <String>[];
+  for (final e in entries) {
+    try {
+      Glob(e, context: p.posix);
+      valid.add(e);
+    } on FormatException catch (err) {
+      warnings.add(
+        '$source: $what entry `$e` is not a valid glob (${err.message}); '
+        'ignoring it.',
+      );
+    }
+  }
+  return valid;
 }
 
 /// Former name of [ArchGuardConfig], kept for backwards compatibility.
