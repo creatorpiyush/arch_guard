@@ -2,7 +2,8 @@
 # Publishes arch_guard_lint from a clean export of HEAD.
 # The repo-root .pubignore hides arch_guard_lint/ from the arch_guard package,
 # and pub refuses pubspec_overrides.yaml, so publish from outside the repo.
-# Publish the matching arch_guard version first.
+# Publish the matching arch_guard version first. CI runs this on
+# `arch_guard_lint-v*` tags (.github/workflows/publish-arch-guard-lint.yml).
 set -eu
 tmp=$(mktemp -d)
 git archive HEAD arch_guard_lint | tar -x -C "$tmp"
