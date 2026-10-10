@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:arch_guard/arch_guard.dart';
@@ -120,6 +121,63 @@ void main() {
       final future = File(p.join(dir.path, 'future.json'))
         ..writeAsStringSync('{"version": 2}');
       expect(() => Baseline.load(future.path), throwsFormatException);
+    });
+  });
+
+  group('Baseline package violations', () {
+    PackageViolation pv(String file, String package) => PackageViolation(
+      sourceFile: file,
+      uri: 'package:$package/$package.dart',
+      package: package,
+      pattern: package,
+      layer: 'domain',
+    );
+
+    final baseline = Baseline.capture(
+      cycles: const [],
+      layerViolations: const [],
+      packageViolations: [pv('lib/domain/a.dart', 'flutter')],
+    );
+
+    test('splits known, new and fixed', () {
+      final c = baseline.compare(
+        cycles: const [],
+        layerViolations: const [],
+        packageViolations: [
+          pv('lib/domain/a.dart', 'flutter'),
+          pv('lib/domain/b.dart', 'flutter'),
+        ],
+      );
+      expect(c.knownPackageViolations.single.sourceFile, 'lib/domain/a.dart');
+      expect(c.newPackageViolations.single.sourceFile, 'lib/domain/b.dart');
+      expect(c.fixedPackageViolationCount, 0);
+
+      final fixed = baseline.compare(
+        cycles: const [],
+        layerViolations: const [],
+      );
+      expect(fixed.fixedPackageViolationCount, 1);
+    });
+
+    test('round-trips through JSON', () {
+      final again = Baseline.fromJson(
+        jsonDecode(jsonEncode(baseline.toJson())),
+      );
+      expect(again.packageViolations, baseline.packageViolations);
+    });
+
+    test('loads a 1.4 baseline without packageViolations', () {
+      final old = Baseline.fromJson({
+        'version': 1,
+        'cycles': [],
+        'layerViolations': [],
+      });
+      final c = old.compare(
+        cycles: const [],
+        layerViolations: const [],
+        packageViolations: [pv('lib/domain/a.dart', 'flutter')],
+      );
+      expect(c.newPackageViolations, hasLength(1));
     });
   });
 }
