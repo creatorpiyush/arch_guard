@@ -38,6 +38,105 @@ void main() {
     line: 1,
   );
 
+  test('Markdown has no metric/workspace rows when unused', () {
+    final md = MarkdownExporter.export(result: result, cycles: [cycle]);
+    expect(md, isNot(contains('Metric limit violations')));
+    expect(md, isNot(contains('Workspace rule violations')));
+  });
+
+  group('workspace rules in reports', () {
+    const wv = WorkspaceViolation(
+      sourceFile: 'apps/mobile/lib/m.dart',
+      targetFile: 'packages/ui/lib/ui.dart',
+      sourcePackage: 'mobile',
+      targetPackage: 'ui',
+      selector: 'apps/*',
+      allowed: ['packages/core'],
+      line: 3,
+    );
+
+    test('SARIF', () {
+      final log = jsonDecode(
+        SarifExporter.export(
+          result: result,
+          cycles: const [],
+          workspaceViolations: [wv],
+        ),
+      );
+      final hit = log['runs'][0]['results'][0];
+      expect(hit['ruleId'], 'workspace-dependency');
+      expect(hit['locations'][0]['physicalLocation']['region']['startLine'], 3);
+    });
+
+    test('Markdown', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        workspaceViolations: [wv],
+      );
+      expect(md, contains('### New workspace rule violations'));
+      expect(md, contains('| Workspace rule violations | 1 | 1 |'));
+    });
+
+    test('JSON', () {
+      final json = jsonDecode(
+        JsonExporter.export(
+          result: result,
+          cycles: const [],
+          workspaceViolations: [wv.toJson()],
+        ),
+      );
+      expect(json['workspaceViolations'][0]['targetPackage'], 'ui');
+    });
+  });
+
+  group('metric limits in reports', () {
+    const mv = MetricViolation(
+      file: 'lib/a.dart',
+      metric: 'fan_out',
+      value: 25,
+      limit: 20,
+    );
+    const hot = FileMetrics(file: 'lib/a.dart', fanIn: 3, fanOut: 25);
+
+    test('SARIF', () {
+      final log = jsonDecode(
+        SarifExporter.export(
+          result: result,
+          cycles: const [],
+          metricViolations: [mv],
+        ),
+      );
+      expect(log['runs'][0]['results'][0]['ruleId'], 'metric-limit');
+    });
+
+    test('Markdown lists violations and hotspots', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        metricViolations: [mv],
+        hotspots: [hot],
+      );
+      expect(md, contains('### New metric limit violations'));
+      expect(md, contains('| Metric limit violations | 1 | 1 |'));
+      expect(md, contains('<summary>Most coupled files</summary>'));
+      expect(md, contains('| `lib/a.dart` | 3 | 25 | 0.89 |'));
+    });
+
+    test('JSON', () {
+      final json = jsonDecode(
+        JsonExporter.export(
+          result: result,
+          cycles: const [],
+          metricViolations: [mv.toJson()],
+          hotspots: [hot.toJson()],
+        ),
+      );
+      expect(json['metricViolations'][0]['value'], 25);
+      expect(json['hotspots'][0]['fanOut'], 25);
+    });
+  });
+
   group('forbidden packages in reports', () {
     test('SARIF reports them under forbidden-package at the import line', () {
       final log = jsonDecode(

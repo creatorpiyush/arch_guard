@@ -82,15 +82,17 @@ class ProjectScanner {
       final dir = Directory(dirPath);
       if (!dir.existsSync()) continue;
 
-      // Identify owning package name for this directory
+      // Identify owning package name for this directory. The longest
+      // matching member path wins, so nested members own their own files.
       String currentPkgName = primaryPkgName;
-      if (workspacePkgs.isNotEmpty) {
-        for (final entry in workspacePkgs.entries) {
-          if (scanDir == entry.value.libPath ||
-              scanDir.startsWith('${entry.value.packagePath}/')) {
-            currentPkgName = entry.key;
-            break;
-          }
+      var ownerPathLength = -1;
+      for (final entry in workspacePkgs.entries) {
+        final pkg = entry.value;
+        if ((scanDir == pkg.libPath ||
+                scanDir.startsWith('${pkg.packagePath}/')) &&
+            pkg.packagePath.length > ownerPathLength) {
+          currentPkgName = entry.key;
+          ownerPathLength = pkg.packagePath.length;
         }
       }
 
@@ -225,13 +227,32 @@ class ProjectScanner {
           : (a.line ?? 0).compareTo(b.line ?? 0),
     );
 
+    // Sorted so graph traversal, cycle numbering and reports are identical
+    // between runs (files are read in parallel and finish in any order).
+    final sortedFiles = Map.fromEntries(
+      filesMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+    );
+    validEdges.sort((a, b) {
+      for (final c in [
+        a.from.compareTo(b.from),
+        a.to.compareTo(b.to),
+        a.type.compareTo(b.type),
+        (a.line ?? 0).compareTo(b.line ?? 0),
+      ]) {
+        if (c != 0) return c;
+      }
+      return 0;
+    });
+
     return ScanResult(
       packageName: primaryPkgName,
-      files: filesMap,
+      files: sortedFiles,
       edges: validEdges,
       workspacePackageCount: pkgCount,
       skippedFiles: skippedFiles,
       packageImports: packageImports,
+      packages: workspacePkgs.values.toList()
+        ..sort((a, b) => a.packagePath.compareTo(b.packagePath)),
     );
   }
 }

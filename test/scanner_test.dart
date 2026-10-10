@@ -199,4 +199,57 @@ import 'package:ui/button.dart';
       expect(PackageImport.packageOf('package:broken'), isNull);
     });
   });
+
+  test(
+    'scan order is deterministic: sorted files and edges, stable cycles',
+    () async {
+      final outputs = <String>[];
+      for (var i = 0; i < 5; i++) {
+        final result = await ProjectScanner(
+          rootPath: 'example/sample_project',
+        ).scan();
+        expect(result.files.keys.toList(), [...result.files.keys]..sort());
+        final edgeKeys = result.edges.map((e) => '${e.from}|${e.to}').toList();
+        expect(edgeKeys, [...edgeKeys]..sort());
+        final cycles = DependencyGraph.fromScanResult(
+          result,
+        ).findCircularDependencies();
+        outputs.add(cycles.map((c) => c.exampleChain.join('>')).join('\n'));
+      }
+      expect(outputs.toSet(), hasLength(1));
+    },
+  );
+
+  test('nested workspace members own their files (longest path wins)', () async {
+    final dir = Directory.systemTemp.createTempSync('arch_guard_nested_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    void write(String path, String content) {
+      final file = File(p.join(dir.path, path));
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(content);
+    }
+
+    write(
+      'pubspec.yaml',
+      'name: root\nworkspace:\n  - packages/a\n  - packages/a/nested/inner\n',
+    );
+    write('packages/a/pubspec.yaml', 'name: a\n');
+    write('packages/a/lib/a.dart', '');
+    write('packages/a/nested/inner/pubspec.yaml', 'name: inner\n');
+    write('packages/a/nested/inner/lib/j.dart', '');
+    write(
+      'packages/a/nested/inner/lib/i.dart',
+      "import 'package:inner/j.dart';\n",
+    );
+
+    final result = await ProjectScanner(rootPath: dir.path).scan();
+    // A self-import of `inner` is not an external package import.
+    expect(result.packageImports, isEmpty);
+    expect(
+      result.edges.map((e) => '${e.from}>${e.to}'),
+      contains(
+        'packages/a/nested/inner/lib/i.dart>packages/a/nested/inner/lib/j.dart',
+      ),
+    );
+  });
 }

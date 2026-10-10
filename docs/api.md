@@ -59,6 +59,9 @@ void main() async {
 | `DependencyGraph` | Builds the graph and finds strongly connected components (`findCircularDependencies`). |
 | `ArchGuardConfig` | Loads `arch_guard.yaml` / `pubspec.yaml`, including presets. |
 | `LayerValidator` | Checks edges against layers (`validate`) and reports layer coverage (`coverage`). |
+| `FileMetrics` | Fan-in, fan-out and instability per file (`FileMetrics.compute(scanResult)`), most coupled first. |
+| `MetricValidator` | Checks `FileMetrics` against `metrics:` limits; yields `MetricViolation`s. |
+| `WorkspaceValidator` | Checks imports between workspace members (`ScanResult.packages`) against `workspace_rules`; yields `WorkspaceViolation`s. |
 | `PackageValidator` | Checks `ScanResult.packageImports` against `forbidden_packages` (`validate`), or one import at a time (`checker`). Yields `PackageViolation`s. |
 | `Baseline` | Reads, writes and compares against `arch_guard_baseline.json`. |
 | `LayoutDetector` | Guesses a preset from the folder layout, as `init` does. |

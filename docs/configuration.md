@@ -61,6 +61,8 @@ layers:
 | `layers` | map | none | Layer name → `patterns` (globs), `allowed_imports` (layer names) and optional `forbidden_packages`. With a preset, overrides or adds layers. |
 | `forbidden_packages` | list | none | Packages (`dio`) or core libraries (`dart:io`) no scanned file may import. Globs allowed (`firebase_*`). Also valid inside a layer, where it applies only to that layer's files. |
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
+| `workspace_rules` | map | none | In a workspace: member selector → `allowed:` members it may import. See [Workspace rules](#workspace-rules). |
+| `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
 ## How layers are matched
@@ -110,6 +112,29 @@ layers:
 
 Forbidden imports always fail the run (exit code `1`); `fail_on_layer_violation` does not apply to them. To adopt the rule on existing code, run `arch_guard --update-baseline` once.
 
+## Metric limits
+
+Keep files from turning into hubs that everything depends on, or that depend on everything:
+
+```yaml
+metrics:
+  max_fan_out: 20   # a file may import at most 20 project files
+  max_fan_in: 40    # at most 40 project files may import it
+  hotspots: 10      # most-coupled files to list in reports (0 = none)
+```
+
+- Only files inside the scanned project count; `package:` imports of other packages don't.
+- Each imported file counts once, however many directives point at it. `part` files don't count.
+- A file over a limit fails the run (exit code `1`) and is reported with its numbers:
+
+  ```text
+  ❌ Metric Limit: lib/app/router.dart fan_out=27 (max 20)
+     Rule: `lib/app/router.dart` imports 27 files (max_fan_out: 20).
+  ```
+
+- With a baseline, a known file passes while its number stays the same or drops, and **fails again if it grows**. That makes the limit a ratchet for legacy hubs.
+- Markdown and JSON reports always list the most coupled files (fan-in + fan-out). The terminal lists the top five when `metrics:` limits are set.
+
 ## Warnings
 
 Configuration problems are reported on stderr instead of being silently ignored:
@@ -126,3 +151,30 @@ The legacy `dep_graph.yaml` file and `dep_graph_visualizer:` pubspec key are sti
 With `--workspace` (the default), member packages come from the `workspace:` list in the root `pubspec.yaml`. Without one, packages under `packages/` and `apps/` are discovered automatically (ignoring `example/`, `test/` and `tool/` folders). Imports between packages become edges in the graph, so cross-package cycles are found too. A single-package project is scanned using `--scan-dir` (default `lib`).
 
 See [Presets → Workspaces and monorepos](presets.md#workspaces-and-monorepos) for layering advice on large monorepos.
+
+## Workspace rules
+
+Layers govern folders inside a package. `workspace_rules` govern which **packages** of a workspace may depend on which:
+
+```yaml
+workspace_rules:
+  "packages/core":
+    allowed: []                  # core depends on no other member
+  "packages/*":
+    allowed: ["packages/core"]   # shared packages may only use core
+  "apps/*":
+    allowed: ["packages/*"]      # apps may use any shared package
+```
+
+- Selectors and `allowed` entries are globs matched against a member's path (`packages/core`) or name (`core`). The root package's path is `.`.
+- The **first** selector that matches a member applies, so put specific rules before broad ones.
+- A member may always import itself. Members no selector matches are unrestricted.
+- Only imports and exports between members count. Use [`forbidden_packages`](#forbidden-packages) for pub.dev packages.
+- Each offending import is reported with its line and fails the run (exit code `1`). Adopt on existing code with `--update-baseline`.
+
+```text
+❌ Workspace Violation: [mobile] apps/mobile/lib/main.dart:3 -> [ui] packages/ui/lib/ui.dart
+   Rule: `mobile` (rule `apps/*`) may only import members matching `packages/core`.
+```
+
+You get a warning for a selector or `allowed` entry that matches no member, and when `workspace_rules` is set in a project that isn't a workspace.

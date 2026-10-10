@@ -1,4 +1,5 @@
 import 'file_node.dart';
+import 'workspace_package.dart';
 
 /// Represents a directed edge from [from] to [to] in the dependency graph.
 class GraphEdge {
@@ -106,6 +107,9 @@ class ScanResult {
   /// file's own package, sorted by file and line.
   final List<PackageImport> packageImports;
 
+  /// Workspace member packages (empty for a single package), sorted by path.
+  final List<WorkspacePackage> packages;
+
   /// Creates a scan result.
   const ScanResult({
     required this.packageName,
@@ -114,6 +118,7 @@ class ScanResult {
     this.workspacePackageCount = 1,
     this.skippedFiles = const {},
     this.packageImports = const [],
+    this.packages = const [],
   });
 
   /// Whether this scan result represents a workspace/monorepo scan.
