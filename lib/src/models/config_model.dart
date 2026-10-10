@@ -4,6 +4,7 @@ import 'package:yaml/yaml.dart';
 
 import 'layer_definition.dart';
 import 'layer_presets.dart';
+import 'scan_result.dart';
 
 export 'layer_definition.dart';
 
@@ -19,6 +20,7 @@ class ArchGuardConfig {
     'layers',
     'max_scc_size',
     'fail_on_layer_violation',
+    'forbidden_packages',
   };
 
   /// Glob patterns of files left out of the scan.
@@ -217,6 +219,14 @@ class ArchGuardConfig {
       );
     }
 
+    var forbidden = const <String>[];
+    final rawForbidden = raw['forbidden_packages'];
+    if (rawForbidden is List) {
+      forbidden = _packageEntries(rawForbidden);
+    } else if (rawForbidden != null) {
+      warnings.add('$source: `forbidden_packages` must be a list.');
+    }
+
     String? preset;
     final layersMap = <String, LayerDefinition>{};
     final presetOnly = <String>{};
@@ -258,10 +268,19 @@ class ArchGuardConfig {
             '$source: layer `$name` `allowed_imports` must be a list.',
           );
         }
+        final rawLayerForbidden = val['forbidden_packages'];
+        if (rawLayerForbidden != null && rawLayerForbidden is! List) {
+          warnings.add(
+            '$source: layer `$name` `forbidden_packages` must be a list.',
+          );
+        }
         var layer = LayerDefinition.fromYaml(name, {
           'patterns': val['patterns'] is List ? val['patterns'] : null,
           'allowed_imports': val['allowed_imports'] is List
               ? val['allowed_imports']
+              : null,
+          'forbidden_packages': rawLayerForbidden is List
+              ? _packageEntries(rawLayerForbidden)
               : null,
         });
         // Overriding a preset layer: keys left out keep the preset's values.
@@ -273,6 +292,9 @@ class ArchGuardConfig {
             allowedImports: val['allowed_imports'] is List
                 ? layer.allowedImports
                 : base.allowedImports,
+            forbiddenPackages: rawLayerForbidden is List
+                ? layer.forbiddenPackages
+                : base.forbiddenPackages,
           );
         }
         if (layer.patterns.isEmpty) {
@@ -301,11 +323,19 @@ class ArchGuardConfig {
       presetOnlyLayers: presetOnly,
       maxSccSize: maxScc,
       failOnLayerViolation: failOnLayer,
+      forbiddenPackages: forbidden,
       warnings: warnings,
       sourcePath: sourcePath,
     );
   }
 }
+
+/// `package:http/http.dart` → `http`; everything else is kept as written.
+List<String> _packageEntries(List raw) => [
+  for (final e in raw)
+    if (e.toString().trim() case final s when s.isNotEmpty)
+      s.startsWith('package:') ? (PackageImport.packageOf(s) ?? s) : s,
+];
 
 /// Former name of [ArchGuardConfig], kept for backwards compatibility.
 @Deprecated('Use ArchGuardConfig instead.')
