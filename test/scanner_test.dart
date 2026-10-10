@@ -123,4 +123,80 @@ void main() {
       });
     });
   });
+
+  group('ProjectScanner package imports', () {
+    late Directory dir;
+
+    setUp(() => dir = Directory.systemTemp.createTempSync('arch_guard_pkg_'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    void write(String path, String content) {
+      final file = File(p.join(dir.path, path));
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(content);
+    }
+
+    test(
+      'records package: and dart: directives but not self-imports',
+      () async {
+        write('pubspec.yaml', 'name: app\n');
+        write('lib/b.dart', '');
+        write('lib/a.dart', """
+import 'package:app/b.dart';
+import 'package:dio/dio.dart';
+import 'dart:io';
+export 'package:meta/meta.dart';
+import 'b.dart';
+""");
+
+        final result = await ProjectScanner(rootPath: dir.path).scan();
+        final imports = result.packageImports
+            .map((i) => '${i.file}|${i.package}|${i.type}|${i.line}')
+            .toList();
+        expect(
+          imports,
+          equals([
+            'lib/a.dart|dio|import|2',
+            'lib/a.dart|dart:io|import|3',
+            'lib/a.dart|meta|export|4',
+          ]),
+        );
+      },
+    );
+
+    test(
+      'records imports of other workspace packages, not of the own one',
+      () async {
+        write(
+          'pubspec.yaml',
+          'name: root\nworkspace:\n  - packages/auth\n  - packages/ui\n',
+        );
+        write(
+          'packages/auth/pubspec.yaml',
+          'name: auth\nresolution: workspace\n',
+        );
+        write('packages/ui/pubspec.yaml', 'name: ui\nresolution: workspace\n');
+        write('packages/ui/lib/button.dart', '');
+        write('packages/auth/lib/x.dart', '');
+        write('packages/auth/lib/login.dart', """
+import 'package:auth/x.dart';
+import 'package:ui/button.dart';
+""");
+
+        final result = await ProjectScanner(rootPath: dir.path).scan();
+        expect(
+          result.packageImports.map((i) => '${i.file}|${i.package}'),
+          equals(['packages/auth/lib/login.dart|ui']),
+        );
+      },
+    );
+
+    test('packageOf reads package and dart library names', () {
+      expect(PackageImport.packageOf('package:dio/dio.dart'), 'dio');
+      expect(PackageImport.packageOf('dart:io'), 'dart:io');
+      expect(PackageImport.packageOf('dart:ui'), 'dart:ui');
+      expect(PackageImport.packageOf('../data/repo.dart'), isNull);
+      expect(PackageImport.packageOf('package:broken'), isNull);
+    });
+  });
 }

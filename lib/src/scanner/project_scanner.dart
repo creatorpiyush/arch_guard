@@ -60,6 +60,7 @@ class ProjectScanner {
     final filesMap = <String, FileNode>{};
     final skippedFiles = <String, String>{};
     final rawEdges = <_TempEdge>[];
+    final packageImports = <PackageImport>[];
 
     // Determine target directories to scan. Member packages contribute their
     // lib directories; the root package (or a plain project) honours [scanDirs].
@@ -132,6 +133,7 @@ class ProjectScanner {
               final exports = <String>[];
               final parts = <String>[];
               final localRawEdges = <_TempEdge>[];
+              final localPackageImports = <PackageImport>[];
 
               for (final directive in directives) {
                 switch (directive.type) {
@@ -141,6 +143,21 @@ class ProjectScanner {
                     parts.add(directive.uri);
                   default:
                     imports.add(directive.uri);
+                }
+
+                final package = directive.type == 'part'
+                    ? null
+                    : PackageImport.packageOf(directive.uri);
+                if (package != null && package != currentPkgName) {
+                  localPackageImports.add(
+                    PackageImport(
+                      file: relPath,
+                      uri: directive.uri,
+                      package: package,
+                      type: directive.type,
+                      line: directive.line,
+                    ),
+                  );
                 }
 
                 final resolvedTarget = ImportReader.resolveUri(
@@ -165,6 +182,7 @@ class ProjectScanner {
               }
 
               rawEdges.addAll(localRawEdges);
+              packageImports.addAll(localPackageImports);
               filesMap[relPath] = FileNode(
                 relativePath: relPath,
                 absolutePath: entity.path,
@@ -200,12 +218,20 @@ class ProjectScanner {
 
     final pkgCount = workspacePkgs.isNotEmpty ? workspacePkgs.length : 1;
 
+    // Files are read in parallel, so sort for a stable order.
+    packageImports.sort(
+      (a, b) => a.file != b.file
+          ? a.file.compareTo(b.file)
+          : (a.line ?? 0).compareTo(b.line ?? 0),
+    );
+
     return ScanResult(
       packageName: primaryPkgName,
       files: filesMap,
       edges: validEdges,
       workspacePackageCount: pkgCount,
       skippedFiles: skippedFiles,
+      packageImports: packageImports,
     );
   }
 }

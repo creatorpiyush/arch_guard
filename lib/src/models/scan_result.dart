@@ -38,6 +38,53 @@ class GraphEdge {
   String toString() => '$from --($type)--> $to';
 }
 
+/// A directive that points outside the scanned files: another package
+/// (`package:dio/dio.dart`) or a core library (`dart:io`).
+class PackageImport {
+  /// Relative path of the importing/exporting file.
+  final String file;
+
+  /// The URI as written in the directive.
+  final String uri;
+
+  /// Package name (`dio`) or core library (`dart:io`) that [uri] points into.
+  final String package;
+
+  /// Directive kind: `import` or `export`.
+  final String type;
+
+  /// 1-based line of the directive in [file], if known.
+  final int? line;
+
+  /// Creates a record of [file] importing [uri].
+  const PackageImport({
+    required this.file,
+    required this.uri,
+    required this.package,
+    this.type = 'import',
+    this.line,
+  });
+
+  /// Returns `dio` for `package:dio/...`, `dart:io` for `dart:io`, or `null`
+  /// for relative and malformed URIs.
+  static String? packageOf(String uri) {
+    if (uri.startsWith('dart:')) return uri;
+    if (!uri.startsWith('package:')) return null;
+    final rest = uri.substring('package:'.length);
+    final slash = rest.indexOf('/');
+    return slash <= 0 ? null : rest.substring(0, slash);
+  }
+
+  /// JSON form used by the JSON exporter.
+  Map<String, dynamic> toJson() => {
+    'file': file,
+    'uri': uri,
+    'package': package,
+    'type': type,
+    'line': ?line,
+  };
+}
+
 /// Holds the output of scanning a project repository.
 class ScanResult {
   /// Name of the scanned package (from `pubspec.yaml`).
@@ -55,6 +102,10 @@ class ScanResult {
   /// Files that matched the scan but could not be read, with the reason.
   final Map<String, String> skippedFiles;
 
+  /// `package:` and `dart:` directives that point outside the importing
+  /// file's own package, sorted by file and line.
+  final List<PackageImport> packageImports;
+
   /// Creates a scan result.
   const ScanResult({
     required this.packageName,
@@ -62,6 +113,7 @@ class ScanResult {
     required this.edges,
     this.workspacePackageCount = 1,
     this.skippedFiles = const {},
+    this.packageImports = const [],
   });
 
   /// Whether this scan result represents a workspace/monorepo scan.
