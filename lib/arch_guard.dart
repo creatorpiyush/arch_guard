@@ -31,6 +31,7 @@ export 'src/graph/dependency_explainer.dart';
 export 'src/graph/dependency_graph.dart';
 export 'src/models/config_model.dart';
 export 'src/models/cycle.dart';
+export 'src/models/file_metrics.dart';
 export 'src/models/file_node.dart';
 export 'src/models/layer_presets.dart';
 export 'src/models/scan_result.dart';
