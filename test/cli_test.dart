@@ -280,4 +280,26 @@ layers:
       expect(await runCli([project.path]), 0);
     });
   });
+
+  test('default text output has no metric/workspace wording when unused', () {
+    final tmp = Directory.systemTemp.createTempSync('arch_guard_out_');
+    addTearDown(() => tmp.deleteSync(recursive: true));
+    final baseline = p.join(tmp.path, 'b.json');
+    List<String> args(List<String> extra) => [
+      'bin/arch_guard.dart',
+      'example/sample_project',
+      '--no-color',
+      '--baseline',
+      baseline,
+      ...extra,
+    ];
+    final write = Process.runSync('dart', args(['--update-baseline']));
+    expect(write.stdout, contains('Baseline written'));
+    final run = Process.runSync('dart', args([]));
+    for (final out in [write.stdout as String, run.stdout as String]) {
+      expect(out, isNot(contains('metric limit')));
+      expect(out, isNot(contains('workspace rule')));
+    }
+    expect(run.stdout, contains('Known (ignored)'));
+  });
 }

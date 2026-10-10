@@ -38,6 +38,12 @@ void main() {
     line: 1,
   );
 
+  test('Markdown has no metric/workspace rows when unused', () {
+    final md = MarkdownExporter.export(result: result, cycles: [cycle]);
+    expect(md, isNot(contains('Metric limit violations')));
+    expect(md, isNot(contains('Workspace rule violations')));
+  });
+
   group('workspace rules in reports', () {
     const wv = WorkspaceViolation(
       sourceFile: 'apps/mobile/lib/m.dart',

@@ -82,15 +82,17 @@ class ProjectScanner {
       final dir = Directory(dirPath);
       if (!dir.existsSync()) continue;
 
-      // Identify owning package name for this directory
+      // Identify owning package name for this directory. The longest
+      // matching member path wins, so nested members own their own files.
       String currentPkgName = primaryPkgName;
-      if (workspacePkgs.isNotEmpty) {
-        for (final entry in workspacePkgs.entries) {
-          if (scanDir == entry.value.libPath ||
-              scanDir.startsWith('${entry.value.packagePath}/')) {
-            currentPkgName = entry.key;
-            break;
-          }
+      var ownerPathLength = -1;
+      for (final entry in workspacePkgs.entries) {
+        final pkg = entry.value;
+        if ((scanDir == pkg.libPath ||
+                scanDir.startsWith('${pkg.packagePath}/')) &&
+            pkg.packagePath.length > ownerPathLength) {
+          currentPkgName = entry.key;
+          ownerPathLength = pkg.packagePath.length;
         }
       }
 

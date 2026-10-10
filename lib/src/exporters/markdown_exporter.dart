@@ -96,15 +96,22 @@ class MarkdownExporter {
       ..writeln(
         '| Forbidden package imports | ${packageViolations.length} | '
         '${newPackages.length} |',
-      )
-      ..writeln(
+      );
+    // Only for projects that use these rules, so other reports stay as before.
+    if (metricViolations.isNotEmpty ||
+        (baseline?.fixedMetricViolationCount ?? 0) > 0) {
+      b.writeln(
         '| Metric limit violations | ${metricViolations.length} | '
         '${newMetrics.length} |',
-      )
-      ..writeln(
+      );
+    }
+    if (workspaceViolations.isNotEmpty ||
+        (baseline?.fixedWorkspaceViolationCount ?? 0) > 0) {
+      b.writeln(
         '| Workspace rule violations | ${workspaceViolations.length} | '
         '${newWorkspace.length} |',
       );
+    }
     if (maxSccSize != null) {
       b.writeln(
         '| Groups over `max_scc_size` ($maxSccSize) | '
@@ -222,14 +229,19 @@ class MarkdownExporter {
             baseline.fixedPackageViolationCount > 0 ||
             baseline.fixedMetricViolationCount > 0 ||
             baseline.fixedWorkspaceViolationCount > 0)) {
+      final fixed = _andJoin([
+        '${baseline.fixedCycleCount} cycle group(s)',
+        '${baseline.fixedViolationCount} layer violation(s)',
+        '${baseline.fixedPackageViolationCount} forbidden package import(s)',
+        if (baseline.fixedMetricViolationCount > 0)
+          '${baseline.fixedMetricViolationCount} metric limit violation(s)',
+        if (baseline.fixedWorkspaceViolationCount > 0)
+          '${baseline.fixedWorkspaceViolationCount} workspace rule '
+              'violation(s)',
+      ]);
       b
         ..writeln(
-          '🎉 ${baseline.fixedCycleCount} cycle group(s), '
-          '${baseline.fixedViolationCount} layer violation(s), '
-          '${baseline.fixedPackageViolationCount} forbidden package '
-          'import(s), ${baseline.fixedMetricViolationCount} metric limit '
-          'violation(s) and ${baseline.fixedWorkspaceViolationCount} '
-          'workspace rule violation(s) from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
+          '🎉 $fixed from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
           'this in.',
         )
         ..writeln();
@@ -237,6 +249,9 @@ class MarkdownExporter {
 
     return b.toString();
   }
+
+  static String _andJoin(List<String> parts) =>
+      '${parts.sublist(0, parts.length - 1).join(', ')} and ${parts.last}';
 
   static void _writeCapped<T>(
     StringBuffer b,
