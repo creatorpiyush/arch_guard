@@ -95,7 +95,7 @@ Future<int> runCli(List<String> args) async {
       baselinePath: argResults['baseline'] as String,
       // --explain doesn't need the baseline, and --update-baseline must
       // work even when the existing file is broken.
-      useBaseline: !updateBaseline && explainTarget == null,
+      useBaseline: !updateBaseline && (explainTarget?.isEmpty ?? true),
     );
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');

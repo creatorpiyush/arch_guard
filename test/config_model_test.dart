@@ -182,4 +182,23 @@ layers:
     );
     expect(config.layers, isEmpty);
   });
+
+  test('drops invalid globs with a warning instead of throwing later', () {
+    final config = ArchGuardConfig.parse('''
+ignore: ["lib/[x"]
+forbidden_packages: ["firebase_["]
+layers:
+  domain:
+    patterns: ["lib/{domain/**", "lib/core/**"]
+    forbidden_packages: ["x["]
+''', rootPath: Directory.systemTemp.path);
+    expect(config.ignorePatterns, isEmpty);
+    expect(config.forbiddenPackages, isEmpty);
+    expect(config.layers['domain']!.patterns, ['lib/core/**']);
+    expect(config.layers['domain']!.forbiddenPackages, isEmpty);
+    expect(
+      config.warnings.where((w) => w.contains('is not a valid glob')),
+      hasLength(4),
+    );
+  });
 }

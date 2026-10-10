@@ -236,6 +236,11 @@ layers:
 
     tearDown(() => project.deleteSync(recursive: true));
 
+    test('an empty --explain= still honours the baseline', () async {
+      expect(await runCli([project.path, '--update-baseline']), 0);
+      expect(await runCli([project.path, '--explain=']), 0);
+    });
+
     test('fails on a forbidden import, then passes once baselined', () async {
       expect(await runCli([project.path]), 1);
       expect(await runCli([project.path, '--update-baseline']), 0);

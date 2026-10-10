@@ -111,4 +111,50 @@ class LayerViolationRuleTest extends AnalysisRuleTest {
     newFile(_userPath, _badImport);
     await assertNoDiagnosticsInFile(_userPath);
   }
+
+  void test_invalidGlobIsQuiet() async {
+    newFile(
+      '$testPackageRootPath/arch_guard.yaml',
+      '$_config\nforbidden_packages: ["x["]\nignore: ["lib/[x"]\n',
+    );
+    newFile(_userPath, _badImport);
+    // Invalid entries are dropped; the valid layer rules still apply.
+    await assertDiagnosticsInFile(_userPath, [
+      lint(_badImport.indexOf("'"), "'../data/repo.dart'".length),
+    ]);
+  }
+
+  void test_importOfIgnoredFileIsQuiet() async {
+    newFile(
+      '$testPackageRootPath/arch_guard.yaml',
+      '$_config\nignore: ["lib/data/**"]\n',
+    );
+    newFile(_userPath, _badImport);
+    await assertNoDiagnosticsInFile(_userPath);
+  }
+
+  void test_generatedFilesAreQuiet() async {
+    newFile('$testPackageRootPath/arch_guard.yaml', _config);
+    final path = '$testPackageLibPath/domain/user.g.dart';
+    newFile(path, _badImport);
+    await assertNoDiagnosticsInFile(path);
+  }
+
+  void test_configAboveANonWorkspaceRootIsNotUsed() async {
+    newFile('$workspaceRootPath/arch_guard.yaml', _config);
+    newFile(_userPath, _badImport);
+    await assertNoDiagnosticsInFile(_userPath);
+  }
+
+  void test_configAtTheWorkspaceRootIsUsed() async {
+    newFile(
+      '$workspaceRootPath/pubspec.yaml',
+      'name: root\nworkspace: [test]\n',
+    );
+    newFile('$workspaceRootPath/arch_guard.yaml', _config);
+    newFile(_userPath, _badImport);
+    await assertDiagnosticsInFile(_userPath, [
+      lint(_badImport.indexOf("'"), "'../data/repo.dart'".length),
+    ]);
+  }
 }

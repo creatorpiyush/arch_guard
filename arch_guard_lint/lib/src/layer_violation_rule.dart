@@ -63,7 +63,12 @@ class _Visitor extends SimpleAstVisitor<void> {
     final unit = context.currentUnit ?? context.definingUnit;
     final from = rules.relative(unit.file.path);
     final to = rules.relative(target.source.fullName);
-    if (from == null || to == null || rules.isIgnored(from)) return;
+    if (from == null ||
+        to == null ||
+        rules.isIgnored(from) ||
+        rules.isIgnored(to)) {
+      return;
+    }
 
     final v = rules.checkLayer(from, to);
     if (v == null || rules.isKnownLayerViolation(v)) return;

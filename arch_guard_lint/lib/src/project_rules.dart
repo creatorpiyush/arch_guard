@@ -26,8 +26,10 @@ class ProjectRules {
   ProjectRules._(this._root, this.config, this._baseline)
     : checkLayer = LayerValidator.checker(config),
       checkPackage = PackageValidator.checker(config),
+      // Same files the CLI never scans: generated code plus `ignore:`.
       _ignore = [
-        for (final g in config.ignorePatterns) Glob(g, context: p.posix),
+        for (final g in [...defaultExcludePatterns, ...config.ignorePatterns])
+          Glob(g, context: p.posix),
       ];
 
   /// [absolutePath] relative to the config folder with `/` separators, or
@@ -38,7 +40,8 @@ class ProjectRules {
     return ctx.split(ctx.relative(absolutePath, from: _root.path)).join('/');
   }
 
-  /// Whether [relativePath] matches the config's `ignore:` globs.
+  /// Whether [relativePath] is one the CLI never scans (generated files and
+  /// the config's `ignore:` globs).
   bool isIgnored(String relativePath) =>
       _ignore.any((g) => g.matches(relativePath));
 
@@ -72,7 +75,13 @@ class ProjectRules {
     final cached = byPath[root.path];
     if (cached != null && cached.$1 == key) return cached.$2;
 
-    final rules = _load(root, baselineFile);
+    ProjectRules? rules;
+    try {
+      rules = _load(root, baselineFile);
+    } catch (_) {
+      // Never let a config problem throw inside the analysis server.
+      rules = null;
+    }
     byPath[root.path] = (key, rules);
     return rules;
   }
@@ -97,16 +106,37 @@ class ProjectRules {
     return ProjectRules._(root, config, baseline);
   }
 
-  /// Nearest folder at or above [packageRoot] with an arch_guard config file,
-  /// else [packageRoot] itself (which may have an `arch_guard:` pubspec key).
+  /// [packageRoot], unless it has no config file of its own and the nearest
+  /// ancestor with one is the root of a workspace this package belongs to.
+  /// That matches what the CLI scans when run at that root.
   static Folder _configRoot(Folder packageRoot) {
-    for (Folder? f = packageRoot; f != null; f = f.isRoot ? null : f.parent) {
-      if (_child(f, 'arch_guard.yaml').exists ||
-          _child(f, 'dep_graph.yaml').exists) {
-        return f;
+    bool hasConfig(Folder f) =>
+        _child(f, 'arch_guard.yaml').exists ||
+        _child(f, 'dep_graph.yaml').exists;
+    if (hasConfig(packageRoot)) return packageRoot;
+    for (var f = packageRoot; !f.isRoot;) {
+      f = f.parent;
+      if (hasConfig(f)) {
+        return _isWorkspaceRootOf(f, packageRoot) ? f : packageRoot;
       }
     }
     return packageRoot;
+  }
+
+  /// Whether [root] declares a pub `workspace:` or keeps [package] under
+  /// `packages/` or `apps/`, the folders the CLI auto-discovers.
+  static bool _isWorkspaceRootOf(Folder root, Folder package) {
+    final pubspec = _child(root, 'pubspec.yaml');
+    if (pubspec.exists &&
+        RegExp(
+          r'^workspace:',
+          multiLine: true,
+        ).hasMatch(pubspec.readAsStringSync())) {
+      return true;
+    }
+    final ctx = root.provider.pathContext;
+    final first = ctx.split(ctx.relative(package.path, from: root.path)).first;
+    return first == 'packages' || first == 'apps';
   }
 
   // `Folder.getFile` only exists from analyzer 14; this works on 8.4+.
