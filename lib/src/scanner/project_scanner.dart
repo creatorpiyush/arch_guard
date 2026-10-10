@@ -225,9 +225,26 @@ class ProjectScanner {
           : (a.line ?? 0).compareTo(b.line ?? 0),
     );
 
+    // Sorted so graph traversal, cycle numbering and reports are identical
+    // between runs (files are read in parallel and finish in any order).
+    final sortedFiles = Map.fromEntries(
+      filesMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+    );
+    validEdges.sort((a, b) {
+      for (final c in [
+        a.from.compareTo(b.from),
+        a.to.compareTo(b.to),
+        a.type.compareTo(b.type),
+        (a.line ?? 0).compareTo(b.line ?? 0),
+      ]) {
+        if (c != 0) return c;
+      }
+      return 0;
+    });
+
     return ScanResult(
       packageName: primaryPkgName,
-      files: filesMap,
+      files: sortedFiles,
       edges: validEdges,
       workspacePackageCount: pkgCount,
       skippedFiles: skippedFiles,

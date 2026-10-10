@@ -199,4 +199,24 @@ import 'package:ui/button.dart';
       expect(PackageImport.packageOf('package:broken'), isNull);
     });
   });
+
+  test(
+    'scan order is deterministic: sorted files and edges, stable cycles',
+    () async {
+      final outputs = <String>[];
+      for (var i = 0; i < 5; i++) {
+        final result = await ProjectScanner(
+          rootPath: 'example/sample_project',
+        ).scan();
+        expect(result.files.keys.toList(), [...result.files.keys]..sort());
+        final edgeKeys = result.edges.map((e) => '${e.from}|${e.to}').toList();
+        expect(edgeKeys, [...edgeKeys]..sort());
+        final cycles = DependencyGraph.fromScanResult(
+          result,
+        ).findCircularDependencies();
+        outputs.add(cycles.map((c) => c.exampleChain.join('>')).join('\n'));
+      }
+      expect(outputs.toSet(), hasLength(1));
+    },
+  );
 }
