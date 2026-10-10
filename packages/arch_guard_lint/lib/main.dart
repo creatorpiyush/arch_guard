@@ -1,6 +1,7 @@
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
+import 'src/forbidden_package_rule.dart';
 import 'src/layer_violation_rule.dart';
 
 /// Entry point the Dart analysis server looks up.
@@ -14,5 +15,6 @@ class ArchGuardPlugin extends Plugin {
   @override
   void register(PluginRegistry registry) {
     registry.registerWarningRule(LayerViolationRule());
+    registry.registerWarningRule(ForbiddenPackageRule());
   }
 }
