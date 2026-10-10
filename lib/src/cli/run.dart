@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:args/args.dart';
 import 'package:path/path.dart' as p;
 
+import '../analysis/arch_analysis.dart';
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/package_validator.dart';
@@ -89,42 +90,43 @@ Future<int> runCli(List<String> args) async {
   final failOnCycle = argResults['fail-on-cycle'] as bool;
   final enableWorkspace = argResults['workspace'] as bool;
   final updateBaseline = argResults['update-baseline'] as bool;
-  final baselinePath = _resolve(
-    absProjectPath,
-    argResults['baseline'] as String,
-  );
 
-  // Load arch_guard.yaml / dep_graph.yaml / pubspec.yaml layer rules & ignores
-  final config = ArchGuardConfig.load(absProjectPath);
+  ArchAnalysis analysis;
+  try {
+    analysis = await ArchAnalysis.run(
+      projectPath: absProjectPath,
+      scanDirs: scanDirs,
+      exclude: excludes,
+      enableWorkspace: enableWorkspace,
+      baselinePath: argResults['baseline'] as String,
+      // --explain doesn't need the baseline, and --update-baseline must
+      // work even when the existing file is broken.
+      useBaseline: !updateBaseline && explainTarget == null,
+    );
+  } on FormatException catch (e) {
+    stderr.writeln('Error: ${e.message}');
+    return 2;
+  }
+  final config = analysis.config;
   for (final warning in config.warnings) {
     _warn(warning, useColor);
   }
-  final mergedExcludes = [...excludes, ...config.ignorePatterns];
-
-  final scanner = ProjectScanner(
-    rootPath: absProjectPath,
-    scanDirs: scanDirs,
-    exclude: mergedExcludes,
-    enableWorkspace: enableWorkspace,
-  );
-
-  final scanResult = await scanner.scan();
-  final graph = DependencyGraph.fromScanResult(scanResult);
-  final cycles = graph.findCircularDependencies();
-  final layerViolations = LayerValidator.validate(
-    result: scanResult,
-    config: config,
-  );
-  final packageViolations = PackageValidator.validate(
-    result: scanResult,
-    config: config,
-  );
+  final scanResult = analysis.scan;
+  final graph = analysis.graph;
+  final cycles = analysis.cycles;
+  final layerViolations = analysis.layerViolations;
+  final packageViolations = analysis.packageViolations;
+  final comparison = analysis.baseline;
+  final baselinePath = analysis.baselinePath;
+  final newCycles = analysis.newCycles;
+  final newViolations = analysis.newLayerViolations;
+  final newPackageViolations = analysis.newPackageViolations;
 
   scanResult.skippedFiles.forEach((file, reason) {
     _warn('could not read $file: $reason', useColor);
   });
 
-  final coverage = LayerValidator.coverage(result: scanResult, config: config);
+  final coverage = analysis.coverage;
   for (final layer in coverage.emptyLayers.where(
     (l) => !config.presetOnlyLayers.contains(l),
   )) {
@@ -159,25 +161,6 @@ Future<int> runCli(List<String> args) async {
     return 0;
   }
 
-  Baseline? baseline;
-  if (!updateBaseline) {
-    try {
-      baseline = Baseline.load(baselinePath);
-    } on FormatException catch (e) {
-      stderr.writeln('Error: ${e.message}');
-      return 2;
-    }
-  }
-  final comparison = baseline?.compare(
-    cycles: cycles,
-    layerViolations: layerViolations,
-    packageViolations: packageViolations,
-  );
-  final newCycles = comparison?.newCycles ?? cycles;
-  final newViolations = comparison?.newViolations ?? layerViolations;
-  final newPackageViolations =
-      comparison?.newPackageViolations ?? packageViolations;
-
   final cRed = useColor ? '\x1B[31m' : '';
   final cGreen = useColor ? '\x1B[32m' : '';
   final cReset = useColor ? '\x1B[0m' : '';
@@ -187,7 +170,7 @@ Future<int> runCli(List<String> args) async {
   stdout.write(textReporter.formatReport(result: scanResult, cycles: cycles));
 
   if (newViolations.isNotEmpty) {
-    final label = baseline == null ? '' : 'NEW ';
+    final label = comparison == null ? '' : 'NEW ';
     stdout.writeln(
       '$cRed[!] ${label}LAYER BOUNDARY VIOLATIONS DETECTED (${newViolations.length}):$cReset',
     );
@@ -217,7 +200,7 @@ Future<int> runCli(List<String> args) async {
   }
 
   if (newPackageViolations.isNotEmpty) {
-    final label = baseline == null ? '' : 'NEW ';
+    final label = comparison == null ? '' : 'NEW ';
     final cDim = useColor ? '\x1B[2m' : '';
     stdout.writeln(
       '$cRed[!] ${label}FORBIDDEN PACKAGE IMPORTS '
@@ -237,10 +220,8 @@ Future<int> runCli(List<String> args) async {
   }
 
   final maxSccSize = config.maxSccSize;
-  final oversizedSccs = maxSccSize == null
-      ? const <Cycle>[]
-      : cycles.where((c) => c.files.length > maxSccSize).toList();
-  final newOversizedSccs = oversizedSccs.where(newCycles.contains).toList();
+  final oversizedSccs = analysis.oversizedCycles;
+  final newOversizedSccs = analysis.newOversizedCycles;
 
   if (comparison != null) {
     stdout.writeln(
