@@ -9,6 +9,7 @@ class JsonExporter {
     required ScanResult result,
     required List<Cycle> cycles,
     List<Map<String, dynamic>>? layerViolations,
+    List<Map<String, dynamic>>? packageViolations,
   }) {
     final payload = {
       'packageName': result.packageName,
@@ -29,6 +30,7 @@ class JsonExporter {
           .map((e) => {'from': e.from, 'to': e.to, 'type': e.type})
           .toList(),
       'layerViolations': ?layerViolations,
+      'packageViolations': ?packageViolations,
     };
 
     return const JsonEncoder.withIndent('  ').convert(payload);

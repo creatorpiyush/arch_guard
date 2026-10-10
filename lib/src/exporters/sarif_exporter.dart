@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
+import '../checker/package_validator.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 import '../version.dart';
@@ -13,6 +14,9 @@ class SarifExporter {
 
   /// SARIF rule id for layer violations.
   static const layerViolationRule = 'layer-violation';
+
+  /// SARIF rule id for imports ruled out by `forbidden_packages`.
+  static const forbiddenPackageRule = 'forbidden-package';
 
   /// SARIF rule id for circular dependency groups.
   static const circularDependencyRule = 'circular-dependency';
@@ -30,6 +34,7 @@ class SarifExporter {
     required ScanResult result,
     required List<Cycle> cycles,
     List<LayerViolation> layerViolations = const [],
+    List<PackageViolation> packageViolations = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -76,6 +81,23 @@ class SarifExporter {
           'archGuard/v1': '$layerViolationRule:${Baseline.violationKey(v)}',
         },
         'baselineState': ?state(baseline?.isNewViolation(v) ?? true),
+      });
+    }
+
+    for (final v in packageViolations) {
+      results.add({
+        'ruleId': forbiddenPackageRule,
+        'level': 'error',
+        'message': {
+          'text':
+              '`${v.sourceFile}` imports `${v.uri}`. ${v.rule} ${v.suggestion}',
+        },
+        'locations': [location(v.sourceFile, line: v.line)],
+        'partialFingerprints': {
+          'archGuard/v1':
+              '$forbiddenPackageRule:${Baseline.packageViolationKey(v)}',
+        },
+        'baselineState': ?state(baseline?.isNewPackageViolation(v) ?? true),
       });
     }
 
@@ -167,6 +189,22 @@ class SarifExporter {
         'text':
             'A file imports a file from a layer that its own layer is not '
             'allowed to depend on (see `allowed_imports` in arch_guard.yaml).',
+      },
+      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'defaultConfiguration': {'level': 'error'},
+      'properties': {
+        'tags': ['architecture', 'maintainability'],
+      },
+    },
+    {
+      'id': forbiddenPackageRule,
+      'name': 'ForbiddenPackage',
+      'shortDescription': {'text': 'Import of a forbidden package'},
+      'fullDescription': {
+        'text':
+            'A file imports a package or core library listed under '
+            '`forbidden_packages` in arch_guard.yaml, for the whole project '
+            'or for the layer the file belongs to.',
       },
       'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
       'defaultConfiguration': {'level': 'error'},
