@@ -43,6 +43,10 @@ class ArchGuardConfig {
   /// Whether layer violations make the run fail (exit code 1).
   final bool failOnLayerViolation;
 
+  /// Packages and core libraries no scanned file may import (see
+  /// [LayerDefinition.forbiddenPackages] for the per-layer form).
+  final List<String> forbiddenPackages;
+
   /// Human-readable problems found while loading the configuration
   /// (unparseable YAML, wrong value types, unknown keys, legacy names).
   final List<String> warnings;
@@ -58,6 +62,7 @@ class ArchGuardConfig {
     this.presetOnlyLayers = const {},
     this.maxSccSize,
     this.failOnLayerViolation = true,
+    this.forbiddenPackages = const [],
     this.warnings = const [],
     this.sourcePath,
   });

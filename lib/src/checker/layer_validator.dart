@@ -96,7 +96,7 @@ class LayerValidator {
   }) {
     if (config.layers.isEmpty) return const [];
 
-    final resolveLayer = _layerResolver(config);
+    final resolveLayer = layerResolver(config);
     final violations = <LayerViolation>[];
 
     for (final edge in result.edges) {
@@ -135,7 +135,7 @@ class LayerValidator {
   }) {
     if (config.layers.isEmpty) return const LayerCoverage();
 
-    final resolveLayer = _layerResolver(config);
+    final resolveLayer = layerResolver(config);
     final counts = {for (final name in config.layers.keys) name: 0};
     final unassigned = <String>[];
 
@@ -158,7 +158,8 @@ class LayerValidator {
     );
   }
 
-  /// Builds a function mapping a file path to its layer name, or `null`.
+  /// Returns a function mapping a file path to its layer name, or `null`.
+  /// Results are cached, so build one resolver per config and reuse it.
   ///
   /// In workspace/monorepo mode, paths are prefixed with the package directory
   /// (e.g. `packages/auth_pkg/lib/domain/entity.dart`). Users typically write
@@ -169,7 +170,7 @@ class LayerValidator {
   ///   1. The full path as-is (e.g. `packages/auth_pkg/lib/domain/entity.dart`)
   ///   2. The path starting from the first `lib/` segment, effectively
   ///      stripping the workspace package prefix (e.g. `lib/domain/entity.dart`)
-  static String? Function(String path) _layerResolver(ArchGuardConfig config) {
+  static String? Function(String path) layerResolver(ArchGuardConfig config) {
     final layerGlobs = <String, List<Glob>>{};
     config.layers.forEach((layerName, layerDef) {
       layerGlobs[layerName] = layerDef.patterns.map((p) => Glob(p)).toList();
