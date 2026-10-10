@@ -26,6 +26,7 @@ dart run arch_guard          # checks the project
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
 - 📌 **Baselines for existing code.** Record today's problems once; CI then fails only on *new* ones.
+- 🧪 **Architecture tests.** `await expectArchitecture();` in `dart test` / `flutter test` runs the same checks. See [Testing](https://creatorpiyush.github.io/arch_guard/testing.html).
 - 🤖 **CI-ready.** A GitHub Action that comments on PRs, SARIF for GitHub Code Scanning, Markdown job summaries, pre-commit hooks, standalone binaries.
 - 🎨 **Graphs.** Interactive HTML (works offline), Mermaid, Graphviz DOT and JSON.
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.

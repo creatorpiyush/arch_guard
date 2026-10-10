@@ -3,6 +3,8 @@
 - **New: `forbidden_packages`.** Rule out packages and core libraries for the whole project (top-level key) or per layer (e.g. `domain` may not import `flutter` or `dart:io`). Entries are package names or globs (`firebase_*`). Violations fail the run, point at the import line, and work with baselines, SARIF (`forbidden-package` rule), Markdown and JSON reports.
 - Library: `PackageValidator`, `PackageViolation`, `PackageImport` and `ScanResult.packageImports`; `LayerValidator.layerResolver()` is now public.
 - Baseline files gain a `packageViolations` list. Older baselines still load.
+- **New: `expectArchitecture()`** in `package:arch_guard/testing.dart` runs the same checks as the CLI inside `dart test` / `flutter test` and fails with a readable list of problems. Works with any test runner; no extra dependencies.
+- Library: `ArchAnalysis.run()` runs a full analysis (scan, cycles, layer and package rules, baseline) in one call; the CLI now uses it.
 
 # 1.4.1
 
