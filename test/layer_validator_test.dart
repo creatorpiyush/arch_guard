@@ -156,4 +156,24 @@ void main() {
       expect(coverage.unassignedFiles, isEmpty);
     });
   });
+
+  test('checker checks a single edge', () {
+    const config = ArchGuardConfig(
+      layers: {
+        'domain': LayerDefinition(name: 'domain', patterns: ['lib/domain/**']),
+        'data': LayerDefinition(
+          name: 'data',
+          patterns: ['lib/data/**'],
+          allowedImports: ['domain'],
+        ),
+      },
+    );
+    final check = LayerValidator.checker(config);
+    expect(check('lib/data/r.dart', 'lib/domain/u.dart'), isNull);
+    final v = check('lib/domain/u.dart', 'lib/data/r.dart', line: 4)!;
+    expect(v.sourceLayer, 'domain');
+    expect(v.targetLayer, 'data');
+    expect(v.line, 4);
+    expect(check('lib/domain/u.dart', '../other/x.dart'), isNull);
+  });
 }

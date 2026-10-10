@@ -73,13 +73,32 @@ class ArchGuardConfig {
   /// Priority: `arch_guard.yaml` > `dep_graph.yaml` > `pubspec.yaml (arch_guard)` > `pubspec.yaml (dep_graph_visualizer)`.
   static ArchGuardConfig load(String rootPath) {
     final absRoot = p.canonicalize(rootPath);
+    return loadWith(absRoot, (name) {
+      final file = File(p.join(absRoot, name));
+      return file.existsSync() ? file.readAsStringSync() : null;
+    });
+  }
+
+  /// Like [load], but reads files through [readFile], which gets a file name
+  /// relative to [rootPath] and returns its contents or `null` if missing.
+  /// Used by the analyzer plugin to read unsaved editor buffers.
+  static ArchGuardConfig loadWith(
+    String rootPath,
+    String? Function(String fileName) readFile,
+  ) {
+    final absRoot = p.canonicalize(rootPath);
     final warnings = <String>[];
 
     Map? readYamlMap(String fileName) {
-      final file = File(p.join(absRoot, fileName));
-      if (!file.existsSync()) return null;
+      String? text;
       try {
-        final doc = loadYaml(file.readAsStringSync());
+        text = readFile(fileName);
+      } catch (_) {
+        return null;
+      }
+      if (text == null) return null;
+      try {
+        final doc = loadYaml(text);
         if (doc is Map) return doc;
         if (doc != null) {
           warnings.add('$fileName: expected a YAML map at the top level.');

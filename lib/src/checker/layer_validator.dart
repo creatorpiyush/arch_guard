@@ -95,37 +95,37 @@ class LayerValidator {
     required ArchGuardConfig config,
   }) {
     if (config.layers.isEmpty) return const [];
+    final check = checker(config);
+    return [
+      for (final edge in result.edges)
+        ?check(edge.from, edge.to, line: edge.line),
+    ];
+  }
 
+  /// Returns a function that checks one import of [to] by [from].
+  static LayerViolation? Function(String from, String to, {int? line}) checker(
+    ArchGuardConfig config,
+  ) {
     final resolveLayer = layerResolver(config);
-    final violations = <LayerViolation>[];
-
-    for (final edge in result.edges) {
-      final sourceLayer = resolveLayer(edge.from);
-      final targetLayer = resolveLayer(edge.to);
-
-      if (sourceLayer != null &&
-          targetLayer != null &&
-          sourceLayer != targetLayer) {
-        final sourceDef = config.layers[sourceLayer];
-        if (sourceDef != null) {
-          final allowed = sourceDef.allowedImports;
-          if (!allowed.contains(targetLayer)) {
-            violations.add(
-              LayerViolation(
-                sourceFile: edge.from,
-                targetFile: edge.to,
-                sourceLayer: sourceLayer,
-                targetLayer: targetLayer,
-                line: edge.line,
-                allowedImports: allowed,
-              ),
-            );
-          }
-        }
+    return (from, to, {line}) {
+      final sourceLayer = resolveLayer(from);
+      final targetLayer = resolveLayer(to);
+      if (sourceLayer == null ||
+          targetLayer == null ||
+          sourceLayer == targetLayer) {
+        return null;
       }
-    }
-
-    return violations;
+      final allowed = config.layers[sourceLayer]?.allowedImports;
+      if (allowed == null || allowed.contains(targetLayer)) return null;
+      return LayerViolation(
+        sourceFile: from,
+        targetFile: to,
+        sourceLayer: sourceLayer,
+        targetLayer: targetLayer,
+        line: line,
+        allowedImports: allowed,
+      );
+    };
   }
 
   /// Reports layers that matched no files and files that matched no layer.

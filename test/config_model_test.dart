@@ -162,4 +162,24 @@ layers:
       );
     });
   });
+
+  test('loadWith reads files through the given reader', () {
+    final files = {
+      'pubspec.yaml': 'name: app\narch_guard:\n  forbidden_packages: [http]\n',
+    };
+    final config = ArchGuardConfig.loadWith(
+      Directory.systemTemp.path,
+      (name) => files[name],
+    );
+    expect(config.forbiddenPackages, ['http']);
+    expect(config.sourcePath, endsWith('pubspec.yaml'));
+  });
+
+  test('loadWith treats a throwing reader as a missing file', () {
+    final config = ArchGuardConfig.loadWith(
+      Directory.systemTemp.path,
+      (name) => throw const FileSystemException('denied'),
+    );
+    expect(config.layers, isEmpty);
+  });
 }
