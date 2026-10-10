@@ -10,6 +10,8 @@ class JsonExporter {
     required List<Cycle> cycles,
     List<Map<String, dynamic>>? layerViolations,
     List<Map<String, dynamic>>? packageViolations,
+    List<Map<String, dynamic>>? metricViolations,
+    List<Map<String, dynamic>>? hotspots,
   }) {
     final payload = {
       'packageName': result.packageName,
@@ -31,6 +33,8 @@ class JsonExporter {
           .toList(),
       'layerViolations': ?layerViolations,
       'packageViolations': ?packageViolations,
+      'metricViolations': ?metricViolations,
+      'hotspots': ?hotspots,
     };
 
     return const JsonEncoder.withIndent('  ').convert(payload);

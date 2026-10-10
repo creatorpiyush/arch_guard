@@ -93,4 +93,19 @@ layers:
     );
     expect(ignoring.failures(), isNotEmpty);
   });
+
+  test('metric limits fail and hotspots are listed', () async {
+    write('arch_guard.yaml', 'metrics:\n  max_fan_out: 1\n  hotspots: 1\n');
+    write('lib/domain/c.dart', '');
+    // Two project imports (b.dart, c.dart) against a limit of 1.
+    write('lib/domain/a.dart', "import '../data/b.dart';\nimport 'c.dart';\n");
+    final a = await ArchAnalysis.run(projectPath: project.path);
+    expect(a.metricViolations.single.file, 'lib/domain/a.dart');
+    expect(a.metricViolations.single.value, 2);
+    expect(
+      a.failures(failOnCycle: false).where((f) => f.startsWith('Metric limit')),
+      hasLength(1),
+    );
+    expect(a.hotspots, hasLength(1));
+  });
 }

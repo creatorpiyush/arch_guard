@@ -2,10 +2,12 @@ import 'package:path/path.dart' as p;
 
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
+import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
 import '../graph/dependency_graph.dart';
 import '../models/config_model.dart';
 import '../models/cycle.dart';
+import '../models/file_metrics.dart';
 import '../models/scan_result.dart';
 import '../scanner/project_scanner.dart';
 
@@ -32,6 +34,12 @@ class ArchAnalysis {
   /// Every forbidden package import.
   final List<PackageViolation> packageViolations;
 
+  /// Fan-in/fan-out for every scanned file, most coupled first.
+  final List<FileMetrics> fileMetrics;
+
+  /// Files over a `metrics:` limit.
+  final List<MetricViolation> metricViolations;
+
   /// Cycles larger than `max_scc_size`.
   final List<Cycle> oversizedCycles;
 
@@ -53,6 +61,8 @@ class ArchAnalysis {
     required this.layerViolations,
     required this.packageViolations,
     required this.oversizedCycles,
+    this.fileMetrics = const [],
+    this.metricViolations = const [],
     required this.coverage,
     required this.baselinePath,
     this.baseline,
@@ -69,6 +79,16 @@ class ArchAnalysis {
   List<PackageViolation> get newPackageViolations =>
       baseline?.newPackageViolations ?? packageViolations;
 
+  /// Metric violations not in the baseline, or worse than recorded there.
+  List<MetricViolation> get newMetricViolations =>
+      baseline?.newMetricViolations ?? metricViolations;
+
+  /// The `metrics: hotspots` most coupled files (files with no edges skipped).
+  List<FileMetrics> get hotspots => fileMetrics
+      .where((m) => m.coupling > 0)
+      .take(config.hotspotCount)
+      .toList();
+
   /// Oversized cycles that are also new.
   List<Cycle> get newOversizedCycles =>
       oversizedCycles.where(newCycles.contains).toList();
@@ -84,6 +104,7 @@ class ArchAnalysis {
       for (final v in newPackageViolations)
         'Forbidden package: ${at(v.sourceFile, v.line)} imports ${v.uri}. '
             '${v.rule}',
+      for (final v in newMetricViolations) 'Metric limit: ${v.rule}',
       if (config.failOnLayerViolation)
         for (final v in newLayerViolations)
           'Layer violation: ${at(v.sourceFile, v.line)} '
@@ -129,6 +150,11 @@ class ArchAnalysis {
       result: scan,
       config: config,
     );
+    final fileMetrics = FileMetrics.compute(scan);
+    final metricViolations = MetricValidator.validate(
+      metrics: fileMetrics,
+      config: config,
+    );
     final maxScc = config.maxSccSize;
     final absBaseline = p.isAbsolute(baselinePath)
         ? baselinePath
@@ -142,6 +168,8 @@ class ArchAnalysis {
       cycles: cycles,
       layerViolations: layerViolations,
       packageViolations: packageViolations,
+      fileMetrics: fileMetrics,
+      metricViolations: metricViolations,
       oversizedCycles: maxScc == null
           ? const []
           : cycles.where((c) => c.files.length > maxScc).toList(),
@@ -151,6 +179,7 @@ class ArchAnalysis {
         cycles: cycles,
         layerViolations: layerViolations,
         packageViolations: packageViolations,
+        metricViolations: metricViolations,
       ),
     );
   }

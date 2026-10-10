@@ -115,6 +115,8 @@ Future<int> runCli(List<String> args) async {
   final newCycles = analysis.newCycles;
   final newViolations = analysis.newLayerViolations;
   final newPackageViolations = analysis.newPackageViolations;
+  final metricViolations = analysis.metricViolations;
+  final newMetricViolations = analysis.newMetricViolations;
 
   scanResult.skippedFiles.forEach((file, reason) {
     _warn('could not read $file: $reason', useColor);
@@ -213,6 +215,33 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
+  if (newMetricViolations.isNotEmpty) {
+    final label = comparison == null ? '' : 'NEW ';
+    final cDim = useColor ? '\x1B[2m' : '';
+    stdout.writeln(
+      '$cRed[!] ${label}METRIC LIMITS EXCEEDED '
+      '(${newMetricViolations.length}):$cReset',
+    );
+    for (final v in newMetricViolations) {
+      stdout.writeln('  $v');
+      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+    }
+    stdout.writeln();
+    stdout.writeln(
+      '  How to fix: split large files by responsibility so each depends on, '
+      'and is used by, fewer files; or raise the limit under `metrics:`.',
+    );
+    stdout.writeln();
+  }
+
+  if (config.hasMetricRules && analysis.hotspots.isNotEmpty) {
+    stdout.writeln('Most coupled files:');
+    for (final m in analysis.hotspots.take(5)) {
+      stdout.writeln('  ${m.file}  in ${m.fanIn}  out ${m.fanOut}');
+    }
+    stdout.writeln();
+  }
+
   final maxSccSize = config.maxSccSize;
   final oversizedSccs = analysis.oversizedCycles;
   final newOversizedSccs = analysis.newOversizedCycles;
@@ -225,18 +254,21 @@ Future<int> runCli(List<String> args) async {
       '  Known (ignored): ${comparison.knownCycles.length} cycle group(s), '
       '${comparison.knownViolations.length} layer violation(s), '
       '${comparison.knownPackageViolations.length} forbidden package '
-      'import(s)',
+      'import(s), ${comparison.knownMetricViolations.length} metric limit '
+      'violation(s)',
     );
     final newColor =
         newCycles.isEmpty &&
             newViolations.isEmpty &&
-            newPackageViolations.isEmpty
+            newPackageViolations.isEmpty &&
+            newMetricViolations.isEmpty
         ? cGreen
         : cRed;
     stdout.writeln(
       '  New:             $newColor${newCycles.length} cycle group(s), '
       '${newViolations.length} layer violation(s), '
-      '${newPackageViolations.length} forbidden package import(s)$cReset',
+      '${newPackageViolations.length} forbidden package import(s), '
+      '${newMetricViolations.length} metric limit violation(s)$cReset',
     );
     for (final cycle in newCycles) {
       final id = cycle.scc?.id;
@@ -247,12 +279,14 @@ Future<int> runCli(List<String> args) async {
     }
     if (comparison.fixedCycleCount > 0 ||
         comparison.fixedViolationCount > 0 ||
-        comparison.fixedPackageViolationCount > 0) {
+        comparison.fixedPackageViolationCount > 0 ||
+        comparison.fixedMetricViolationCount > 0) {
       stdout.writeln(
         '  $cGreen${comparison.fixedCycleCount} cycle group(s), '
-        '${comparison.fixedViolationCount} layer violation(s) and '
+        '${comparison.fixedViolationCount} layer violation(s), '
         '${comparison.fixedPackageViolationCount} forbidden package '
-        'import(s) in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
+        'import(s) and ${comparison.fixedMetricViolationCount} metric limit '
+        'violation(s) in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
     }
     stdout.writeln();
@@ -298,6 +332,8 @@ Future<int> runCli(List<String> args) async {
         cycles: cycles,
         layerViolations: layerViolations.map((v) => v.toJson()).toList(),
         packageViolations: packageViolations.map((v) => v.toJson()).toList(),
+        metricViolations: metricViolations.map((v) => v.toJson()).toList(),
+        hotspots: analysis.hotspots.map((m) => m.toJson()).toList(),
       );
       File(jsonPath).writeAsStringSync(jsonContent);
       stdout.writeln('Exported JSON data report to: $jsonPath');
@@ -321,6 +357,7 @@ Future<int> runCli(List<String> args) async {
         cycles: cycles,
         layerViolations: layerViolations,
         packageViolations: packageViolations,
+        metricViolations: metricViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -339,6 +376,8 @@ Future<int> runCli(List<String> args) async {
         cycles: cycles,
         layerViolations: layerViolations,
         packageViolations: packageViolations,
+        metricViolations: metricViolations,
+        hotspots: analysis.hotspots,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -367,17 +406,19 @@ Future<int> runCli(List<String> args) async {
       cycles: cycles,
       layerViolations: layerViolations,
       packageViolations: packageViolations,
+      metricViolations: metricViolations,
     ).save(baselinePath);
     stdout.writeln(
       '${cGreen}Baseline written to $baselinePath$cReset '
       '(${cycles.length} cycle group(s), ${layerViolations.length} layer '
       'violation(s), ${packageViolations.length} forbidden package '
-      'import(s)). Commit it; later runs fail only on new problems.',
+      'import(s), ${metricViolations.length} metric limit violation(s)). '
+      'Commit it; later runs fail only on new problems.',
     );
     return 0;
   }
 
-  if (newPackageViolations.isNotEmpty) {
+  if (newPackageViolations.isNotEmpty || newMetricViolations.isNotEmpty) {
     return 1;
   }
 

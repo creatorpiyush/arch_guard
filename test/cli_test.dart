@@ -253,4 +253,31 @@ layers:
       expect(await runCli([project.path]), 0);
     });
   });
+
+  group('CLI metric limits', () {
+    late Directory project;
+
+    setUp(() {
+      project = Directory.systemTemp.createTempSync('arch_guard_metrics_');
+      void write(String path, String content) {
+        final file = File(p.join(project.path, path));
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync(content);
+      }
+
+      write('pubspec.yaml', 'name: app\n');
+      write('arch_guard.yaml', 'metrics:\n  max_fan_out: 1\n');
+      write('lib/b.dart', '');
+      write('lib/c.dart', '');
+      write('lib/a.dart', "import 'b.dart';\nimport 'c.dart';\n");
+    });
+
+    tearDown(() => project.deleteSync(recursive: true));
+
+    test('fails over the limit, passes once baselined', () async {
+      expect(await runCli([project.path]), 1);
+      expect(await runCli([project.path, '--update-baseline']), 0);
+      expect(await runCli([project.path]), 0);
+    });
+  });
 }

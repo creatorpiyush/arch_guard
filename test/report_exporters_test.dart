@@ -38,6 +38,53 @@ void main() {
     line: 1,
   );
 
+  group('metric limits in reports', () {
+    const mv = MetricViolation(
+      file: 'lib/a.dart',
+      metric: 'fan_out',
+      value: 25,
+      limit: 20,
+    );
+    const hot = FileMetrics(file: 'lib/a.dart', fanIn: 3, fanOut: 25);
+
+    test('SARIF', () {
+      final log = jsonDecode(
+        SarifExporter.export(
+          result: result,
+          cycles: const [],
+          metricViolations: [mv],
+        ),
+      );
+      expect(log['runs'][0]['results'][0]['ruleId'], 'metric-limit');
+    });
+
+    test('Markdown lists violations and hotspots', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        metricViolations: [mv],
+        hotspots: [hot],
+      );
+      expect(md, contains('### New metric limit violations'));
+      expect(md, contains('| Metric limit violations | 1 | 1 |'));
+      expect(md, contains('<summary>Most coupled files</summary>'));
+      expect(md, contains('| `lib/a.dart` | 3 | 25 | 0.89 |'));
+    });
+
+    test('JSON', () {
+      final json = jsonDecode(
+        JsonExporter.export(
+          result: result,
+          cycles: const [],
+          metricViolations: [mv.toJson()],
+          hotspots: [hot.toJson()],
+        ),
+      );
+      expect(json['metricViolations'][0]['value'], 25);
+      expect(json['hotspots'][0]['fanOut'], 25);
+    });
+  });
+
   group('forbidden packages in reports', () {
     test('SARIF reports them under forbidden-package at the import line', () {
       final log = jsonDecode(

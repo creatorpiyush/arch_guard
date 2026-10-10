@@ -1,7 +1,9 @@
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
+import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
 import '../models/cycle.dart';
+import '../models/file_metrics.dart';
 import '../models/scan_result.dart';
 import 'mermaid_exporter.dart';
 
@@ -25,6 +27,8 @@ class MarkdownExporter {
     required List<Cycle> cycles,
     List<LayerViolation> layerViolations = const [],
     List<PackageViolation> packageViolations = const [],
+    List<MetricViolation> metricViolations = const [],
+    List<FileMetrics> hotspots = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -35,15 +39,18 @@ class MarkdownExporter {
           cycles: cycles,
           layerViolations: layerViolations,
           packageViolations: packageViolations,
+          metricViolations: metricViolations,
         );
     final newCycles = comparison.newCycles;
     final newViolations = comparison.newViolations;
     final newPackages = comparison.newPackageViolations;
+    final newMetrics = comparison.newMetricViolations;
     final newOversized = oversizedCycles.where(comparison.isNewCycle).toList();
     final hasNew =
         newCycles.isNotEmpty ||
         newViolations.isNotEmpty ||
         newPackages.isNotEmpty ||
+        newMetrics.isNotEmpty ||
         newOversized.isNotEmpty;
 
     final b = StringBuffer()
@@ -59,7 +66,8 @@ class MarkdownExporter {
       );
     } else if (cycles.isEmpty &&
         layerViolations.isEmpty &&
-        packageViolations.isEmpty) {
+        packageViolations.isEmpty &&
+        metricViolations.isEmpty) {
       b.writeln('✅ **No circular dependencies or layer violations.**');
     } else {
       b.writeln(
@@ -82,6 +90,10 @@ class MarkdownExporter {
       ..writeln(
         '| Forbidden package imports | ${packageViolations.length} | '
         '${newPackages.length} |',
+      )
+      ..writeln(
+        '| Metric limit violations | ${metricViolations.length} | '
+        '${newMetrics.length} |',
       );
     if (maxSccSize != null) {
       b.writeln(
@@ -114,6 +126,13 @@ class MarkdownExporter {
       b.writeln();
     }
 
+    if (newMetrics.isNotEmpty) {
+      b.writeln('### New metric limit violations');
+      b.writeln();
+      _writeCapped(b, newMetrics, (v) => '- ${v.rule}');
+      b.writeln();
+    }
+
     if (newCycles.isNotEmpty) {
       b.writeln('### New circular dependencies');
       b.writeln();
@@ -134,6 +153,23 @@ class MarkdownExporter {
         return '- ${id != null ? '**Cycle $id** ' : ''}has ${c.files.length} files';
       });
       b.writeln();
+    }
+
+    if (hotspots.isNotEmpty) {
+      b
+        ..writeln('<details><summary>Most coupled files</summary>')
+        ..writeln()
+        ..writeln('| File | Fan-in | Fan-out | Instability |')
+        ..writeln('| :--- | ---: | ---: | ---: |');
+      for (final m in hotspots) {
+        b.writeln(
+          '| `${m.file}` | ${m.fanIn} | ${m.fanOut} | ${m.instability} |',
+        );
+      }
+      b
+        ..writeln()
+        ..writeln('</details>')
+        ..writeln();
     }
 
     if (cycles.isNotEmpty) {
@@ -162,13 +198,15 @@ class MarkdownExporter {
     if (baseline != null &&
         (baseline.fixedCycleCount > 0 ||
             baseline.fixedViolationCount > 0 ||
-            baseline.fixedPackageViolationCount > 0)) {
+            baseline.fixedPackageViolationCount > 0 ||
+            baseline.fixedMetricViolationCount > 0)) {
       b
         ..writeln(
           '🎉 ${baseline.fixedCycleCount} cycle group(s), '
-          '${baseline.fixedViolationCount} layer violation(s) and '
+          '${baseline.fixedViolationCount} layer violation(s), '
           '${baseline.fixedPackageViolationCount} forbidden package '
-          'import(s) from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
+          'import(s) and ${baseline.fixedMetricViolationCount} metric limit '
+          'violation(s) from the baseline are fixed. Run `arch_guard --update-baseline` to lock '
           'this in.',
         )
         ..writeln();
