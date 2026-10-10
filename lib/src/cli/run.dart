@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
+import '../checker/package_validator.dart';
 import '../exporters/dot_exporter.dart';
 import '../exporters/html_exporter.dart';
 import '../exporters/json_exporter.dart';
@@ -114,6 +115,10 @@ Future<int> runCli(List<String> args) async {
     result: scanResult,
     config: config,
   );
+  final packageViolations = PackageValidator.validate(
+    result: scanResult,
+    config: config,
+  );
 
   scanResult.skippedFiles.forEach((file, reason) {
     _warn('could not read $file: $reason', useColor);
@@ -166,9 +171,12 @@ Future<int> runCli(List<String> args) async {
   final comparison = baseline?.compare(
     cycles: cycles,
     layerViolations: layerViolations,
+    packageViolations: packageViolations,
   );
   final newCycles = comparison?.newCycles ?? cycles;
   final newViolations = comparison?.newViolations ?? layerViolations;
+  final newPackageViolations =
+      comparison?.newPackageViolations ?? packageViolations;
 
   final cRed = useColor ? '\x1B[31m' : '';
   final cGreen = useColor ? '\x1B[32m' : '';
@@ -208,6 +216,26 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
+  if (newPackageViolations.isNotEmpty) {
+    final label = baseline == null ? '' : 'NEW ';
+    final cDim = useColor ? '\x1B[2m' : '';
+    stdout.writeln(
+      '$cRed[!] ${label}FORBIDDEN PACKAGE IMPORTS '
+      '(${newPackageViolations.length}):$cReset',
+    );
+    for (final v in newPackageViolations) {
+      stdout.writeln('  $v');
+      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+    }
+    stdout.writeln();
+    stdout.writeln(
+      '  How to fix: depend on an interface in the importing layer and '
+      'implement it where the package is allowed, or remove the entry from '
+      '`forbidden_packages`.',
+    );
+    stdout.writeln();
+  }
+
   final maxSccSize = config.maxSccSize;
   final oversizedSccs = maxSccSize == null
       ? const <Cycle>[]
@@ -220,12 +248,20 @@ Future<int> runCli(List<String> args) async {
     );
     stdout.writeln(
       '  Known (ignored): ${comparison.knownCycles.length} cycle group(s), '
-      '${comparison.knownViolations.length} layer violation(s)',
+      '${comparison.knownViolations.length} layer violation(s), '
+      '${comparison.knownPackageViolations.length} forbidden package '
+      'import(s)',
     );
-    final newColor = newCycles.isEmpty && newViolations.isEmpty ? cGreen : cRed;
+    final newColor =
+        newCycles.isEmpty &&
+            newViolations.isEmpty &&
+            newPackageViolations.isEmpty
+        ? cGreen
+        : cRed;
     stdout.writeln(
       '  New:             $newColor${newCycles.length} cycle group(s), '
-      '${newViolations.length} layer violation(s)$cReset',
+      '${newViolations.length} layer violation(s), '
+      '${newPackageViolations.length} forbidden package import(s)$cReset',
     );
     for (final cycle in newCycles) {
       final id = cycle.scc?.id;
@@ -234,11 +270,14 @@ Future<int> runCli(List<String> args) async {
         '${cycle.exampleChain.join(' -> ')}',
       );
     }
-    if (comparison.fixedCycleCount > 0 || comparison.fixedViolationCount > 0) {
+    if (comparison.fixedCycleCount > 0 ||
+        comparison.fixedViolationCount > 0 ||
+        comparison.fixedPackageViolationCount > 0) {
       stdout.writeln(
-        '  $cGreen${comparison.fixedCycleCount} cycle group(s) and '
-        '${comparison.fixedViolationCount} layer violation(s) in the '
-        'baseline are fixed.$cReset Run with --update-baseline to lock this in.',
+        '  $cGreen${comparison.fixedCycleCount} cycle group(s), '
+        '${comparison.fixedViolationCount} layer violation(s) and '
+        '${comparison.fixedPackageViolationCount} forbidden package '
+        'import(s) in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
     }
     stdout.writeln();
@@ -283,6 +322,7 @@ Future<int> runCli(List<String> args) async {
         result: scanResult,
         cycles: cycles,
         layerViolations: layerViolations.map((v) => v.toJson()).toList(),
+        packageViolations: packageViolations.map((v) => v.toJson()).toList(),
       );
       File(jsonPath).writeAsStringSync(jsonContent);
       stdout.writeln('Exported JSON data report to: $jsonPath');
@@ -305,6 +345,7 @@ Future<int> runCli(List<String> args) async {
         result: scanResult,
         cycles: cycles,
         layerViolations: layerViolations,
+        packageViolations: packageViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -322,6 +363,7 @@ Future<int> runCli(List<String> args) async {
         result: scanResult,
         cycles: cycles,
         layerViolations: layerViolations,
+        packageViolations: packageViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -349,13 +391,19 @@ Future<int> runCli(List<String> args) async {
     Baseline.capture(
       cycles: cycles,
       layerViolations: layerViolations,
+      packageViolations: packageViolations,
     ).save(baselinePath);
     stdout.writeln(
       '${cGreen}Baseline written to $baselinePath$cReset '
       '(${cycles.length} cycle group(s), ${layerViolations.length} layer '
-      'violation(s)). Commit it; later runs fail only on new problems.',
+      'violation(s), ${packageViolations.length} forbidden package '
+      'import(s)). Commit it; later runs fail only on new problems.',
     );
     return 0;
+  }
+
+  if (newPackageViolations.isNotEmpty) {
+    return 1;
   }
 
   if (newViolations.isNotEmpty && config.failOnLayerViolation) {

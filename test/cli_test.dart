@@ -209,4 +209,43 @@ void main() {
       });
     });
   });
+
+  group('CLI forbidden_packages', () {
+    late Directory project;
+
+    setUp(() {
+      project = Directory.systemTemp.createTempSync('arch_guard_forbid_');
+      void write(String path, String content) {
+        final file = File(p.join(project.path, path));
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync(content);
+      }
+
+      write('pubspec.yaml', 'name: app\n');
+      write('arch_guard.yaml', """
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    forbidden_packages: [flutter]
+""");
+      write(
+        'lib/domain/user.dart',
+        "import 'package:flutter/material.dart';\n",
+      );
+    });
+
+    tearDown(() => project.deleteSync(recursive: true));
+
+    test('fails on a forbidden import, then passes once baselined', () async {
+      expect(await runCli([project.path]), 1);
+      expect(await runCli([project.path, '--update-baseline']), 0);
+      expect(
+        File(
+          p.join(project.path, 'arch_guard_baseline.json'),
+        ).readAsStringSync(),
+        contains('"package": "flutter"'),
+      );
+      expect(await runCli([project.path]), 0);
+    });
+  });
 }
