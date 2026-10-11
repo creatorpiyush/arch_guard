@@ -21,6 +21,20 @@ arch_guard init --force              # overwrite an existing arch_guard.yaml
 
 After writing the file, `init` scans the project and prints how many files fall into each layer, how many violations and cycles exist, and what to do next.
 
+If it picks `riverpod` or `clean_architecture` and also finds `bloc/` or `cubit/` folders (a Riverpod app with Bloc leftovers, say), it adds them as a `bloc` layer that may import what `presentation` may, and lets `presentation` import it:
+
+```yaml
+preset: riverpod
+layers:
+  bloc:
+    patterns: ["lib/**/bloc/**"]
+    allowed_imports: [bloc, application, domain, data]
+  presentation:
+    allowed_imports: [presentation, application, domain, data, bloc]
+```
+
+Blocs inside a `presentation/` folder still count as `presentation`, because a file belongs to the first layer that matches.
+
 ## How preset patterns match
 
 - Patterns have the form `lib/**/<layer>/**`. Both layer-first (`lib/domain/user.dart`) and feature-first (`lib/features/auth/domain/user.dart`) layouts match.

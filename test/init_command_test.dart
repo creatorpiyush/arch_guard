@@ -39,6 +39,39 @@ void main() {
     expect(await runCli([root.path, '--no-color']), equals(1));
   });
 
+  test('adds a bloc layer for blocs next to a riverpod layout', () async {
+    File(
+      p.join(root.path, 'pubspec.yaml'),
+    ).writeAsStringSync('name: app\ndependencies:\n  flutter_riverpod: any\n');
+    for (final dir in ['application', 'bloc']) {
+      Directory(p.join(root.path, 'lib', dir)).createSync();
+    }
+    File(p.join(root.path, 'lib', 'domain', 'user.dart')).writeAsStringSync('');
+    File(
+      p.join(root.path, 'lib', 'bloc', 'auth_bloc.dart'),
+    ).writeAsStringSync("import '../presentation/page.dart';\n");
+    File(
+      p.join(root.path, 'lib', 'presentation', 'page.dart'),
+    ).writeAsStringSync("import '../bloc/auth_bloc.dart';\n");
+
+    expect(await runCli(['init', root.path]), equals(0));
+    final loaded = ArchGuardConfig.load(root.path);
+    expect(loaded.warnings, isEmpty);
+    expect(loaded.preset, equals('riverpod'));
+    expect(loaded.layers['bloc']!.patterns, equals(['lib/**/bloc/**']));
+    expect(
+      loaded.layers['bloc']!.allowedImports,
+      equals(['bloc', 'application', 'domain', 'data']),
+    );
+    expect(loaded.layers['presentation']!.allowedImports, contains('bloc'));
+
+    // UI -> bloc is fine; bloc -> UI is the one violation.
+    final scan = await ProjectScanner(rootPath: root.path).scan();
+    final violations = LayerValidator.validate(result: scan, config: loaded);
+    expect(violations, hasLength(1));
+    expect(violations.single.sourceLayer, equals('bloc'));
+  });
+
   test('refuses to overwrite without --force', () async {
     config.writeAsStringSync('ignore: []\n');
     expect(await runCli(['init', root.path]), equals(1));

@@ -1,0 +1,10 @@
+name: hybrid_layout
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+# Read by `arch_guard init` to detect the layout; not resolved.
+dependencies:
+  flutter_riverpod: ^2.6.0
+  flutter_bloc: ^9.0.0

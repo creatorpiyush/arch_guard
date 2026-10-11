@@ -1,3 +1,7 @@
+# 1.9.0
+
+- **`init` handles hybrid layouts.** When it picks `riverpod` or `clean_architecture` and also finds `bloc/` or `cubit/` folders, the generated config adds a `bloc` layer that may import what `presentation` may, and lets `presentation` import it. A bloc that imports UI code is still a violation. Library: `LayoutDetection.blocFolders`.
+
 # 1.8.0
 
 - **New: `ProjectScanner.scanSources()`.** Builds a `ScanResult` from in-memory file contents instead of the file system. The `arch_guard_lint` 0.2.0 plugin uses it for live cycle warnings that include unsaved editor changes.

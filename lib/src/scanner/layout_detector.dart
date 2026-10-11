@@ -13,8 +13,17 @@ class LayoutDetection {
   /// Human-readable explanation of why [preset] was chosen.
   final String reason;
 
+  /// Bloc/cubit folder names found alongside a `riverpod` or
+  /// `clean_architecture` layout. `arch_guard init` gives them their own
+  /// `bloc` layer.
+  final List<String> blocFolders;
+
   /// Creates a detection result.
-  const LayoutDetection(this.preset, this.reason);
+  const LayoutDetection(
+    this.preset,
+    this.reason, {
+    this.blocFolders = const [],
+  });
 }
 
 /// Guesses which [LayerPresets] preset fits a project, from the folder names
@@ -41,6 +50,15 @@ class LayoutDetector {
 
     final cleanFolders = ['domain', 'data', 'presentation'].where(has).toList();
     final hasClean = has('domain') && (has('data') || has('presentation'));
+    final blocFolders = [
+      'bloc',
+      'blocs',
+      'cubit',
+      'cubits',
+    ].where(has).toList();
+    final blocNote = blocFolders.isEmpty
+        ? ''
+        : ', plus ${blocFolders.map((f) => '$f/').join(', ')} folders';
 
     if (hasClean &&
         has('application') &&
@@ -48,22 +66,18 @@ class LayoutDetector {
       return LayoutDetection(
         LayerPresets.riverpod,
         'found ${[...cleanFolders, 'application'].map((f) => '$f/').join(', ')} '
-        'folders and a Riverpod dependency',
+        'folders and a Riverpod dependency$blocNote',
+        blocFolders: blocFolders,
       );
     }
     if (hasClean) {
       return LayoutDetection(
         LayerPresets.cleanArchitecture,
-        'found ${cleanFolders.map((f) => '$f/').join(', ')} folders',
+        'found ${cleanFolders.map((f) => '$f/').join(', ')} folders$blocNote',
+        blocFolders: blocFolders,
       );
     }
 
-    final blocFolders = [
-      'bloc',
-      'blocs',
-      'cubit',
-      'cubits',
-    ].where(has).toList();
     if (blocFolders.isNotEmpty) {
       return LayoutDetection(
         LayerPresets.bloc,

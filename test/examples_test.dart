@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:arch_guard/arch_guard.dart';
+import 'package:arch_guard/src/cli/init_command.dart';
 import 'package:arch_guard/src/cli/run.dart';
 import 'package:test/test.dart';
 
@@ -12,6 +15,7 @@ void main() {
       'cycles',
       'layers',
       'presets',
+      'hybrid_layout',
       'forbidden_packages',
       'metrics',
       'workspace_rules',
@@ -46,6 +50,31 @@ void main() {
       'lib/features/auth/presentation/login_page.dart',
     ]);
   });
+
+  test(
+    'hybrid_layout: init writes the committed config; bloc -> UI fails',
+    () async {
+      const dir = 'example/cases/hybrid_layout';
+      final detected = LayoutDetector.detect(dir);
+      expect(detected.preset, 'riverpod');
+      expect(detected.blocFolders, ['bloc']);
+      final yaml = buildInitConfig(
+        preset: detected.preset,
+        reason: detected.reason,
+        rootPath: dir,
+        blocFolders: detected.blocFolders,
+      );
+      // Windows checkouts may turn the committed file's LF into CRLF.
+      final committed = File('$dir/arch_guard.yaml').readAsStringSync();
+      expect(committed.replaceAll('\r\n', '\n'), yaml);
+
+      final a = await run('hybrid_layout');
+      expect(
+        a.layerViolations.map((v) => '${v.sourceLayer} ${v.targetLayer}'),
+        ['bloc presentation'],
+      );
+    },
+  );
 
   test('forbidden packages, metrics and workspace rules', () async {
     final pkg = await run('forbidden_packages');
