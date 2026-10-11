@@ -63,6 +63,19 @@ class ProjectRules {
     if (!context.isInLibDir) return null;
     final packageRoot = context.package?.root;
     if (packageRoot == null) return null;
+    return _forPackage(packageRoot);
+  }
+
+  /// Rules for the package containing [path] (the nearest folder with a
+  /// `pubspec.yaml`), for quick fixes, which have no [RuleContext].
+  static ProjectRules? forFile(ResourceProvider provider, String path) {
+    for (var f = provider.getFile(path).parent; ; f = f.parent) {
+      if (_child(f, 'pubspec.yaml').exists) return _forPackage(f);
+      if (f.isRoot) return null;
+    }
+  }
+
+  static ProjectRules? _forPackage(Folder packageRoot) {
     final root = _configRoot(packageRoot);
 
     final baselineFile = _child(root, defaultBaselineFileName);
