@@ -1,0 +1,13 @@
+name: shop
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+resolution: workspace
+
+dependencies:
+  core:
+    path: ../../packages/core
+  feature:
+    path: ../../packages/feature

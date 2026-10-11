@@ -37,6 +37,8 @@ dart run arch_guard          # checks the project
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.
 - 🔍 **`--explain <file>`.** Why is this file in a cycle? What does it import and what imports it?
 
+**Examples:** a small, runnable project for each feature, with the command and its real output. See [example/example.md](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.md).
+
 ## Why arch_guard?
 
 | | arch_guard | [DCM](https://dcm.dev) | [import_lint](https://pub.dev/packages/import_lint) | [lakos](https://pub.dev/packages/lakos) |

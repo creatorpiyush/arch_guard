@@ -1,0 +1,4 @@
+metrics:
+  max_fan_out: 3   # a file may import at most 3 project files
+  max_fan_in: 3    # at most 3 project files may import it
+  hotspots: 3      # most-coupled files listed in reports

@@ -1,0 +1,9 @@
+fail_on_layer_violation: true
+
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    allowed_imports: [domain]
+  data:
+    patterns: ["lib/data/**"]
+    allowed_imports: [data, domain]

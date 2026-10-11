@@ -1,0 +1,2 @@
+preset: clean_architecture
+fail_on_layer_violation: true
