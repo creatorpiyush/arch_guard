@@ -1,15 +1,32 @@
 name: Verify & PR Checks
 
+# The full matrix runs on PRs. A merge to main runs the same code again, so it
+# only gets the quick `verify` job (which also keeps the README badge current).
 on:
   push:
     branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'launch/**'
   pull_request:
     branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'launch/**'
+  workflow_dispatch:
+
+# A new push to a PR cancels the run for the previous one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     name: Format, Lint & Publish Dry-Run
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -34,13 +51,20 @@ jobs:
 
   test:
     name: Test (${{ matrix.os }}, Dart ${{ matrix.sdk }})
+    if: github.event_name != 'push'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
-        # Keep the first entry in sync with the lower bound of `environment.sdk` in pubspec.yaml.
-        sdk: [ 3.8.0, stable ]
+        # The SDK floor on Linux; stable on every OS (macOS minutes are the
+        # most expensive, so it gets one job).
+        include:
+          # Keep in sync with the lower bound of `environment.sdk` in pubspec.yaml.
+          - { os: ubuntu-latest, sdk: 3.8.0 }
+          - { os: ubuntu-latest, sdk: stable }
+          - { os: macos-latest, sdk: stable }
+          - { os: windows-latest, sdk: stable }
 
     steps:
       - name: Checkout repository
@@ -59,7 +83,9 @@ jobs:
 
   action:
     name: GitHub Action self-test (${{ matrix.os }})
+    if: github.event_name != 'push'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     permissions:
       contents: read
       pull-requests: write
@@ -102,7 +128,9 @@ jobs:
 
   plugin:
     name: arch_guard_lint (Dart ${{ matrix.sdk }})
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
