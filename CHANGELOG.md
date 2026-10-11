@@ -2,14 +2,14 @@
 
 - **`--since` output:**
   - The "Only problems touching N file(s)…" note now comes before the report, so "No circular dependencies found!" reads as "none in the changed files".
-  - N counts only scanned files (not `pubspec.yaml`, assets…), matching `ArchAnalysis.changedFiles`.
+  - N counts only scanned files (not `pubspec.yaml`, assets…). `ArchAnalysis.changedFiles` itself now holds only scanned files too, so deleted and non-Dart files are no longer in it. Filtering is unchanged.
 - **JSON export:** with `--since`, the export now records `since` and `changedFiles`.
 - **Errors and warnings:**
   - With git older than 2.30, `--since` now says it needs git 2.30+ instead of showing git's raw error.
   - `--no-workspace` with `workspace_rules` now says the rules are ignored because of the flag, not that the project isn't a workspace.
 - **Cycle hints:** when two files are joined by both an import and an export, the hint points at the first of those lines.
 - **`metrics: hotspots` alone:** a config with only `hotspots` (no limits) now lists the most coupled files in the terminal. New: `ArchGuardConfig.metricsConfigured`.
-- **`workspace_rules`:** a rule whose `allowed` entries are all invalid globs is now ignored with a warning. Before, it silently forbade every import.
+- **`workspace_rules`:** a rule whose `allowed` entries are all invalid globs is now skipped with a warning, so that member is unrestricted until the globs are fixed. Before, it silently forbade every import. An explicit `allowed: []` still means "no other members".
 - **Unreadable files:** warnings about files that couldn't be read are listed in a stable order.
 
 # 1.7.0

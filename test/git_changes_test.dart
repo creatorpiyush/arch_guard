@@ -128,8 +128,26 @@ void main() {
       ),
       contains('git 2.30'),
     );
+    // git < 2.28 rejects --no-relative before it reaches --merge-base.
+    expect(
+      GitChanges.errorMessage(
+        "error: unknown option `no-relative'",
+        command: 'diff',
+        ref: 'main',
+      ),
+      contains('git 2.30'),
+    );
     expect(
       GitChanges.errorMessage('fatal: bad revision', command: 'diff', ref: 'x'),
+      contains('fetch-depth: 0'),
+    );
+    // A ref whose name mentions the words is still a missing ref.
+    expect(
+      GitChanges.errorMessage(
+        "fatal: bad revision 'fix/unrecognized-merge-base'",
+        command: 'diff',
+        ref: 'fix/unrecognized-merge-base',
+      ),
       contains('fetch-depth: 0'),
     );
   });

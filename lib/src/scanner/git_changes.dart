@@ -108,8 +108,10 @@ class GitChanges {
     required String command,
     String? ref,
   }) {
-    if (stderr.contains('merge-base') &&
-        RegExp('invalid option|unknown option|unrecognized').hasMatch(stderr)) {
+    // git < 2.28 rejects --no-relative first, git < 2.30 --merge-base.
+    if (RegExp(
+      r'(invalid|unknown) option:? \W*(--)?(merge-base|no-relative)',
+    ).hasMatch(stderr)) {
       return '--since needs git 2.30 or newer ($stderr).';
     }
     if (ref != null &&
