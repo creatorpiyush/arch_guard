@@ -16,6 +16,7 @@ void main() {
       'metrics',
       'workspace_rules',
       'baseline',
+      'scan_options',
     ]) {
       expect(await runCli(['example/cases/$name']), 1, reason: name);
     }
@@ -61,6 +62,16 @@ void main() {
     expect(
       ws.workspaceViolations.single.sourceFile,
       'packages/core/lib/core.dart',
+    );
+  });
+
+  test('scan_options: --exclude passes, --scan-dir bin fails', () async {
+    const dir = 'example/cases/scan_options';
+    const exclude = ['--exclude', 'lib/**/generated/**'];
+    expect(await runCli([dir, ...exclude]), 0);
+    expect(
+      await runCli([dir, '--scan-dir', 'lib', '--scan-dir', 'bin', ...exclude]),
+      1,
     );
   });
 

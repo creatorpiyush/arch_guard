@@ -1,0 +1,1 @@
+const loginTitle = 'Sign in';

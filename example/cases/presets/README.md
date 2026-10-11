@@ -5,13 +5,26 @@ A feature-first Clean Architecture layout:
 ```text
 lib/
   core/result.dart
+  l10n/strings.dart                ← an extra layer, added below
   features/auth/
     domain/session.dart
     data/session_dto.dart
-    presentation/login_page.dart   ← imports data/session_dto.dart
+    presentation/login_page.dart   ← imports data/session_dto.dart and l10n/strings.dart
 ```
 
-[`arch_guard.yaml`](arch_guard.yaml) is two lines long: `preset: clean_architecture` provides the `core`, `domain`, `data` and `presentation` layers.
+In [`arch_guard.yaml`](arch_guard.yaml), `preset: clean_architecture` provides the `core`, `domain`, `data` and `presentation` layers. The `layers:` section then changes only what this project needs:
+
+```yaml
+preset: clean_architecture
+fail_on_layer_violation: true
+
+layers:
+  l10n:                       # new layer name: added
+    patterns: ["lib/l10n/**"]
+    allowed_imports: [l10n]
+  presentation:               # existing layer: only allowed_imports changes
+    allowed_imports: [core, domain, presentation, l10n]
+```
 
 ## Try it
 
@@ -28,7 +41,7 @@ dart run arch_guard example/cases/presets
   (Using preset `clean_architecture`: to change a layer's rules, list it under `layers:` with only the keys to change, e.g. `allowed_imports`.)
 ```
 
-Exit code `1`.
+Exit code `1`. The `l10n` import is allowed by the override; the `data` import is still reported.
 
 ## Let `init` pick the preset
 
@@ -47,6 +60,6 @@ For this layout it prints:
 preset: clean_architecture
 ```
 
-Presets: `clean_architecture`, `feature_first`, `bloc` and `riverpod`.
+Each preset's folder layout, layers and typical violation are described here: [`clean_architecture`](https://creatorpiyush.github.io/arch_guard/presets.html#clean-architecture) · [`feature_first`](https://creatorpiyush.github.io/arch_guard/presets.html#feature-first) · [`bloc`](https://creatorpiyush.github.io/arch_guard/presets.html#bloc) · [`riverpod`](https://creatorpiyush.github.io/arch_guard/presets.html#riverpod).
 
 Learn more: [Presets](https://creatorpiyush.github.io/arch_guard/presets.html)

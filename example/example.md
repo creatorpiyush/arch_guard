@@ -17,7 +17,8 @@ In your own project, `dart pub add --dev arch_guard`, then `dart run arch_guard`
 | :--- | :--- | :--- |
 | Find circular imports and see which import to remove | [cycles](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/cycles) | `max_scc_size`, `--no-fail-on-cycle`, `--explain` |
 | Stop one layer from importing another | [layers](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/layers) | `layers`, `fail_on_layer_violation`, `ignore` |
-| Start from a ready-made architecture | [presets](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/presets) | `preset`, `arch_guard init` |
+| Choose what is scanned (`bin/`, generated code), keep config in `pubspec.yaml` | [scan_options](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/scan_options) | `--scan-dir`, `--exclude`, `arch_guard:` in pubspec, `part` files, `--no-color` |
+| Start from a ready-made architecture | [presets](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/presets) | `preset`, overriding preset layers, `arch_guard init` |
 | Keep `dart:io`, `flutter` or any package out of some code | [forbidden_packages](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/forbidden_packages) | `forbidden_packages` (project and per layer) |
 | Stop files from becoming hubs | [metrics](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/metrics) | `metrics: max_fan_in / max_fan_out / hotspots` |
 | Control which packages of a monorepo depend on which | [workspace_rules](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/workspace_rules) | `workspace_rules` |
@@ -26,8 +27,17 @@ In your own project, `dart pub add --dev arch_guard`, then `dart run arch_guard`
 | Check architecture in `dart test` / `flutter test` | [testing](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/testing) | `expectArchitecture()` |
 | Get HTML, Mermaid, DOT, JSON, SARIF or Markdown | [reports](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/reports) | `-f`, `--scope all`, `--offline` |
 | See violations in the IDE as you type | [arch_guard_lint example](https://github.com/creatorpiyush/arch_guard/tree/main/arch_guard_lint/example) | analyzer plugin |
-| Run it in CI (GitHub Action, GitLab, pre-commit) | [CI guide](https://creatorpiyush.github.io/arch_guard/ci.html) | `creatorpiyush/arch_guard@v1.7.0` |
+| Run it in CI (GitHub Action, GitLab, pre-commit, lefthook, git hook) | [CI guide](https://creatorpiyush.github.io/arch_guard/ci.html) | `creatorpiyush/arch_guard@v1.7.0` |
 | Use it as a library | [example.dart](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.dart), run on [sample_project](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/sample_project) and [sample_workspace](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/sample_workspace) | `ArchAnalysis.run()`, validators, exporters |
+
+## Exit codes
+
+| Code | Meaning | Example |
+| :---: | :--- | :--- |
+| `0` | No problems (or only known ones in the baseline) | [testing](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/testing) |
+| `1` | New problems found | every other case |
+| `2` | Could not run: missing directory, invalid baseline, git error with `--since` | `dart run arch_guard example/cases/no_such_dir` |
+| `64` | Invalid usage: unknown option, `--since` with `--update-baseline` | `dart run arch_guard --bogus` |
 
 ## The library in one call
 
@@ -50,4 +60,11 @@ Future<void> main() async {
 }
 ```
 
-[example.dart](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.dart) goes further: scanning, layer, package, metric and workspace validators, the explainer, and exporters.
+[example.dart](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.dart) goes further, with every class in action:
+
+- the scanner and the explainer
+- the layer, package, metric and workspace validators
+- layer coverage and preset detection
+- baselines
+- every exporter
+- `CycleBreaker` and `GitChanges`

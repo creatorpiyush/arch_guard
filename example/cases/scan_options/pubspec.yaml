@@ -1,0 +1,19 @@
+name: scan_options
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+# No arch_guard.yaml: the config can live in pubspec.yaml instead.
+arch_guard:
+  fail_on_layer_violation: true
+  layers:
+    domain:
+      patterns: ["lib/domain/**"]
+      allowed_imports: [domain]
+    data:
+      patterns: ["lib/data/**"]
+      allowed_imports: [data, domain]
+    app:
+      patterns: ["bin/**"]
+      allowed_imports: [app, domain]

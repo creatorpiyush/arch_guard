@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:arch_guard/arch_guard.dart';
 
 void main() async {
@@ -23,6 +25,18 @@ void main() async {
 
   print('\n=== 7. Workspace Rules ===');
   await checkWorkspaceRules();
+
+  print('\n=== 8. Layer Coverage and Preset Detection ===');
+  await coverageAndPresets();
+
+  print('\n=== 9. Baselines in Code ===');
+  await baselines();
+
+  print('\n=== 10. Every Report Format ===');
+  await exportEverything();
+
+  print('\n=== 11. Cycle Hints and Changed Files ===');
+  await hintsAndChangedFiles();
 }
 
 Future<void> scanSinglePackageWithMetrics() async {
@@ -203,5 +217,114 @@ workspace_rules:
   for (final v in WorkspaceValidator.validate(result: result, config: config)) {
     print('  $v');
     print('    ${v.rule}');
+  }
+}
+
+Future<void> coverageAndPresets() async {
+  // Which files no layer pattern matches (they are never checked).
+  final config = ArchGuardConfig.load('example/cases/sample_project');
+  final result = await ProjectScanner(
+    rootPath: 'example/cases/sample_project',
+  ).scan();
+  final coverage = LayerValidator.coverage(result: result, config: config);
+  print('Files per layer: ${coverage.layerFileCounts}');
+  print('Files in no layer: ${coverage.unassignedFiles}');
+
+  // What `arch_guard init` would pick for a folder layout.
+  final detection = LayoutDetector.detect('example/cases/presets');
+  print('Detected preset: ${detection.preset} (${detection.reason})');
+}
+
+Future<void> baselines() async {
+  final dir = Directory.systemTemp.createTempSync('arch_guard_example_');
+  final path = '${dir.path}/arch_guard_baseline.json';
+
+  // Record today's problems, as `--update-baseline` does.
+  final before = await ArchAnalysis.run(
+    projectPath: 'example/cases/sample_project',
+    useBaseline: false,
+  );
+  Baseline.capture(
+    cycles: before.cycles,
+    layerViolations: before.layerViolations,
+    packageViolations: before.packageViolations,
+  ).save(path);
+
+  // Later runs compare against it: known problems no longer fail.
+  final after = await ArchAnalysis.run(
+    projectPath: 'example/cases/sample_project',
+    baselinePath: path,
+  );
+  final comparison = after.baseline!;
+  print(
+    'Known: ${comparison.knownCycles.length} cycles, '
+    '${comparison.knownViolations.length} layer violations. '
+    'New: ${comparison.newCycles.length} cycles. '
+    'Fixed: ${comparison.fixedCycleCount} cycles.',
+  );
+  print('Would fail: ${after.failures().length} problem(s)');
+  dir.deleteSync(recursive: true);
+}
+
+Future<void> exportEverything() async {
+  final analysis = await ArchAnalysis.run(
+    projectPath: 'example/cases/sample_project',
+  );
+  final result = analysis.scan;
+  final cycles = analysis.cycles;
+  final reports = {
+    'report.txt': const TextReporter(
+      useColor: false,
+    ).formatReport(result: result, cycles: cycles),
+    // offline: true inlines every asset; scope 'all' draws the full graph.
+    'graph.html': HtmlExporter.export(
+      result: result,
+      cycles: cycles,
+      offline: true,
+    ),
+    'graph.dot': DotExporter.export(
+      result: result,
+      cycles: cycles,
+      scope: 'all',
+    ),
+    'graph.mmd': MermaidExporter.export(result: result, cycles: cycles),
+    'graph.json': JsonExporter.export(result: result, cycles: cycles),
+    'report.sarif': SarifExporter.export(
+      result: result,
+      cycles: cycles,
+      layerViolations: analysis.layerViolations,
+    ),
+    'report.md': MarkdownExporter.export(
+      result: result,
+      cycles: cycles,
+      layerViolations: analysis.layerViolations,
+    ),
+  };
+  final dir = Directory.systemTemp.createTempSync('arch_guard_reports_');
+  for (final MapEntry(key: name, value: content) in reports.entries) {
+    File('${dir.path}/$name').writeAsStringSync(content);
+    print('  $name: ${content.length} bytes');
+  }
+  dir.deleteSync(recursive: true);
+}
+
+Future<void> hintsAndChangedFiles() async {
+  // CycleBreaker works on any edge list, not just a scan.
+  final hint = CycleBreaker.suggest(
+    files: ['a.dart', 'b.dart', 'c.dart'],
+    edges: const [
+      GraphEdge(from: 'a.dart', to: 'b.dart', line: 1),
+      GraphEdge(from: 'b.dart', to: 'c.dart', line: 1),
+      GraphEdge(from: 'c.dart', to: 'a.dart', line: 3),
+    ],
+  );
+  print('Suggested fix: remove ${hint!.describe()}');
+
+  // Files changed since a git ref, as `--since` uses them.
+  try {
+    final changed = GitChanges.since('HEAD', projectRoot: '.');
+    print('Uncommitted or untracked files: ${changed.length}');
+  } on GitException catch (e) {
+    print('Not a git checkout: ${e.message}');
   }
 }

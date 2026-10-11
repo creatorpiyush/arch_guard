@@ -1,6 +1,13 @@
 # Sample project (library API)
 
-A small app with two cycles, a layer violation and a `dart:convert` import. [`example.dart`](../../example.dart) runs the library API against it: scanning, cycles and hints, layers, `--explain`, `ArchAnalysis.run()`, forbidden packages and metrics.
+A small app with two cycles, a layer violation and a `dart:convert` import. [`example.dart`](../../example.dart) runs the library API against it, covering:
+
+- scanning, cycles and hints
+- layers and the explainer
+- `ArchAnalysis.run()`
+- forbidden packages and metrics
+- layer coverage and baselines
+- every exporter
 
 ```bash
 dart run example/example.dart                        # library API walkthrough
