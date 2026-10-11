@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.8.0
+      - uses: creatorpiyush/arch_guard@v1.9.0
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -61,7 +61,7 @@ The PR comment looks like this: a status line, a summary table, the new problems
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.8.0
+      - uses: creatorpiyush/arch_guard@v1.9.0
         with:
           args: --since origin/${{ github.base_ref }}
 ```
@@ -89,7 +89,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.8.0
+    rev: v1.9.0
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]
