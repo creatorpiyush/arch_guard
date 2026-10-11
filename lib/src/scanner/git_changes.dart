@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -78,7 +79,15 @@ class GitChanges {
   static String _git(List<String> args, String cwd, {String? ref}) {
     final ProcessResult r;
     try {
-      r = Process.runSync('git', args, workingDirectory: cwd);
+      // git prints paths as UTF-8; the default (systemEncoding) is the ANSI
+      // code page on Windows and garbles non-ASCII file names.
+      r = Process.runSync(
+        'git',
+        args,
+        workingDirectory: cwd,
+        stdoutEncoding: utf8,
+        stderrEncoding: utf8,
+      );
     } on ProcessException {
       throw const GitException('--since needs git on PATH.');
     }
