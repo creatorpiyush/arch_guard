@@ -64,7 +64,9 @@ void main() {
         rootPath: dir,
         blocFolders: detected.blocFolders,
       );
-      expect(File('$dir/arch_guard.yaml').readAsStringSync(), yaml);
+      // Windows checkouts may turn the committed file's LF into CRLF.
+      final committed = File('$dir/arch_guard.yaml').readAsStringSync();
+      expect(committed.replaceAll('\r\n', '\n'), yaml);
 
       final a = await run('hybrid_layout');
       expect(
