@@ -49,14 +49,26 @@ class _Visitor extends SimpleAstVisitor<void> {
   _Visitor(this.rule, this.context);
 
   @override
-  void visitImportDirective(ImportDirective node) =>
-      _check(node, node.libraryImport?.uri);
+  void visitImportDirective(ImportDirective node) {
+    _check(node.uri, node.libraryImport?.uri);
+    _checkConfigurations(node);
+  }
 
   @override
-  void visitExportDirective(ExportDirective node) =>
-      _check(node, node.libraryExport?.uri);
+  void visitExportDirective(ExportDirective node) {
+    _check(node.uri, node.libraryExport?.uri);
+    _checkConfigurations(node);
+  }
 
-  void _check(UriBasedDirective node, DirectiveUri? target) {
+  // `import 'a.dart' if (dart.library.io) 'b.dart'`: every URI may be the
+  // one compiled on some platform, so each is checked.
+  void _checkConfigurations(NamespaceDirective node) {
+    for (final c in node.configurations) {
+      _check(c.uri, c.resolvedUri);
+    }
+  }
+
+  void _check(StringLiteral uriNode, DirectiveUri? target) {
     if (target is! DirectiveUriWithSource) return;
     final rules = ProjectRules.of(context);
     if (rules == null) return;
@@ -73,7 +85,7 @@ class _Visitor extends SimpleAstVisitor<void> {
     final v = rules.checkLayer(from, to);
     if (v == null || rules.isKnownLayerViolation(v)) return;
     rule.reportAtNode(
-      node.uri,
+      uriNode,
       arguments: [
         'Layer `${v.sourceLayer}` imports `${v.targetFile}` from layer '
             '`${v.targetLayer}`. ${v.rule}',
