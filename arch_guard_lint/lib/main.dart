@@ -7,6 +7,7 @@ library;
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
+import 'src/fixes/remove_directive.dart';
 import 'src/forbidden_package_rule.dart';
 import 'src/layer_violation_rule.dart';
 
@@ -25,5 +26,7 @@ class ArchGuardPlugin extends Plugin {
   void register(PluginRegistry registry) {
     registry.registerWarningRule(LayerViolationRule());
     registry.registerWarningRule(ForbiddenPackageRule());
+    registry.registerFixForRule(LayerViolationRule.code, RemoveDirective.new);
+    registry.registerFixForRule(ForbiddenPackageRule.code, RemoveDirective.new);
   }
 }
