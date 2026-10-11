@@ -109,6 +109,15 @@ The [presets guide](https://creatorpiyush.github.io/arch_guard/presets.html) has
 
 To fix a violation, invert the dependency (an interface in the importing layer, implemented by the imported one), move the code to a layer it may import, or, if the dependency is intended, add the layer to `allowed_imports`.
 
+```text
+Strongly Connected Component #1 (2 files)
+  Representative Cycle Path:
+  lib/widgets/nav.dart
+  -> lib/screens/home.dart
+  -> lib/widgets/nav.dart
+  Suggested fix: remove lib/screens/home.dart:1 -> lib/widgets/nav.dart (breaks the cycle)
+```
+
 Each cycle comes with a `Suggested fix:` line naming the one import whose removal breaks it, or, when no single import does, the one that shrinks it most.
 
 ## Adopting on an existing codebase

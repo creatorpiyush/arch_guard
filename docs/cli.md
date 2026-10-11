@@ -53,6 +53,25 @@ Scans current project and outputs colored summary with SCC severity metrics:
 arch_guard
 ```
 
+### Fix a cycle
+Every cycle comes with the one import to remove to break it (or, when no single import does, the one that shrinks it most):
+```text
+  Strongly Connected Component #1 (2 files)
+    [Metrics: 2 internal edges | Avg Fan-In: 1.5 | Avg Fan-Out: 1.0 | Hub: lib/screens/home.dart]
+    Representative Cycle Path:
+    lib/widgets/nav.dart
+    -> lib/screens/home.dart
+    -> lib/widgets/nav.dart
+    Suggested fix: remove lib/screens/home.dart:1 -> lib/widgets/nav.dart (breaks the cycle)
+```
+
+### Only files changed on this branch
+Analyse the whole project, but report (and fail on) only problems that touch files changed since the merge base with `origin/main`, plus uncommitted and untracked files:
+```bash
+arch_guard --since origin/main
+```
+The report ends with `Only problems touching 7 file(s) changed since origin/main.` In CI, check out with full history (`fetch-depth: 0`); see [CI](ci.md#large-repositories-only-changed-files).
+
 ### Explain one file
 Inspect why a specific file belongs to an SCC and view its direct incoming/outgoing edges:
 ```bash

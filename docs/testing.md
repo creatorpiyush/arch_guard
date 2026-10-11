@@ -48,6 +48,12 @@ It works with any test runner and adds no test dependencies of its own.
 | `enableWorkspace` | `true` | `--no-workspace` when `false` |
 | `since` | `null` | `--since <git-ref>`: only problems touching files changed since that ref |
 
+To check only what a branch changed (handy as a pre-push test in a large repository):
+
+```dart
+await expectArchitecture(since: 'origin/main');
+```
+
 ## Custom assertions
 
 `expectArchitecture()` returns the `ArchAnalysis`. You can also run one directly and assert what you like:

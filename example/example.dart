@@ -14,6 +14,9 @@ void main() async {
 
   print('\n=== 4. Monorepo Workspace Auto-Discovery Scan ===');
   await scanWorkspaceMonorepo();
+
+  print('\n=== 5. Everything in One Call (what the CLI runs) ===');
+  await runFullAnalysis();
 }
 
 Future<void> scanSinglePackageWithMetrics() async {
@@ -39,6 +42,9 @@ Future<void> scanSinglePackageWithMetrics() async {
       );
     }
     print('    Cycle path: ${cycle.exampleChain.join(" -> ")}');
+    // The one import whose removal breaks (or shrinks most) this cycle.
+    final hint = scc?.suggestedBreak;
+    if (hint != null) print('    Suggested fix: remove ${hint.describe()}');
   }
 
   // Export JSON report
@@ -111,5 +117,31 @@ Future<void> scanWorkspaceMonorepo() async {
   print('Found ${cycles.length} cross-package circular dependency groups:');
   for (final cycle in cycles) {
     print('  Cross-package chain: ${cycle.exampleChain.join(" -> ")}');
+  }
+}
+
+Future<void> runFullAnalysis() async {
+  // Scan, cycles, layer/package/metric/workspace rules and the baseline in
+  // one call. Pass `since: 'origin/main'` to keep only problems touching
+  // files changed on the current branch (needs git).
+  final analysis = await ArchAnalysis.run(
+    projectPath: 'example/sample_project',
+  );
+
+  print(
+    '${analysis.cycles.length} cycles, '
+    '${analysis.layerViolations.length} layer violations, '
+    '${analysis.packageViolations.length} forbidden package imports.',
+  );
+  print('Most coupled files:');
+  for (final m in analysis.hotspots.take(3)) {
+    print('  ${m.file}: fan-in ${m.fanIn}, fan-out ${m.fanOut}');
+  }
+
+  // Exactly what would make `arch_guard` exit with 1.
+  final failures = analysis.failures();
+  print('${failures.length} problem(s) would fail the run:');
+  for (final f in failures) {
+    print('  - $f');
   }
 }
