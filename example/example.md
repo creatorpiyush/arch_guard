@@ -19,6 +19,7 @@ In your own project, `dart pub add --dev arch_guard`, then `dart run arch_guard`
 | Stop one layer from importing another | [layers](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/layers) | `layers`, `fail_on_layer_violation`, `ignore` |
 | Choose what is scanned (`bin/`, generated code), keep config in `pubspec.yaml` | [scan_options](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/scan_options) | `--scan-dir`, `--exclude`, `arch_guard:` in pubspec, `part` files, `--no-color` |
 | Start from a ready-made architecture | [presets](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/presets) | `preset`, overriding preset layers, `arch_guard init` |
+| Mix architectures (Riverpod with Bloc leftovers) | [hybrid_layout](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/hybrid_layout) | `arch_guard init`, extra `bloc` layer |
 | Keep `dart:io`, `flutter` or any package out of some code | [forbidden_packages](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/forbidden_packages) | `forbidden_packages` (project and per layer) |
 | Stop files from becoming hubs | [metrics](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/metrics) | `metrics: max_fan_in / max_fan_out / hotspots` |
 | Control which packages of a monorepo depend on which | [workspace_rules](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/workspace_rules) | `workspace_rules` |
