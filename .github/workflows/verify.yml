@@ -83,7 +83,7 @@ jobs:
         id: arch_guard
         uses: ./
         with:
-          path: example/sample_project
+          path: example/cases/sample_project
           version: source
           args: --no-fail-on-cycle
           comment: ${{ matrix.os == 'ubuntu-latest' }}

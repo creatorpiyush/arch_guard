@@ -1,0 +1,11 @@
+preset: clean_architecture
+fail_on_layer_violation: true
+
+# Override part of the preset: list a layer with only the keys to change.
+# New layer names are added.
+layers:
+  l10n:
+    patterns: ["lib/l10n/**"]
+    allowed_imports: [l10n]
+  presentation:
+    allowed_imports: [core, domain, presentation, l10n]

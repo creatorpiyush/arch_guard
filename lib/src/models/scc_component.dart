@@ -1,3 +1,5 @@
+import '../graph/cycle_breaker.dart';
+
 /// Represents a Strongly Connected Component (SCC) in the dependency graph
 /// with architectural severity metrics.
 class SccComponent {
@@ -28,6 +30,9 @@ class SccComponent {
   /// File path acting as the main dependency hub in this component.
   final String hubFile;
 
+  /// Suggested import to remove, if one could be computed.
+  final CycleBreak? suggestedBreak;
+
   /// Creates a component; usually built by `DependencyGraph`.
   const SccComponent({
     required this.id,
@@ -39,6 +44,7 @@ class SccComponent {
     required this.instability,
     required this.density,
     required this.hubFile,
+    this.suggestedBreak,
   });
 
   /// Additional files in this component not on the main representative chain.
@@ -54,6 +60,7 @@ class SccComponent {
     required List<String> exampleChain,
     required Map<String, Set<String>> outgoingEdges,
     required Map<String, Set<String>> incomingEdges,
+    CycleBreak? suggestedBreak,
   }) {
     final fileSet = files.toSet();
     int internalEdges = 0;
@@ -98,6 +105,7 @@ class SccComponent {
       instability: double.parse(instab.toStringAsFixed(2)),
       density: double.parse(dens.toStringAsFixed(2)),
       hubFile: topHub,
+      suggestedBreak: suggestedBreak,
     );
   }
 
@@ -112,5 +120,6 @@ class SccComponent {
     'instability': instability,
     'density': density,
     'hubFile': hubFile,
+    'suggestedBreak': ?suggestedBreak?.toJson(),
   };
 }

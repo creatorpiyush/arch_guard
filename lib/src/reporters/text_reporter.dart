@@ -90,6 +90,12 @@ class TextReporter {
       if (extra.isNotEmpty) {
         buffer.writeln('    $dim• Additional Files: ${extra.join(", ")}$reset');
       }
+      final hint = scc?.suggestedBreak;
+      if (hint != null) {
+        buffer.writeln(
+          '    ${green}Suggested fix: remove ${hint.describe()}$reset',
+        );
+      }
       buffer.writeln();
     }
 

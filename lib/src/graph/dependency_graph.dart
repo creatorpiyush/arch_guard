@@ -1,5 +1,6 @@
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
+import 'cycle_breaker.dart';
 import 'cycle_path_finder.dart';
 import 'tarjan_scc.dart';
 
@@ -71,6 +72,10 @@ class DependencyGraph {
           exampleChain: exampleChain,
           outgoingEdges: outgoingEdges,
           incomingEdges: incomingEdges,
+          suggestedBreak: CycleBreaker.suggest(
+            files: scc,
+            edges: scanResult.edges,
+          ),
         );
         cycles.add(Cycle(files: scc, exampleChain: exampleChain, scc: sccComp));
       } else if (scc.length == 1) {
@@ -85,6 +90,10 @@ class DependencyGraph {
             exampleChain: exampleChain,
             outgoingEdges: outgoingEdges,
             incomingEdges: incomingEdges,
+            suggestedBreak: CycleBreaker.suggest(
+              files: scc,
+              edges: scanResult.edges,
+            ),
           );
           cycles.add(
             Cycle(files: scc, exampleChain: exampleChain, scc: sccComp),

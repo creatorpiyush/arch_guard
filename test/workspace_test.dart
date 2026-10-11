@@ -48,10 +48,10 @@ void main() {
     );
 
     test(
-      'scans example/sample_workspace and finds cross-package cycle',
+      'scans example/cases/sample_workspace and finds cross-package cycle',
       () async {
         final scanner = ProjectScanner(
-          rootPath: 'example/sample_workspace',
+          rootPath: 'example/cases/sample_workspace',
           enableWorkspace: true,
         );
 
@@ -68,7 +68,7 @@ void main() {
 
     test('single-package project is not treated as a workspace', () {
       final pkgs = PubspecReader.discoverWorkspacePackages(
-        'example/sample_project',
+        'example/cases/sample_project',
       );
       expect(pkgs, isEmpty);
     });

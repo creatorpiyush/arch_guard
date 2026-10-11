@@ -55,7 +55,7 @@ jobs:
         shell: bash
         run: |
           "dist/arch_guard-${{ matrix.target }}${{ matrix.ext }}" --help
-          "dist/arch_guard-${{ matrix.target }}${{ matrix.ext }}" example/sample_project --no-fail-on-cycle -f all -o smoke_output
+          "dist/arch_guard-${{ matrix.target }}${{ matrix.ext }}" example/cases/sample_project --no-fail-on-cycle -f all -o smoke_output
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

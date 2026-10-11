@@ -1,0 +1,7 @@
+workspace_rules:
+  "packages/core":
+    allowed: []                  # core depends on no other member
+  "packages/*":
+    allowed: ["packages/core"]   # shared packages may only use core
+  "apps/*":
+    allowed: ["packages/*"]      # apps may use any shared package

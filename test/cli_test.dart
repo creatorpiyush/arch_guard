@@ -28,7 +28,7 @@ void main() {
 
     test('returns exit code 1 when cycles found on sample_project', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '-f',
         'all',
         '-o',
@@ -39,7 +39,7 @@ void main() {
 
     test('returns exit code 0 when --explain passed', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--explain',
         'lib/services/auth_service.dart',
       ]);
@@ -48,7 +48,7 @@ void main() {
 
     test('returns exit code 0 for --format json', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '-f',
         'json',
@@ -62,7 +62,7 @@ void main() {
       'returns exit code 0 for --format mermaid with scope cycles',
       () async {
         final code = await runCli([
-          'example/sample_project',
+          'example/cases/sample_project',
           '--no-fail-on-cycle',
           '-f',
           'mermaid',
@@ -77,7 +77,7 @@ void main() {
 
     test('returns exit code 0 when --no-fail-on-cycle passed', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '-f',
         'all',
@@ -89,7 +89,7 @@ void main() {
 
     test('writes export files to the requested output directory', () async {
       await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '-f',
         'json',
@@ -108,7 +108,7 @@ void main() {
 
     test('writes SARIF and Markdown reports', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '--no-color',
         '-f',
@@ -287,7 +287,7 @@ layers:
     final baseline = p.join(tmp.path, 'b.json');
     List<String> args(List<String> extra) => [
       'bin/arch_guard.dart',
-      'example/sample_project',
+      'example/cases/sample_project',
       '--no-color',
       '--baseline',
       baseline,
@@ -301,5 +301,65 @@ layers:
       expect(out, isNot(contains('workspace rule')));
     }
     expect(run.stdout, contains('Known (ignored)'));
+  });
+
+  group('CLI --since', () {
+    late Directory project;
+
+    void git(List<String> args) {
+      final r = Process.runSync('git', args, workingDirectory: project.path);
+      if (r.exitCode != 0) fail('git ${args.join(' ')}: ${r.stderr}');
+    }
+
+    void write(String path, String content) {
+      final file = File(p.join(project.path, path));
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(content);
+    }
+
+    setUp(() {
+      project = Directory.systemTemp.createTempSync('arch_guard_since_');
+      write('pubspec.yaml', 'name: app\n');
+      write('arch_guard.yaml', '''
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+  data:
+    patterns: ["lib/data/**"]
+''');
+      write('lib/data/b.dart', '');
+      write('lib/domain/a.dart', "import '../data/b.dart';\n");
+      git(['init', '-q', '-b', 'main']);
+      git(['config', 'user.email', 't@example.com']);
+      git(['config', 'user.name', 'T']);
+      git(['add', '.']);
+      git(['commit', '-qm', 'base']);
+    });
+
+    tearDown(() => project.deleteSync(recursive: true));
+
+    test(
+      '--since narrows, rejects --update-baseline, and reports git errors',
+      () async {
+        // project: committed layer violation in lib/domain/a.dart, nothing changed.
+        expect(await runCli([project.path]), 1);
+        expect(await runCli([project.path, '--since', 'main']), 0);
+        expect(
+          await runCli([project.path, '--since', 'main', '--update-baseline']),
+          64,
+        );
+        expect(await runCli([project.path, '--since', 'no-such-ref']), 2);
+        expect(
+          await runCli([
+            project.path,
+            '--since',
+            'main',
+            '--explain',
+            'lib/domain/a.dart',
+          ]),
+          64,
+        );
+      },
+    );
   });
 }

@@ -75,6 +75,15 @@ class ArgsConfig {
       help: 'Custom glob pattern(s) to exclude from scanning.',
     );
 
+    parser.addOption(
+      'since',
+      valueHelp: 'git-ref',
+      help:
+          'Only report problems touching files changed since the merge base '
+          'with this ref (plus uncommitted and untracked files), e.g. '
+          'origin/main. The whole project is still analysed.',
+    );
+
     parser.addFlag(
       'color',
       defaultsTo: true,

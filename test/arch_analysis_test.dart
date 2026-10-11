@@ -108,4 +108,68 @@ layers:
     );
     expect(a.hotspots, hasLength(1));
   });
+
+  group('since', () {
+    void git(List<String> args) {
+      final r = Process.runSync('git', args, workingDirectory: project.path);
+      if (r.exitCode != 0) fail('git ${args.join(' ')}: ${r.stderr}');
+    }
+
+    setUp(() {
+      git(['init', '-q', '-b', 'main']);
+      git(['config', 'user.email', 't@example.com']);
+      git(['config', 'user.name', 'T']);
+      git(['add', '.']);
+      git(['commit', '-qm', 'base']);
+    });
+
+    test('keeps only problems touching changed files', () async {
+      // Base: domain/a.dart -> data/b.dart is a layer violation and a cycle.
+      write(
+        'lib/data/c.dart',
+        "import '../domain/a.dart';\n",
+      ); // untracked, fine
+      final none = await ArchAnalysis.run(
+        projectPath: project.path,
+        since: 'main',
+      );
+      expect(none.changedFiles, {'lib/data/c.dart'});
+      expect(none.layerViolations, isEmpty);
+      expect(none.cycles, isEmpty);
+
+      write('lib/domain/a.dart', "import '../data/b.dart';\n// edited\n");
+      final some = await ArchAnalysis.run(
+        projectPath: project.path,
+        since: 'main',
+      );
+      expect(some.layerViolations.single.sourceFile, 'lib/domain/a.dart');
+      expect(some.cycles, hasLength(1));
+    });
+
+    test('keeps a fan-in violation caused by a changed importer', () async {
+      write('arch_guard.yaml', 'metrics:\n  max_fan_in: 1\n');
+      write('lib/data/c.dart', "import '../domain/a.dart';\n");
+      final a = await ArchAnalysis.run(
+        projectPath: project.path,
+        since: 'main',
+      );
+      expect(a.metricViolations.map((v) => v.file), ['lib/domain/a.dart']);
+    });
+
+    test('baseline fixed counts match a full run', () async {
+      final full = await ArchAnalysis.run(projectPath: project.path);
+      Baseline.capture(
+        cycles: full.cycles,
+        layerViolations: full.layerViolations,
+        packageViolations: full.packageViolations,
+      ).save(full.baselinePath);
+      write('lib/data/c.dart', '');
+      final narrowed = await ArchAnalysis.run(
+        projectPath: project.path,
+        since: 'main',
+      );
+      expect(narrowed.baseline!.fixedViolationCount, 0);
+      expect(narrowed.baseline!.fixedCycleCount, 0);
+    });
+  });
 }

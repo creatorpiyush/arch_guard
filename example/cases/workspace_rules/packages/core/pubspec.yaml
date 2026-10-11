@@ -1,0 +1,11 @@
+name: core
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+resolution: workspace
+
+dependencies:
+  feature:
+    path: ../feature

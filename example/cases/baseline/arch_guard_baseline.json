@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "cycles": [
+    {
+      "files": [
+        "lib/data/order_dto.dart",
+        "lib/data/order_mapper.dart"
+      ]
+    }
+  ],
+  "layerViolations": [],
+  "packageViolations": [],
+  "metricViolations": [],
+  "workspaceViolations": []
+}

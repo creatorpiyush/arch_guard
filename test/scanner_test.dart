@@ -8,7 +8,7 @@ void main() {
   group('ProjectScanner', () {
     test('scans sample_project fixture correctly', () async {
       final scanner = ProjectScanner(
-        rootPath: 'example/sample_project',
+        rootPath: 'example/cases/sample_project',
         scanDirs: ['lib'],
       );
 
@@ -24,7 +24,7 @@ void main() {
 
     test('honours custom scanDirs with workspace discovery enabled', () async {
       final scanner = ProjectScanner(
-        rootPath: 'example/sample_project',
+        rootPath: 'example/cases/sample_project',
         scanDirs: ['lib/services'],
       );
 
@@ -41,7 +41,7 @@ void main() {
 
     test('drops edges whose target file was not scanned', () async {
       final scanner = ProjectScanner(
-        rootPath: 'example/sample_project',
+        rootPath: 'example/cases/sample_project',
         scanDirs: ['lib/services'],
         enableWorkspace: false,
       );
@@ -206,7 +206,7 @@ import 'package:ui/button.dart';
       final outputs = <String>[];
       for (var i = 0; i < 5; i++) {
         final result = await ProjectScanner(
-          rootPath: 'example/sample_project',
+          rootPath: 'example/cases/sample_project',
         ).scan();
         expect(result.files.keys.toList(), [...result.files.keys]..sort());
         final edgeKeys = result.edges.map((e) => '${e.from}|${e.to}').toList();

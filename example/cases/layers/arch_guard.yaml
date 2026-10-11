@@ -1,0 +1,15 @@
+fail_on_layer_violation: true   # layer violations fail the run (exit 1)
+
+ignore:
+  - "lib/presentation/legacy/**"  # old code we don't check (yet)
+
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    allowed_imports: [domain]
+  data:
+    patterns: ["lib/data/**"]
+    allowed_imports: [data, domain]
+  presentation:
+    patterns: ["lib/presentation/**"]
+    allowed_imports: [presentation, domain]

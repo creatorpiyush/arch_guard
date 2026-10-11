@@ -38,6 +38,107 @@ void main() {
     line: 1,
   );
 
+  const hintedCycle = Cycle(
+    files: ['lib/a.dart', 'lib/b.dart'],
+    exampleChain: ['lib/a.dart', 'lib/b.dart', 'lib/a.dart'],
+    scc: SccComponent(
+      id: 1,
+      files: ['lib/a.dart', 'lib/b.dart'],
+      exampleChain: ['lib/a.dart', 'lib/b.dart', 'lib/a.dart'],
+      internalEdgesCount: 2,
+      averageFanIn: 1,
+      averageFanOut: 1,
+      instability: 0.5,
+      density: 1,
+      hubFile: 'lib/a.dart',
+      suggestedBreak: CycleBreak(
+        from: 'lib/b.dart',
+        to: 'lib/a.dart',
+        line: 5,
+        groupSize: 2,
+        remainingLargestCycle: 0,
+      ),
+    ),
+  );
+
+  group('cycle-breaking hints', () {
+    test('text report', () {
+      final text = const TextReporter(
+        useColor: false,
+      ).formatReport(result: result, cycles: [hintedCycle]);
+      expect(
+        text,
+        contains(
+          'Suggested fix: remove lib/b.dart:5 -> lib/a.dart (breaks the cycle)',
+        ),
+      );
+    });
+
+    test('Markdown without a line, shrink only', () {
+      const shrink = Cycle(
+        files: ['lib/a.dart', 'lib/b.dart'],
+        exampleChain: ['lib/a.dart', 'lib/b.dart', 'lib/a.dart'],
+        scc: SccComponent(
+          id: 1,
+          files: ['lib/a.dart', 'lib/b.dart'],
+          exampleChain: ['lib/a.dart', 'lib/b.dart', 'lib/a.dart'],
+          internalEdgesCount: 2,
+          averageFanIn: 1,
+          averageFanOut: 1,
+          instability: 0.5,
+          density: 1,
+          hubFile: 'lib/a.dart',
+          suggestedBreak: CycleBreak(
+            from: 'lib/b.dart',
+            to: 'lib/a.dart',
+            groupSize: 3,
+            remainingLargestCycle: 2,
+          ),
+        ),
+      );
+      final md = MarkdownExporter.export(result: result, cycles: [shrink]);
+      expect(
+        md,
+        contains(
+          'Suggested fix: remove `lib/b.dart` → `lib/a.dart` (shrinks it to 2 files).',
+        ),
+      );
+    });
+
+    test('Markdown and SARIF', () {
+      final md = MarkdownExporter.export(result: result, cycles: [hintedCycle]);
+      expect(
+        md,
+        contains('Suggested fix: remove `lib/b.dart:5` → `lib/a.dart`'),
+      );
+      final sarif = SarifExporter.export(result: result, cycles: [hintedCycle]);
+      expect(
+        sarif,
+        contains('Suggested fix: remove lib/b.dart:5 -> lib/a.dart'),
+      );
+    });
+
+    test('no hint, no line', () {
+      final text = const TextReporter(
+        useColor: false,
+      ).formatReport(result: result, cycles: [cycle]);
+      expect(text, isNot(contains('Suggested fix')));
+    });
+  });
+
+  test('Markdown notes the --since narrowing', () {
+    final md = MarkdownExporter.export(
+      result: result,
+      cycles: const [],
+      since: 'origin/main',
+      changedFileCount: 3,
+    );
+    expect(
+      md,
+      contains('Only problems touching 3 file(s) changed since `origin/main`.'),
+    );
+  });
+
   test('Markdown has no metric/workspace rows when unused', () {
     final md = MarkdownExporter.export(result: result, cycles: [cycle]);
     expect(md, isNot(contains('Metric limit violations')));

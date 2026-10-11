@@ -1,3 +1,9 @@
+# 1.7.0
+
+- **New: cycle-breaking hints.** Each circular-dependency group now names the one import whose removal breaks it (or shrinks it most), in the terminal, Markdown, SARIF and JSON (`scc.suggestedBreak`). Library: `CycleBreaker`, `CycleBreak`.
+- **New: `--since <git-ref>`.** Reports (and fails on) only problems touching files changed since the merge base with a ref, plus uncommitted and untracked files, while still analysing the whole project. Baseline "fixed" counts stay accurate. Also available as `expectArchitecture(since:)` and `ArchAnalysis.run(since:)`. Needs full history in CI (`fetch-depth: 0`).
+- **Docs: an example project for every feature.** [`example/example.md`](example/example.md) (pub.dev's Example tab) links to small projects in `example/cases/`: cycles, layers, presets, forbidden packages, metrics, workspace rules, baselines, `--since`, architecture tests and reports. Each README has the config, the command and its real output. `example/example.dart` covers the library API. The CLI and testing docs gain `--since` and cycle-fix recipes.
+
 # 1.6.0
 
 - **New: metric limits.** `metrics: max_fan_out / max_fan_in` fail the run when a file imports, or is imported by, too many project files. Baselines ratchet: a known file that gets worse fails again. Reports list the most coupled files (`hotspots`, default 10) in Markdown and JSON, and in the terminal when limits are set. SARIF rule `metric-limit`. Library: `FileMetrics`, `MetricValidator`.

@@ -28,12 +28,16 @@ dart run arch_guard          # checks the project
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
 - 📌 **Baselines for existing code.** Record today's problems once; CI then fails only on *new* ones.
+- 🎯 **`--since origin/main`.** Report only problems touching files changed on the branch.
+- 🩹 **Cycle-breaking hints.** Each cycle names the one import to remove to break it.
 - 🧪 **Architecture tests.** `await expectArchitecture();` in `dart test` / `flutter test` runs the same checks. See [Testing](https://creatorpiyush.github.io/arch_guard/testing.html).
 - 💡 **IDE warnings.** The `arch_guard_lint` analyzer plugin underlines layer violations and forbidden imports as you type. See [IDE](https://creatorpiyush.github.io/arch_guard/ide.html).
 - 🤖 **CI-ready.** A GitHub Action that comments on PRs, SARIF for GitHub Code Scanning, Markdown job summaries, pre-commit hooks, standalone binaries.
 - 🎨 **Graphs.** Interactive HTML (works offline), Mermaid, Graphviz DOT and JSON.
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.
 - 🔍 **`--explain <file>`.** Why is this file in a cycle? What does it import and what imports it?
+
+**Examples:** a small, runnable project for each feature, with the command and its real output. See [example/example.md](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.md).
 
 ## Why arch_guard?
 
@@ -107,6 +111,17 @@ The [presets guide](https://creatorpiyush.github.io/arch_guard/presets.html) has
 
 To fix a violation, invert the dependency (an interface in the importing layer, implemented by the imported one), move the code to a layer it may import, or, if the dependency is intended, add the layer to `allowed_imports`.
 
+```text
+Strongly Connected Component #1 (2 files)
+  Representative Cycle Path:
+  lib/widgets/nav.dart
+  -> lib/screens/home.dart
+  -> lib/widgets/nav.dart
+  Suggested fix: remove lib/screens/home.dart:1 -> lib/widgets/nav.dart (breaks the cycle)
+```
+
+Each cycle comes with a `Suggested fix:` line naming the one import whose removal breaks it, or, when no single import does, the one that shrinks it most.
+
 ## Adopting on an existing codebase
 
 ```bash
@@ -132,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.6.0
+      - uses: creatorpiyush/arch_guard@v1.7.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).

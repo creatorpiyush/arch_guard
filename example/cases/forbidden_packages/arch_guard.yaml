@@ -1,0 +1,13 @@
+# Nowhere in the project.
+forbidden_packages:
+  - "dart:mirrors"
+
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    allowed_imports: [domain]
+    # Only in this layer: domain code stays pure Dart.
+    forbidden_packages: ["dart:io", "flutter", "firebase_*"]
+  data:
+    patterns: ["lib/data/**"]
+    allowed_imports: [data, domain]

@@ -12,6 +12,7 @@ import '../exporters/mermaid_exporter.dart';
 import '../exporters/sarif_exporter.dart';
 import '../graph/dependency_explainer.dart';
 import '../reporters/text_reporter.dart';
+import '../scanner/git_changes.dart';
 import '../version.dart';
 import 'args_config.dart';
 import 'init_command.dart';
@@ -84,6 +85,15 @@ Future<int> runCli(List<String> args) async {
   final failOnCycle = argResults['fail-on-cycle'] as bool;
   final enableWorkspace = argResults['workspace'] as bool;
   final updateBaseline = argResults['update-baseline'] as bool;
+  final since = argResults['since'] as String?;
+  if (since != null && updateBaseline) {
+    stderr.writeln('Error: --since cannot be combined with --update-baseline.');
+    return 64;
+  }
+  if (since != null && (explainTarget?.isNotEmpty ?? false)) {
+    stderr.writeln('Error: --since cannot be combined with --explain.');
+    return 64;
+  }
 
   ArchAnalysis analysis;
   try {
@@ -96,8 +106,12 @@ Future<int> runCli(List<String> args) async {
       // --explain doesn't need the baseline, and --update-baseline must
       // work even when the existing file is broken.
       useBaseline: !updateBaseline && (explainTarget?.isEmpty ?? true),
+      since: since,
     );
   } on FormatException catch (e) {
+    stderr.writeln('Error: ${e.message}');
+    return 2;
+  } on GitException catch (e) {
     stderr.writeln('Error: ${e.message}');
     return 2;
   }
@@ -184,6 +198,13 @@ Future<int> runCli(List<String> args) async {
   // Text summary report is always printed to terminal
   final textReporter = TextReporter(useColor: useColor);
   stdout.write(textReporter.formatReport(result: scanResult, cycles: cycles));
+  if (analysis.changedFiles != null) {
+    stdout.writeln(
+      'Only problems touching ${analysis.changedFiles!.length} file(s) '
+      'changed since $since.',
+    );
+    stdout.writeln();
+  }
 
   if (newViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
@@ -430,6 +451,8 @@ Future<int> runCli(List<String> args) async {
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
+        since: since,
+        changedFileCount: analysis.changedFiles?.length,
       );
       File(markdownPath).writeAsStringSync(markdownContent);
       stdout.writeln('Exported Markdown summary to: $markdownPath');
