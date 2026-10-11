@@ -23,6 +23,9 @@ class MarkdownExporter {
   static const maxListedItems = 50;
 
   /// Renders the report as Markdown, listing problems not in [baseline] first.
+  ///
+  /// [since] and [changedFileCount] add a note that the lists only hold
+  /// problems touching files changed since that git ref.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
@@ -34,6 +37,8 @@ class MarkdownExporter {
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
+    String? since,
+    int? changedFileCount,
   }) {
     final comparison =
         baseline ??
@@ -82,6 +87,14 @@ class MarkdownExporter {
       );
     }
     b.writeln();
+    if (since != null) {
+      b
+        ..writeln(
+          '_Only problems touching ${changedFileCount ?? 0} file(s) changed '
+          'since `$since`._',
+        )
+        ..writeln();
+    }
 
     b
       ..writeln('| | Total | New |')

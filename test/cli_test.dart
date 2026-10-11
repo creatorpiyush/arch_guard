@@ -302,4 +302,54 @@ layers:
     }
     expect(run.stdout, contains('Known (ignored)'));
   });
+
+  group('CLI --since', () {
+    late Directory project;
+
+    void git(List<String> args) {
+      final r = Process.runSync('git', args, workingDirectory: project.path);
+      if (r.exitCode != 0) fail('git ${args.join(' ')}: ${r.stderr}');
+    }
+
+    void write(String path, String content) {
+      final file = File(p.join(project.path, path));
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(content);
+    }
+
+    setUp(() {
+      project = Directory.systemTemp.createTempSync('arch_guard_since_');
+      write('pubspec.yaml', 'name: app\n');
+      write('arch_guard.yaml', '''
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+  data:
+    patterns: ["lib/data/**"]
+''');
+      write('lib/data/b.dart', '');
+      write('lib/domain/a.dart', "import '../data/b.dart';\n");
+      git(['init', '-q', '-b', 'main']);
+      git(['config', 'user.email', 't@example.com']);
+      git(['config', 'user.name', 'T']);
+      git(['add', '.']);
+      git(['commit', '-qm', 'base']);
+    });
+
+    tearDown(() => project.deleteSync(recursive: true));
+
+    test(
+      '--since narrows, rejects --update-baseline, and reports git errors',
+      () async {
+        // project: committed layer violation in lib/domain/a.dart, nothing changed.
+        expect(await runCli([project.path]), 1);
+        expect(await runCli([project.path, '--since', 'main']), 0);
+        expect(
+          await runCli([project.path, '--since', 'main', '--update-baseline']),
+          64,
+        );
+        expect(await runCli([project.path, '--since', 'no-such-ref']), 2);
+      },
+    );
+  });
 }

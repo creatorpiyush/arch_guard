@@ -126,6 +126,19 @@ void main() {
     });
   });
 
+  test('Markdown notes the --since narrowing', () {
+    final md = MarkdownExporter.export(
+      result: result,
+      cycles: const [],
+      since: 'origin/main',
+      changedFileCount: 3,
+    );
+    expect(
+      md,
+      contains('Only problems touching 3 file(s) changed since `origin/main`.'),
+    );
+  });
+
   test('Markdown has no metric/workspace rows when unused', () {
     final md = MarkdownExporter.export(result: result, cycles: [cycle]);
     expect(md, isNot(contains('Metric limit violations')));

@@ -66,6 +66,27 @@ void main() {
     );
   });
 
+  test('rejects refs that git would read as options', () {
+    expect(
+      () => GitChanges.since('--output=x', projectRoot: repo.path),
+      throwsA(isA<GitException>()),
+    );
+    expect(File(p.join(repo.path, 'x')).existsSync(), isFalse);
+  });
+
+  test('git errors are one line', () {
+    expect(
+      () => GitChanges.since('nope', projectRoot: repo.path),
+      throwsA(
+        isA<GitException>().having(
+          (e) => e.message,
+          'message',
+          isNot(contains('\n')),
+        ),
+      ),
+    );
+  });
+
   test('missing merge base explains how to fix shallow clones', () {
     expect(
       () => GitChanges.since('nope', projectRoot: repo.path),

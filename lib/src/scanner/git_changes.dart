@@ -20,6 +20,10 @@ class GitChanges {
   /// [ref] and HEAD, plus uncommitted and untracked files. Files outside
   /// [projectRoot] are left out. Throws [GitException] when git fails.
   static Set<String> since(String ref, {required String projectRoot}) {
+    // git would read `-…` as an option (e.g. `--output=<file>`).
+    if (ref.isEmpty || ref.startsWith('-')) {
+      throw GitException('--since: "$ref" is not a git ref.');
+    }
     // Resolve symlinks on both sides: git prints the real path (macOS
     // temp dirs live under /private/var, reached via /var).
     final root = _real(projectRoot);
@@ -64,7 +68,12 @@ class GitChanges {
       throw const GitException('--since needs git on PATH.');
     }
     if (r.exitCode == 0) return r.stdout as String;
-    final err = (r.stderr as String).trim();
+    final err = (r.stderr as String)
+        .trim()
+        .split('\n')
+        .first
+        .trim()
+        .replaceFirst(RegExp(r'\.$'), '');
     if (err.contains('no merge base') || err.contains('unknown revision')) {
       throw GitException(
         '--since: cannot compare with "${args.last}": $err. In CI, fetch the '
