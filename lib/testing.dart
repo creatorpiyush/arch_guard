@@ -18,6 +18,7 @@ library;
 import 'src/analysis/arch_analysis.dart';
 
 export 'src/analysis/arch_analysis.dart';
+export 'src/scanner/git_changes.dart' show GitException;
 
 /// Thrown by [expectArchitecture] when the project breaks its rules.
 class ArchitectureViolationException implements Exception {
@@ -59,8 +60,10 @@ class ArchitectureViolationException implements Exception {
 /// [ArchitectureViolationException] if it finds problems.
 ///
 /// Returns the [ArchAnalysis] for further assertions. Options mirror the CLI
-/// flags (`--no-fail-on-cycle`, `--scan-dir`, `--exclude`, `--no-workspace`).
-/// Throws [FormatException] if the baseline file exists but is invalid.
+/// flags (`--no-fail-on-cycle`, `--scan-dir`, `--exclude`, `--no-workspace`,
+/// `--since`). With [since], only problems touching files changed since this
+/// git ref count. Throws [FormatException] if the baseline file exists but is
+/// invalid, and [GitException] if [since] is set and git fails.
 Future<ArchAnalysis> expectArchitecture({
   String projectPath = '.',
   bool failOnCycle = true,
@@ -68,6 +71,7 @@ Future<ArchAnalysis> expectArchitecture({
   List<String> scanDirs = const ['lib'],
   List<String> exclude = const [],
   bool enableWorkspace = true,
+  String? since,
 }) async {
   final analysis = await ArchAnalysis.run(
     projectPath: projectPath,
@@ -75,6 +79,7 @@ Future<ArchAnalysis> expectArchitecture({
     exclude: exclude,
     enableWorkspace: enableWorkspace,
     useBaseline: useBaseline,
+    since: since,
   );
   final failures = analysis.failures(failOnCycle: failOnCycle);
   if (failures.isNotEmpty) {

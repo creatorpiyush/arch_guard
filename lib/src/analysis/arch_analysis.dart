@@ -10,6 +10,7 @@ import '../models/config_model.dart';
 import '../models/cycle.dart';
 import '../models/file_metrics.dart';
 import '../models/scan_result.dart';
+import '../scanner/git_changes.dart';
 import '../scanner/project_scanner.dart';
 
 /// One full arch_guard run: scan, cycles, layer and package rules, baseline.
@@ -60,6 +61,13 @@ class ArchAnalysis {
   /// Absolute path of the baseline file (whether or not it exists).
   final String baselinePath;
 
+  /// The git ref passed to [run], if any.
+  final String? since;
+
+  /// Files changed since [since], or `null` for a full run. When set, every
+  /// problem list holds only problems touching one of these files.
+  final Set<String>? changedFiles;
+
   /// Creates an analysis from already computed parts; usually built by [run].
   const ArchAnalysis({
     required this.scan,
@@ -76,6 +84,8 @@ class ArchAnalysis {
     required this.coverage,
     required this.baselinePath,
     this.baseline,
+    this.since,
+    this.changedFiles,
   });
 
   /// Cycles not in the baseline (all of them without a baseline).
@@ -141,6 +151,11 @@ class ArchAnalysis {
   /// [baselinePath] is resolved against [projectPath] unless absolute.
   /// Throws [FormatException] if [useBaseline] is set and the baseline file
   /// exists but is invalid.
+  ///
+  /// With [since] (a git ref such as `origin/main`), the whole project is
+  /// still analysed, but only problems touching files changed since the merge
+  /// base with [since] are kept; the baseline's fixed counts still come from
+  /// the full run. Throws [GitException] when git fails.
   static Future<ArchAnalysis> run({
     String projectPath = '.',
     List<String> scanDirs = const ['lib'],
@@ -148,8 +163,13 @@ class ArchAnalysis {
     bool enableWorkspace = true,
     String baselinePath = defaultBaselineFileName,
     bool useBaseline = true,
+    String? since,
   }) async {
     final root = p.canonicalize(projectPath);
+    // Ask git first: a bad ref should fail before the (slow) scan.
+    final changed = since == null
+        ? null
+        : GitChanges.since(since, projectRoot: root);
     final config = ArchGuardConfig.load(root);
     final scan = await ProjectScanner(
       rootPath: root,
@@ -192,29 +212,68 @@ class ArchAnalysis {
         : p.join(root, baselinePath);
     final baseline = useBaseline ? Baseline.load(absBaseline) : null;
 
+    final oversized = maxScc == null
+        ? const <Cycle>[]
+        : cycles.where((c) => c.files.length > maxScc).toList();
+    final comparison = baseline?.compare(
+      cycles: cycles,
+      layerViolations: layerViolations,
+      packageViolations: packageViolations,
+      metricViolations: metricViolations,
+      workspaceViolations: workspaceViolations,
+    );
+
+    // Without --since every predicate is true; with it, keep only problems
+    // whose importing file (or, for cycles, any member) changed. The
+    // comparison was made on the full lists, so its fixed counts stay right.
+    bool touches(String file) => changed == null || changed.contains(file);
+    bool cycleTouches(Cycle c) => c.files.any(touches);
+    List<Cycle> cyc(List<Cycle> l) => l.where(cycleTouches).toList();
+    List<LayerViolation> lay(List<LayerViolation> l) =>
+        l.where((v) => touches(v.sourceFile)).toList();
+    List<PackageViolation> pkg(List<PackageViolation> l) =>
+        l.where((v) => touches(v.sourceFile)).toList();
+    List<MetricViolation> met(List<MetricViolation> l) =>
+        l.where((v) => touches(v.file)).toList();
+    List<WorkspaceViolation> ws(List<WorkspaceViolation> l) =>
+        l.where((v) => touches(v.sourceFile)).toList();
+
     return ArchAnalysis(
       scan: scan,
       config: config,
       graph: graph,
-      cycles: cycles,
-      layerViolations: layerViolations,
-      packageViolations: packageViolations,
+      cycles: cyc(cycles),
+      layerViolations: lay(layerViolations),
+      packageViolations: pkg(packageViolations),
       fileMetrics: fileMetrics,
-      metricViolations: metricViolations,
-      workspaceViolations: workspaceViolations,
+      metricViolations: met(metricViolations),
+      workspaceViolations: ws(workspaceViolations),
       warnings: warnings,
-      oversizedCycles: maxScc == null
-          ? const []
-          : cycles.where((c) => c.files.length > maxScc).toList(),
+      oversizedCycles: cyc(oversized),
       coverage: LayerValidator.coverage(result: scan, config: config),
       baselinePath: absBaseline,
-      baseline: baseline?.compare(
-        cycles: cycles,
-        layerViolations: layerViolations,
-        packageViolations: packageViolations,
-        metricViolations: metricViolations,
-        workspaceViolations: workspaceViolations,
-      ),
+      since: since,
+      changedFiles: changed,
+      baseline: comparison == null
+          ? null
+          : BaselineComparison(
+              newCycles: cyc(comparison.newCycles),
+              knownCycles: cyc(comparison.knownCycles),
+              newViolations: lay(comparison.newViolations),
+              knownViolations: lay(comparison.knownViolations),
+              newPackageViolations: pkg(comparison.newPackageViolations),
+              knownPackageViolations: pkg(comparison.knownPackageViolations),
+              newMetricViolations: met(comparison.newMetricViolations),
+              knownMetricViolations: met(comparison.knownMetricViolations),
+              newWorkspaceViolations: ws(comparison.newWorkspaceViolations),
+              knownWorkspaceViolations: ws(comparison.knownWorkspaceViolations),
+              fixedCycleCount: comparison.fixedCycleCount,
+              fixedViolationCount: comparison.fixedViolationCount,
+              fixedPackageViolationCount: comparison.fixedPackageViolationCount,
+              fixedMetricViolationCount: comparison.fixedMetricViolationCount,
+              fixedWorkspaceViolationCount:
+                  comparison.fixedWorkspaceViolationCount,
+            ),
     );
   }
 }
