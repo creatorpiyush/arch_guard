@@ -6,6 +6,40 @@ import 'package:test/test.dart';
 
 void main() {
   group('ProjectScanner', () {
+    test('scanSources matches scan() for the same files', () async {
+      final disk = await ProjectScanner(
+        rootPath: 'example/cases/cycles',
+      ).scan();
+      final sources = {
+        for (final f in disk.files.keys)
+          f: File('example/cases/cycles/$f').readAsStringSync(),
+      };
+      final mem = ProjectScanner.scanSources(
+        packageName: 'cycles',
+        sources: sources,
+      );
+      String edges(ScanResult r) =>
+          r.edges.map((e) => '${e.from}>${e.to}:${e.type}:${e.line}').join(',');
+      expect(mem.files.keys, disk.files.keys);
+      expect(edges(mem), edges(disk));
+    });
+
+    test('scanSources resolves self package imports and parts', () {
+      final r = ProjectScanner.scanSources(
+        packageName: 'app',
+        sources: {
+          'lib/a.dart': "import 'package:app/b.dart';\npart 'a_part.dart';\n",
+          'lib/a_part.dart': "part of 'a.dart';\n",
+          'lib/b.dart': "import 'package:other/x.dart';\n",
+        },
+      );
+      expect(r.edges.map((e) => '${e.from}>${e.to}:${e.type}'), [
+        'lib/a.dart>lib/a_part.dart:part',
+        'lib/a.dart>lib/b.dart:import',
+      ]);
+      expect(r.packageImports.single.package, 'other');
+    });
+
     test('scans sample_project fixture correctly', () async {
       final scanner = ProjectScanner(
         rootPath: 'example/cases/sample_project',

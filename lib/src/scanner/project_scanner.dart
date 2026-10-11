@@ -128,69 +128,17 @@ class ProjectScanner {
             final entity = entry.key;
             final relPath = entry.value;
             try {
-              final content = await entity.readAsString();
-              final directives = ImportReader.extractDirectives(content);
-
-              final imports = <String>[];
-              final exports = <String>[];
-              final parts = <String>[];
-              final localRawEdges = <_TempEdge>[];
-              final localPackageImports = <PackageImport>[];
-
-              for (final directive in directives) {
-                switch (directive.type) {
-                  case 'export':
-                    exports.add(directive.uri);
-                  case 'part':
-                    parts.add(directive.uri);
-                  default:
-                    imports.add(directive.uri);
-                }
-
-                final package = directive.type == 'part'
-                    ? null
-                    : PackageImport.packageOf(directive.uri);
-                if (package != null && package != currentPkgName) {
-                  localPackageImports.add(
-                    PackageImport(
-                      file: relPath,
-                      uri: directive.uri,
-                      package: package,
-                      type: directive.type,
-                      line: directive.line,
-                    ),
-                  );
-                }
-
-                final resolvedTarget = ImportReader.resolveUri(
-                  uri: directive.uri,
-                  packageName: currentPkgName,
-                  importingFileRelativePath: relPath,
-                  workspacePackages: workspaceLibMap.isNotEmpty
-                      ? workspaceLibMap
-                      : null,
-                );
-
-                if (resolvedTarget != null) {
-                  localRawEdges.add(
-                    _TempEdge(
-                      from: relPath,
-                      to: resolvedTarget,
-                      type: directive.type,
-                      line: directive.line,
-                    ),
-                  );
-                }
-              }
-
-              rawEdges.addAll(localRawEdges);
-              packageImports.addAll(localPackageImports);
-              filesMap[relPath] = FileNode(
-                relativePath: relPath,
+              _readFile(
+                relPath: relPath,
                 absolutePath: entity.path,
-                imports: imports,
-                exports: exports,
-                parts: parts,
+                content: await entity.readAsString(),
+                packageName: currentPkgName,
+                workspaceLibs: workspaceLibMap.isNotEmpty
+                    ? workspaceLibMap
+                    : null,
+                files: filesMap,
+                edges: rawEdges,
+                packageImports: packageImports,
               );
             } on FileSystemException catch (e) {
               skippedFiles[relPath] = e.osError?.message ?? e.message;
@@ -202,11 +150,131 @@ class ProjectScanner {
       }
     }
 
+    return _finish(
+      packageName: primaryPkgName,
+      files: filesMap,
+      rawEdges: rawEdges,
+      packageImports: packageImports,
+      workspacePackageCount: workspacePkgs.isNotEmpty
+          ? workspacePkgs.length
+          : 1,
+      skippedFiles: skippedFiles,
+      packages: workspacePkgs.values.toList()
+        ..sort((x, y) => x.packagePath.compareTo(y.packagePath)),
+    );
+  }
+
+  /// Builds a [ScanResult] from file contents instead of the file system:
+  /// [sources] maps project-relative `/` paths (e.g. `lib/a.dart`) to their
+  /// contents. A single package: no workspace discovery and no excludes.
+  static ScanResult scanSources({
+    required String packageName,
+    required Map<String, String> sources,
+  }) {
+    final files = <String, FileNode>{};
+    final rawEdges = <_TempEdge>[];
+    final packageImports = <PackageImport>[];
+    for (final path in sources.keys.toList()..sort()) {
+      _readFile(
+        relPath: path,
+        absolutePath: path,
+        content: sources[path]!,
+        packageName: packageName,
+        workspaceLibs: null,
+        files: files,
+        edges: rawEdges,
+        packageImports: packageImports,
+      );
+    }
+    return _finish(
+      packageName: packageName,
+      files: files,
+      rawEdges: rawEdges,
+      packageImports: packageImports,
+    );
+  }
+
+  /// Reads one file's directives into [files], [edges] and [packageImports].
+  static void _readFile({
+    required String relPath,
+    required String absolutePath,
+    required String content,
+    required String packageName,
+    required Map<String, String>? workspaceLibs,
+    required Map<String, FileNode> files,
+    required List<_TempEdge> edges,
+    required List<PackageImport> packageImports,
+  }) {
+    final directives = ImportReader.extractDirectives(content);
+    final imports = <String>[];
+    final exports = <String>[];
+    final parts = <String>[];
+    for (final directive in directives) {
+      switch (directive.type) {
+        case 'export':
+          exports.add(directive.uri);
+        case 'part':
+          parts.add(directive.uri);
+        default:
+          imports.add(directive.uri);
+      }
+
+      final package = directive.type == 'part'
+          ? null
+          : PackageImport.packageOf(directive.uri);
+      if (package != null && package != packageName) {
+        packageImports.add(
+          PackageImport(
+            file: relPath,
+            uri: directive.uri,
+            package: package,
+            type: directive.type,
+            line: directive.line,
+          ),
+        );
+      }
+
+      final resolvedTarget = ImportReader.resolveUri(
+        uri: directive.uri,
+        packageName: packageName,
+        importingFileRelativePath: relPath,
+        workspacePackages: workspaceLibs,
+      );
+      if (resolvedTarget != null) {
+        edges.add(
+          _TempEdge(
+            from: relPath,
+            to: resolvedTarget,
+            type: directive.type,
+            line: directive.line,
+          ),
+        );
+      }
+    }
+    files[relPath] = FileNode(
+      relativePath: relPath,
+      absolutePath: absolutePath,
+      imports: imports,
+      exports: exports,
+      parts: parts,
+    );
+  }
+
+  /// Drops edges to unscanned files and sorts everything for stable output.
+  static ScanResult _finish({
+    required String packageName,
+    required Map<String, FileNode> files,
+    required List<_TempEdge> rawEdges,
+    required List<PackageImport> packageImports,
+    int workspacePackageCount = 1,
+    Map<String, String> skippedFiles = const {},
+    List<WorkspacePackage> packages = const [],
+  }) {
     // Keep only edges whose target was actually scanned, so files outside the
     // scan scope (or non-existent paths) never become phantom graph nodes.
     final validEdges = <GraphEdge>[];
     for (final edge in rawEdges) {
-      if (filesMap.containsKey(edge.to)) {
+      if (files.containsKey(edge.to)) {
         validEdges.add(
           GraphEdge(
             from: edge.from,
@@ -218,8 +286,6 @@ class ProjectScanner {
       }
     }
 
-    final pkgCount = workspacePkgs.isNotEmpty ? workspacePkgs.length : 1;
-
     // Files are read in parallel, so sort for a stable order.
     packageImports.sort(
       (a, b) => a.file != b.file
@@ -230,7 +296,7 @@ class ProjectScanner {
     // Sorted so graph traversal, cycle numbering and reports are identical
     // between runs (files are read in parallel and finish in any order).
     final sortedFiles = Map.fromEntries(
-      filesMap.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+      files.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
     );
     validEdges.sort((a, b) {
       for (final c in [
@@ -245,16 +311,15 @@ class ProjectScanner {
     });
 
     return ScanResult(
-      packageName: primaryPkgName,
+      packageName: packageName,
       files: sortedFiles,
       edges: validEdges,
-      workspacePackageCount: pkgCount,
+      workspacePackageCount: workspacePackageCount,
       skippedFiles: {
         for (final f in skippedFiles.keys.toList()..sort()) f: skippedFiles[f]!,
       },
       packageImports: packageImports,
-      packages: workspacePkgs.values.toList()
-        ..sort((a, b) => a.packagePath.compareTo(b.packagePath)),
+      packages: packages,
     );
   }
 }
