@@ -349,6 +349,16 @@ layers:
           64,
         );
         expect(await runCli([project.path, '--since', 'no-such-ref']), 2);
+        expect(
+          await runCli([
+            project.path,
+            '--since',
+            'main',
+            '--explain',
+            'lib/domain/a.dart',
+          ]),
+          64,
+        );
       },
     );
   });

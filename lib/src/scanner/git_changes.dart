@@ -30,7 +30,22 @@ class GitChanges {
     final top = _real(_git(['rev-parse', '--show-toplevel'], root).trim());
     final repoPaths = [
       ..._nulSplit(
-        _git(['diff', '--name-only', '-z', '--merge-base', ref], root),
+        _git(
+          [
+            'diff',
+            // Ignore user config that changes the output format.
+            '--no-relative',
+            '--no-ext-diff',
+            '--no-color',
+            '--name-only',
+            '-z',
+            '--merge-base',
+            ref,
+            '--',
+          ],
+          root,
+          ref: ref,
+        ),
       ),
       ..._nulSplit(
         _git([
@@ -60,7 +75,7 @@ class GitChanges {
   static List<String> _nulSplit(String s) =>
       s.split('\u0000').where((x) => x.isNotEmpty).toList();
 
-  static String _git(List<String> args, String cwd) {
+  static String _git(List<String> args, String cwd, {String? ref}) {
     final ProcessResult r;
     try {
       r = Process.runSync('git', args, workingDirectory: cwd);
@@ -74,10 +89,14 @@ class GitChanges {
         .first
         .trim()
         .replaceFirst(RegExp(r'\.$'), '');
-    if (err.contains('no merge base') || err.contains('unknown revision')) {
+    if (ref != null &&
+        (err.contains('no merge base') ||
+            err.contains('bad revision') ||
+            err.contains('unknown revision'))) {
       throw GitException(
-        '--since: cannot compare with "${args.last}": $err. In CI, fetch the '
-        'base branch with full history (actions/checkout `fetch-depth: 0`).',
+        '--since: cannot compare with "$ref": $err. Check that the ref '
+        'exists locally; in CI, fetch the base branch with full history '
+        '(actions/checkout `fetch-depth: 0`).',
       );
     }
     throw GitException('--since: git ${args.first} failed: $err');

@@ -233,8 +233,18 @@ class ArchAnalysis {
         l.where((v) => touches(v.sourceFile)).toList();
     List<PackageViolation> pkg(List<PackageViolation> l) =>
         l.where((v) => touches(v.sourceFile)).toList();
-    List<MetricViolation> met(List<MetricViolation> l) =>
-        l.where((v) => touches(v.file)).toList();
+    // A file goes over max_fan_in because another file starts importing it.
+    final importedByChanged = {
+      for (final e in scan.edges)
+        if (touches(e.from)) e.to,
+    };
+    List<MetricViolation> met(List<MetricViolation> l) => l
+        .where(
+          (v) =>
+              touches(v.file) ||
+              (v.metric == 'fan_in' && importedByChanged.contains(v.file)),
+        )
+        .toList();
     List<WorkspaceViolation> ws(List<WorkspaceViolation> l) =>
         l.where((v) => touches(v.sourceFile)).toList();
 

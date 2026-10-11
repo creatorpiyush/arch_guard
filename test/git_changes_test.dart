@@ -87,6 +87,25 @@ void main() {
     );
   });
 
+  test('a ref that is also a path name', () {
+    git(['branch', 'app', 'main']);
+    expect(GitChanges.since('app', projectRoot: repo.path), {
+      'app/lib/a.dart',
+      'app/lib/b.dart',
+      'app/lib/new file é.dart',
+      'other/x.dart',
+    });
+  });
+
+  test('ignores diff.relative in the user config', () {
+    git(['config', 'diff.relative', 'true']);
+    expect(GitChanges.since('main', projectRoot: p.join(repo.path, 'app')), {
+      'lib/a.dart',
+      'lib/b.dart',
+      'lib/new file é.dart',
+    });
+  });
+
   test('missing merge base explains how to fix shallow clones', () {
     expect(
       () => GitChanges.since('nope', projectRoot: repo.path),

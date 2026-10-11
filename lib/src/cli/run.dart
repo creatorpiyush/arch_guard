@@ -90,6 +90,10 @@ Future<int> runCli(List<String> args) async {
     stderr.writeln('Error: --since cannot be combined with --update-baseline.');
     return 64;
   }
+  if (since != null && (explainTarget?.isNotEmpty ?? false)) {
+    stderr.writeln('Error: --since cannot be combined with --explain.');
+    return 64;
+  }
 
   ArchAnalysis analysis;
   try {

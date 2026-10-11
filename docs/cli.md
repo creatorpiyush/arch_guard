@@ -27,7 +27,7 @@ arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 | `--workspace` / `--no-workspace` | | Auto-discover member packages in Dart 3.6+ workspace or monorepo. | `--workspace` (enabled) |
 | `--baseline` | | Baseline file of known problems. When it exists, only new problems fail the run. | `arch_guard_baseline.json` |
 | `--update-baseline` | | Write current cycles and layer violations to the baseline and exit `0`. | |
-| `--since` | | Only report (and fail on) problems touching files changed since the merge base with a git ref, plus uncommitted and untracked files, e.g. `origin/main`. The whole project is still analysed. Cannot be combined with `--update-baseline` (exit `64`); git errors exit `2`. | |
+| `--since` | | Only report (and fail on) problems touching files changed since the merge base with a git ref, plus uncommitted and untracked files, e.g. `origin/main`. The whole project is still analysed. Cannot be combined with `--update-baseline` or `--explain` (exit `64`); git errors exit `2`. A `max_fan_in` violation counts when a changed file imports the over-limit file. | |
 | `--version` | | Print the arch_guard version. | |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
 

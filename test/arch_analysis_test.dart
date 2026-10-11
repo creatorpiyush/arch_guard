@@ -146,6 +146,16 @@ layers:
       expect(some.cycles, hasLength(1));
     });
 
+    test('keeps a fan-in violation caused by a changed importer', () async {
+      write('arch_guard.yaml', 'metrics:\n  max_fan_in: 1\n');
+      write('lib/data/c.dart', "import '../domain/a.dart';\n");
+      final a = await ArchAnalysis.run(
+        projectPath: project.path,
+        since: 'main',
+      );
+      expect(a.metricViolations.map((v) => v.file), ['lib/domain/a.dart']);
+    });
+
     test('baseline fixed counts match a full run', () async {
       final full = await ArchAnalysis.run(projectPath: project.path);
       Baseline.capture(
