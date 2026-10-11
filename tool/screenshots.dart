@@ -1,6 +1,6 @@
 // Regenerates the README / docs screenshots in docs/images/.
 //
-// Runs arch_guard from source on example/sample_project, then drives a
+// Runs arch_guard from source on example/cases/sample_project, then drives a
 // headless Chrome over the DevTools protocol to capture the interactive HTML
 // graph and the colored terminal report.
 //
@@ -14,7 +14,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 final _repoRoot = p.normalize(p.join(p.dirname(Platform.script.path), '..'));
-final _sampleProject = p.join(_repoRoot, 'example', 'sample_project');
+final _sampleProject = p.join(_repoRoot, 'example', 'cases', 'sample_project');
 final _imagesDir = p.join(_repoRoot, 'docs', 'images');
 
 Future<void> main() async {

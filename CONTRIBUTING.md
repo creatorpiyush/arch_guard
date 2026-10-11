@@ -16,10 +16,10 @@ You need the Dart SDK 3.8 or later. The repository pins a Flutter version in `.f
 git clone https://github.com/creatorpiyush/arch_guard.git
 cd arch_guard
 dart pub get
-dart run bin/arch_guard.dart example/sample_project --no-fail-on-cycle
+dart run bin/arch_guard.dart example/cases/sample_project --no-fail-on-cycle
 ```
 
-`example/sample_project` deliberately contains two cycles and a layer violation, so it is handy for trying changes.
+`example/cases/sample_project` deliberately contains two cycles and a layer violation, so it is handy for trying changes.
 
 ## Checks
 

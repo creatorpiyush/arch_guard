@@ -27,7 +27,7 @@ void main() async {
 
 Future<void> scanSinglePackageWithMetrics() async {
   final scanner = ProjectScanner(
-    rootPath: 'example/sample_project',
+    rootPath: 'example/cases/sample_project',
     scanDirs: ['lib'],
   );
 
@@ -67,11 +67,11 @@ Future<void> scanSinglePackageWithMetrics() async {
 }
 
 Future<void> validateCleanArchitectureLayers() async {
-  // Load configuration directly from example/sample_project/arch_guard.yaml
-  final config = ArchGuardConfig.load('example/sample_project');
+  // Load configuration directly from example/cases/sample_project/arch_guard.yaml
+  final config = ArchGuardConfig.load('example/cases/sample_project');
 
   final scanner = ProjectScanner(
-    rootPath: 'example/sample_project',
+    rootPath: 'example/cases/sample_project',
     scanDirs: ['lib'],
   );
 
@@ -88,7 +88,7 @@ Future<void> validateCleanArchitectureLayers() async {
 
 Future<void> explainTargetFile() async {
   final scanner = ProjectScanner(
-    rootPath: 'example/sample_project',
+    rootPath: 'example/cases/sample_project',
     scanDirs: ['lib'],
   );
 
@@ -108,7 +108,7 @@ Future<void> explainTargetFile() async {
 
 Future<void> scanWorkspaceMonorepo() async {
   final scanner = ProjectScanner(
-    rootPath: 'example/sample_workspace',
+    rootPath: 'example/cases/sample_workspace',
     enableWorkspace: true,
   );
 
@@ -131,7 +131,7 @@ Future<void> runFullAnalysis() async {
   // one call. Pass `since: 'origin/main'` to keep only problems touching
   // files changed on the current branch (needs git).
   final analysis = await ArchAnalysis.run(
-    projectPath: 'example/sample_project',
+    projectPath: 'example/cases/sample_project',
   );
 
   print(
@@ -166,10 +166,10 @@ layers:
 metrics:
   max_fan_in: 1   # at most 1 project file may import a file
   max_fan_out: 1  # a file may import at most 1 project file
-''', rootPath: 'example/sample_project');
+''', rootPath: 'example/cases/sample_project');
 
   final result = await ProjectScanner(
-    rootPath: 'example/sample_project',
+    rootPath: 'example/cases/sample_project',
   ).scan();
 
   for (final v in PackageValidator.validate(result: result, config: config)) {
@@ -193,10 +193,10 @@ workspace_rules:
     allowed: []
   "packages/auth_package":
     allowed: ["packages/user_package"]
-''', rootPath: 'example/sample_workspace');
+''', rootPath: 'example/cases/sample_workspace');
 
   final result = await ProjectScanner(
-    rootPath: 'example/sample_workspace',
+    rootPath: 'example/cases/sample_workspace',
     enableWorkspace: true,
   ).scan();
 

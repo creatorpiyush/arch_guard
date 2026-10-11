@@ -28,7 +28,7 @@ void main() {
 
     test('returns exit code 1 when cycles found on sample_project', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '-f',
         'all',
         '-o',
@@ -39,7 +39,7 @@ void main() {
 
     test('returns exit code 0 when --explain passed', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--explain',
         'lib/services/auth_service.dart',
       ]);
@@ -48,7 +48,7 @@ void main() {
 
     test('returns exit code 0 for --format json', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '-f',
         'json',
@@ -62,7 +62,7 @@ void main() {
       'returns exit code 0 for --format mermaid with scope cycles',
       () async {
         final code = await runCli([
-          'example/sample_project',
+          'example/cases/sample_project',
           '--no-fail-on-cycle',
           '-f',
           'mermaid',
@@ -77,7 +77,7 @@ void main() {
 
     test('returns exit code 0 when --no-fail-on-cycle passed', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '-f',
         'all',
@@ -89,7 +89,7 @@ void main() {
 
     test('writes export files to the requested output directory', () async {
       await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '-f',
         'json',
@@ -108,7 +108,7 @@ void main() {
 
     test('writes SARIF and Markdown reports', () async {
       final code = await runCli([
-        'example/sample_project',
+        'example/cases/sample_project',
         '--no-fail-on-cycle',
         '--no-color',
         '-f',
@@ -287,7 +287,7 @@ layers:
     final baseline = p.join(tmp.path, 'b.json');
     List<String> args(List<String> extra) => [
       'bin/arch_guard.dart',
-      'example/sample_project',
+      'example/cases/sample_project',
       '--no-color',
       '--baseline',
       baseline,

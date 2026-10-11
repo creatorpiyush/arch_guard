@@ -3,8 +3,6 @@ include: package:lints/recommended.yaml
 analyzer:
   exclude:
     - test/fixtures/**
-    - example/sample_workspace/**
-    - example/sample_project/**
     - example/cases/**
     - arch_guard_lint/**
 
