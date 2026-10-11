@@ -65,11 +65,19 @@ class ProjectRules {
     if (packageRoot == null) return null;
     final root = _configRoot(packageRoot);
 
-    final configFile = _child(root, 'arch_guard.yaml');
     final baselineFile = _child(root, defaultBaselineFileName);
-    int stamp(File f) => f.exists ? f.modificationStamp : -1;
-    final pubspec = _child(root, 'pubspec.yaml');
-    final key = '${stamp(configFile)}:${stamp(pubspec)}:${stamp(baselineFile)}';
+    int stamp(String name) {
+      final f = _child(root, name);
+      return f.exists ? f.modificationStamp : -1;
+    }
+
+    // Every file the config can come from, plus the baseline.
+    final key = [
+      'arch_guard.yaml',
+      'dep_graph.yaml',
+      'pubspec.yaml',
+      defaultBaselineFileName,
+    ].map(stamp).join(':');
 
     final byPath = _cache[root.provider] ??= {};
     final cached = byPath[root.path];

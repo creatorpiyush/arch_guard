@@ -157,4 +157,31 @@ class LayerViolationRuleTest extends AnalysisRuleTest {
       lint(_badImport.indexOf("'"), "'../data/repo.dart'".length),
     ]);
   }
+
+  void test_conditionalImportIsChecked() async {
+    newFile('$testPackageRootPath/arch_guard.yaml', _config);
+    // The configured URI is checked even when the condition is false.
+    const code =
+        "import 'user.dart' if (dart.library.nope) '../data/repo.dart';\n"
+        'User? u;\n';
+    newFile(_userPath, code);
+    await assertDiagnosticsInFile(_userPath, [
+      lint(code.indexOf("'../data"), "'../data/repo.dart'".length),
+    ]);
+  }
+
+  void test_legacyConfigChangeIsPickedUp() async {
+    newFile('$testPackageRootPath/dep_graph.yaml', 'layers: {}\n');
+    newFile(_userPath, _badImport);
+    await assertNoDiagnosticsInFile(_userPath);
+
+    // Like an editor saving the file: a new content and modification stamp.
+    resourceProvider
+        .getFile(convertPath('$testPackageRootPath/dep_graph.yaml'))
+        .writeAsStringSync(_config);
+    newFile(_userPath, '$_badImport// edited\n');
+    await assertDiagnosticsInFile(_userPath, [
+      lint(_badImport.indexOf("'"), "'../data/repo.dart'".length),
+    ]);
+  }
 }

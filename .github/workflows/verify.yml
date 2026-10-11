@@ -128,3 +128,11 @@ jobs:
 
       - name: Run tests
         run: dart test
+
+      # Lower bounds must compile too. Only analysed: the oldest test-runner
+      # transitive deps (frontend_server_client) can't start on newer SDKs.
+      # analyzer_testing's floor pulls analyzer 9.0.0 here, so the plugin's
+      # own analyzer 8.4.0 floor is not compiled in this job.
+      - name: Analyze with the lowest allowed dependencies
+        if: matrix.sdk == '3.10.0'
+        run: dart pub downgrade && dart analyze --fatal-infos
