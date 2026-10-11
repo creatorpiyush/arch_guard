@@ -104,4 +104,16 @@ void main() {
       expect(cycle.toJson()['scc']['suggestedBreak']['from'], 'a');
     });
   });
+
+  test('hint points at the first directive of a pair', () {
+    final hint = CycleBreaker.suggest(
+      files: ['a', 'b'],
+      edges: const [
+        GraphEdge(from: 'a', to: 'b', line: 2),
+        GraphEdge(from: 'a', to: 'b', type: 'export', line: 5),
+        GraphEdge(from: 'b', to: 'a', line: 1),
+      ],
+    )!;
+    expect('${hint.from}:${hint.line}', 'a:2');
+  });
 }

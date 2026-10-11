@@ -195,9 +195,7 @@ Future<int> runCli(List<String> args) async {
   final cGreen = useColor ? '\x1B[32m' : '';
   final cReset = useColor ? '\x1B[0m' : '';
 
-  // Text summary report is always printed to terminal
-  final textReporter = TextReporter(useColor: useColor);
-  stdout.write(textReporter.formatReport(result: scanResult, cycles: cycles));
+  // Before the report, so "no cycles found" reads as "in changed files".
   if (analysis.changedFiles != null) {
     stdout.writeln(
       'Only problems touching ${analysis.changedFiles!.length} file(s) '
@@ -205,6 +203,10 @@ Future<int> runCli(List<String> args) async {
     );
     stdout.writeln();
   }
+
+  // Text summary report is always printed to terminal
+  final textReporter = TextReporter(useColor: useColor);
+  stdout.write(textReporter.formatReport(result: scanResult, cycles: cycles));
 
   if (newViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
@@ -291,7 +293,7 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
-  if (config.hasMetricRules && analysis.hotspots.isNotEmpty) {
+  if (config.metricsConfigured && analysis.hotspots.isNotEmpty) {
     stdout.writeln('Most coupled files:');
     for (final m in analysis.hotspots.take(5)) {
       stdout.writeln('  ${m.file}  in ${m.fanIn}  out ${m.fanOut}');
@@ -402,6 +404,8 @@ Future<int> runCli(List<String> args) async {
         workspaceViolations: workspaceViolations
             .map((v) => v.toJson())
             .toList(),
+        since: since,
+        changedFiles: analysis.changedFiles,
       );
       File(jsonPath).writeAsStringSync(jsonContent);
       stdout.writeln('Exported JSON data report to: $jsonPath');

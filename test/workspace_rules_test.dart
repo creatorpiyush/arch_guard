@@ -58,6 +58,19 @@ workspace_rules:
     );
   });
 
+  test(
+    'a rule whose allowed globs are all invalid is dropped, not "allow nothing"',
+    () {
+      final config = ArchGuardConfig.parse('''
+workspace_rules:
+  core:
+    allowed: ["packages/{y"]
+''', rootPath: dir.path);
+      expect(config.workspaceRules, isEmpty);
+      expect(config.warnings, contains(contains('ignoring the rule')));
+    },
+  );
+
   WorkspacePackage pkg(String name, String path) => WorkspacePackage(
     name: name,
     packagePath: path,
@@ -181,5 +194,13 @@ workspace_rules:
     final a = await ArchAnalysis.run(projectPath: single.path);
     expect(a.workspaceViolations, isEmpty);
     expect(a.warnings, contains(contains('workspace_rules is ignored')));
+  });
+
+  test('--no-workspace says why workspace_rules is ignored', () async {
+    final a = await ArchAnalysis.run(
+      projectPath: 'example/cases/workspace_rules',
+      enableWorkspace: false,
+    );
+    expect(a.warnings, contains(contains('--no-workspace')));
   });
 }

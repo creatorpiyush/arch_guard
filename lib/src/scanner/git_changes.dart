@@ -98,16 +98,30 @@ class GitChanges {
         .first
         .trim()
         .replaceFirst(RegExp(r'\.$'), '');
-    if (ref != null &&
-        (err.contains('no merge base') ||
-            err.contains('bad revision') ||
-            err.contains('unknown revision'))) {
-      throw GitException(
-        '--since: cannot compare with "$ref": $err. Check that the ref '
-        'exists locally; in CI, fetch the base branch with full history '
-        '(actions/checkout `fetch-depth: 0`).',
-      );
+    throw GitException(errorMessage(err, command: args.first, ref: ref));
+  }
+
+  /// The message for a failed `git <command>`, from git's first stderr line
+  /// [stderr]. [ref] is the ref passed to `--since`, if the command used it.
+  static String errorMessage(
+    String stderr, {
+    required String command,
+    String? ref,
+  }) {
+    // git < 2.28 rejects --no-relative first, git < 2.30 --merge-base.
+    if (RegExp(
+      r'(invalid|unknown) option:? \W*(--)?(merge-base|no-relative)',
+    ).hasMatch(stderr)) {
+      return '--since needs git 2.30 or newer ($stderr).';
     }
-    throw GitException('--since: git ${args.first} failed: $err');
+    if (ref != null &&
+        (stderr.contains('no merge base') ||
+            stderr.contains('bad revision') ||
+            stderr.contains('unknown revision'))) {
+      return '--since: cannot compare with "$ref": $stderr. Check that the '
+          'ref exists locally; in CI, fetch the base branch with full history '
+          '(actions/checkout `fetch-depth: 0`).';
+    }
+    return '--since: git $command failed: $stderr';
   }
 }

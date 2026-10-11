@@ -249,7 +249,9 @@ class ProjectScanner {
       files: sortedFiles,
       edges: validEdges,
       workspacePackageCount: pkgCount,
-      skippedFiles: skippedFiles,
+      skippedFiles: {
+        for (final f in skippedFiles.keys.toList()..sort()) f: skippedFiles[f]!,
+      },
       packageImports: packageImports,
       packages: workspacePkgs.values.toList()
         ..sort((a, b) => a.packagePath.compareTo(b.packagePath)),

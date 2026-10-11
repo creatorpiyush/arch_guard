@@ -64,8 +64,8 @@ class ArchAnalysis {
   /// The git ref passed to [run], if any.
   final String? since;
 
-  /// Files changed since [since], or `null` for a full run. When set, every
-  /// problem list holds only problems touching one of these files.
+  /// Scanned files changed since [since], or `null` for a full run. When set,
+  /// every problem list holds only problems touching one of these files.
   final Set<String>? changedFiles;
 
   /// Creates an analysis from already computed parts; usually built by [run].
@@ -198,7 +198,9 @@ class ArchAnalysis {
     );
     final warnings = <String>[
       if (config.workspaceRules.isNotEmpty && scan.packages.isEmpty)
-        'workspace_rules is ignored: this project is not a workspace.',
+        enableWorkspace
+            ? 'workspace_rules is ignored: this project is not a workspace.'
+            : 'workspace_rules is ignored with --no-workspace.',
       if (scan.packages.isNotEmpty)
         for (final pattern in WorkspaceValidator.unmatchedPatterns(
           result: scan,
@@ -263,7 +265,7 @@ class ArchAnalysis {
       coverage: LayerValidator.coverage(result: scan, config: config),
       baselinePath: absBaseline,
       since: since,
-      changedFiles: changed,
+      changedFiles: changed?.where(scan.files.containsKey).toSet(),
       baseline: comparison == null
           ? null
           : BaselineComparison(

@@ -13,6 +13,8 @@ class JsonExporter {
     List<Map<String, dynamic>>? metricViolations,
     List<Map<String, dynamic>>? hotspots,
     List<Map<String, dynamic>>? workspaceViolations,
+    String? since,
+    Set<String>? changedFiles,
   }) {
     final payload = {
       'packageName': result.packageName,
@@ -37,6 +39,8 @@ class JsonExporter {
       'metricViolations': ?metricViolations,
       'hotspots': ?hotspots,
       'workspaceViolations': ?workspaceViolations,
+      'since': ?since,
+      'changedFiles': ?(changedFiles?.toList()?..sort()),
     };
 
     return const JsonEncoder.withIndent('  ').convert(payload);
