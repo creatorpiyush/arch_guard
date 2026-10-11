@@ -43,6 +43,7 @@ export 'src/models/workspace_package.dart';
 export 'src/reporters/text_reporter.dart';
 export 'src/scanner/project_scanner.dart';
 export 'src/scanner/default_excludes.dart';
+export 'src/scanner/git_changes.dart';
 export 'src/scanner/layout_detector.dart';
 export 'src/scanner/pubspec_reader.dart';
 export 'src/version.dart';
