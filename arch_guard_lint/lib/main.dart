@@ -1,5 +1,5 @@
-/// Analyzer plugin that reports arch_guard layer violations and forbidden
-/// package imports as warnings.
+/// Analyzer plugin that reports arch_guard layer violations, forbidden
+/// package imports and circular dependencies as warnings, with quick fixes.
 ///
 /// Enable it in `analysis_options.yaml`; see the package README.
 library;
@@ -7,6 +7,7 @@ library;
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
+import 'src/circular_dependency_rule.dart';
 import 'src/fixes/allow_layer_import.dart';
 import 'src/fixes/remove_directive.dart';
 import 'src/forbidden_package_rule.dart';
@@ -27,8 +28,13 @@ class ArchGuardPlugin extends Plugin {
   void register(PluginRegistry registry) {
     registry.registerWarningRule(LayerViolationRule());
     registry.registerWarningRule(ForbiddenPackageRule());
+    registry.registerWarningRule(CircularDependencyRule());
     registry.registerFixForRule(LayerViolationRule.code, RemoveDirective.new);
     registry.registerFixForRule(LayerViolationRule.code, AllowLayerImport.new);
     registry.registerFixForRule(ForbiddenPackageRule.code, RemoveDirective.new);
+    registry.registerFixForRule(
+      CircularDependencyRule.code,
+      RemoveDirective.new,
+    );
   }
 }
