@@ -29,6 +29,7 @@ export 'src/exporters/json_exporter.dart';
 export 'src/exporters/markdown_exporter.dart';
 export 'src/exporters/mermaid_exporter.dart';
 export 'src/exporters/sarif_exporter.dart';
+export 'src/graph/cycle_breaker.dart';
 export 'src/graph/dependency_explainer.dart';
 export 'src/graph/dependency_graph.dart';
 export 'src/models/config_model.dart';
