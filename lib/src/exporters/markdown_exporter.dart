@@ -167,8 +167,14 @@ class MarkdownExporter {
       _writeCapped(b, newCycles, (c) {
         final id = c.scc?.id;
         final chain = c.exampleChain.map((f) => '`$f`').join(' → ');
+        final hint = c.scc?.suggestedBreak;
+        final fix = hint == null
+            ? ''
+            : ' Suggested fix: remove `${hint.from}'
+                  '${hint.line != null ? ':${hint.line}' : ''}` → `${hint.to}`'
+                  '${hint.breaksCycle ? '' : ' (shrinks it to ${hint.remainingLargestCycle} files)'}.';
         return '- ${id != null ? '**Cycle $id** ' : ''}(${c.files.length} files): '
-            '$chain';
+            '$chain$fix';
       });
       b.writeln();
     }

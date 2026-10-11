@@ -107,6 +107,8 @@ The [presets guide](https://creatorpiyush.github.io/arch_guard/presets.html) has
 
 To fix a violation, invert the dependency (an interface in the importing layer, implemented by the imported one), move the code to a layer it may import, or, if the dependency is intended, add the layer to `allowed_imports`.
 
+Each cycle comes with a `Suggested fix:` line naming the one import whose removal breaks it, or, when no single import does, the one that shrinks it most.
+
 ## Adopting on an existing codebase
 
 ```bash
@@ -132,7 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.6.0
+      - uses: creatorpiyush/arch_guard@v1.7.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).

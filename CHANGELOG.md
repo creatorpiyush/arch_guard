@@ -1,3 +1,7 @@
+# 1.7.0
+
+- **New: cycle-breaking hints.** Each circular-dependency group now names the one import whose removal breaks it (or shrinks it most), in the terminal, Markdown, SARIF and JSON (`scc.suggestedBreak`). Library: `CycleBreaker`, `CycleBreak`.
+
 # 1.6.0
 
 - **New: metric limits.** `metrics: max_fan_out / max_fan_in` fail the run when a file imports, or is imported by, too many project files. Baselines ratchet: a known file that gets worse fails again. Reports list the most coupled files (`hotspots`, default 10) in Markdown and JSON, and in the terminal when limits are set. SARIF rule `metric-limit`. Library: `FileMetrics`, `MetricValidator`.

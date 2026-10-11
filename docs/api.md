@@ -57,6 +57,7 @@ void main() async {
 | `expectArchitecture()` | In `package:arch_guard/testing.dart`: runs `ArchAnalysis` and throws `ArchitectureViolationException` on failures. See [Testing](testing.md). |
 | `ProjectScanner` | Finds Dart files (and workspace packages) and reads their directives into a `ScanResult`. |
 | `DependencyGraph` | Builds the graph and finds strongly connected components (`findCircularDependencies`). |
+| `CycleBreaker` | Suggests the import to remove to break a cycle (`suggest`); `DependencyGraph` attaches it as `SccComponent.suggestedBreak` (`CycleBreak`). |
 | `ArchGuardConfig` | Loads `arch_guard.yaml` / `pubspec.yaml`, including presets. |
 | `LayerValidator` | Checks edges against layers (`validate`) and reports layer coverage (`coverage`). |
 | `FileMetrics` | Fan-in, fan-out and instability per file (`FileMetrics.compute(scanResult)`), most coupled first. |

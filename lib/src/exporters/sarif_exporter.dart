@@ -167,7 +167,8 @@ class SarifExporter {
         'message': {
           'text':
               'Circular dependency (${id != null ? 'SCC #$id, ' : ''}'
-              '${cycle.files.length} files): ${chain.join(' → ')}',
+              '${cycle.files.length} files): ${chain.join(' → ')}'
+              '${cycle.scc?.suggestedBreak == null ? '' : '. Suggested fix: remove ${cycle.scc!.suggestedBreak!.describe()}'}',
         },
         'locations': [
           location(first, line: next == null ? null : lineOf['$first\n$next']),
