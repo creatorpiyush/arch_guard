@@ -2,6 +2,7 @@
 
 - **New: cycle-breaking hints.** Each circular-dependency group now names the one import whose removal breaks it (or shrinks it most), in the terminal, Markdown, SARIF and JSON (`scc.suggestedBreak`). Library: `CycleBreaker`, `CycleBreak`.
 - **New: `--since <git-ref>`.** Reports (and fails on) only problems touching files changed since the merge base with a ref, plus uncommitted and untracked files, while still analysing the whole project. Baseline "fixed" counts stay accurate. Also available as `expectArchitecture(since:)` and `ArchAnalysis.run(since:)`. Needs full history in CI (`fetch-depth: 0`).
+- **Docs: a runnable example for every rule.** `example/example.dart` now shows cycle hints, `ArchAnalysis.run()`, forbidden packages, metric limits and workspace rules with real output; the CLI and testing docs gain `--since` and cycle-fix recipes.
 
 # 1.6.0
 

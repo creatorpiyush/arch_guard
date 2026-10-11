@@ -17,6 +17,12 @@ void main() async {
 
   print('\n=== 5. Everything in One Call (what the CLI runs) ===');
   await runFullAnalysis();
+
+  print('\n=== 6. Forbidden Packages and Metric Limits ===');
+  await checkPackagesAndMetrics();
+
+  print('\n=== 7. Workspace Rules ===');
+  await checkWorkspaceRules();
 }
 
 Future<void> scanSinglePackageWithMetrics() async {
@@ -143,5 +149,59 @@ Future<void> runFullAnalysis() async {
   print('${failures.length} problem(s) would fail the run:');
   for (final f in failures) {
     print('  - $f');
+  }
+}
+
+Future<void> checkPackagesAndMetrics() async {
+  // Usually this lives in arch_guard.yaml; parsed inline here so the sample
+  // project's own config stays untouched.
+  final config = ArchGuardConfig.parse('''
+forbidden_packages:
+  - "dart:mirrors"          # nowhere in the project
+layers:
+  models:
+    patterns: ["lib/models/**"]
+    allowed_imports: [models]
+    forbidden_packages: ["dart:convert"]   # models stay plain data
+metrics:
+  max_fan_in: 1   # at most 1 project file may import a file
+  max_fan_out: 1  # a file may import at most 1 project file
+''', rootPath: 'example/sample_project');
+
+  final result = await ProjectScanner(
+    rootPath: 'example/sample_project',
+  ).scan();
+
+  for (final v in PackageValidator.validate(result: result, config: config)) {
+    print('  $v');
+    print('    ${v.rule}');
+  }
+  final metrics = MetricValidator.validate(
+    metrics: FileMetrics.compute(result),
+    config: config,
+  );
+  for (final v in metrics) {
+    print('  $v');
+  }
+}
+
+Future<void> checkWorkspaceRules() async {
+  // user_package is the base package: it may not depend on other members.
+  final config = ArchGuardConfig.parse('''
+workspace_rules:
+  "packages/user_package":
+    allowed: []
+  "packages/auth_package":
+    allowed: ["packages/user_package"]
+''', rootPath: 'example/sample_workspace');
+
+  final result = await ProjectScanner(
+    rootPath: 'example/sample_workspace',
+    enableWorkspace: true,
+  ).scan();
+
+  for (final v in WorkspaceValidator.validate(result: result, config: config)) {
+    print('  $v');
+    print('    ${v.rule}');
   }
 }
