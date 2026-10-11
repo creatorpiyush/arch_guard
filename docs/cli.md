@@ -27,6 +27,7 @@ arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 | `--workspace` / `--no-workspace` | | Auto-discover member packages in Dart 3.6+ workspace or monorepo. | `--workspace` (enabled) |
 | `--baseline` | | Baseline file of known problems. When it exists, only new problems fail the run. | `arch_guard_baseline.json` |
 | `--update-baseline` | | Write current cycles and layer violations to the baseline and exit `0`. | |
+| `--since` | | Only report (and fail on) problems touching files changed since the merge base with a git ref, plus uncommitted and untracked files, e.g. `origin/main`. The whole project is still analysed. Cannot be combined with `--update-baseline` (exit `64`); git errors exit `2`. | |
 | `--version` | | Print the arch_guard version. | |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
 
@@ -99,7 +100,7 @@ arch_guard . -f sarif -f markdown -o build/reports
 | :---: | :--- |
 | `0` | **Success**: Scan completed with zero circular dependencies or layer violations. |
 | `1` | **Violations / Cycles Found**: Circular dependencies or Clean Architecture layer violations detected (only new ones when a baseline exists). |
-| `2` | **Scan Error**: Provided directory does not exist, the project could not be scanned, or the baseline file is invalid. |
+| `2` | **Scan Error**: Provided directory does not exist, the project could not be scanned, the baseline file is invalid, or git failed for `--since`. |
 | `64` | **Usage Error**: Invalid CLI flags or arguments provided (`EX_USAGE`). |
 
 ## Standalone binaries (no Dart SDK needed)

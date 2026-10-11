@@ -53,6 +53,19 @@ Code Scanning (`upload-sarif: true`) is free for public repositories; private re
 
 The PR comment looks like this: a status line, a summary table, the new problems with the rule each one breaks, and the cycle graph in a collapsible Mermaid block.
 
+### Large repositories: only changed files
+
+`--since` reports only problems that touch files changed on the branch, so a PR in a big repository isn't blamed for old problems elsewhere. The whole project is still analysed (cycles need the full graph).
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # --since needs the merge base
+      - uses: creatorpiyush/arch_guard@v1.7.0
+        with:
+          args: --since origin/${{ github.base_ref }}
+```
+
 ## GitLab CI
 
 ```yaml

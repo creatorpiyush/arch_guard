@@ -53,7 +53,7 @@ void main() async {
 
 | Class | Purpose |
 | :--- | :--- |
-| `ArchAnalysis` | Runs a full analysis in one call (`ArchAnalysis.run()`): scan, cycles, layer and package rules, baseline. `failures()` lists what would fail the CLI. |
+| `ArchAnalysis` | Runs a full analysis in one call (`ArchAnalysis.run()`): scan, cycles, layer and package rules, baseline. `failures()` lists what would fail the CLI. `run(since: 'origin/main')` keeps only problems touching changed files (`GitChanges`). |
 | `expectArchitecture()` | In `package:arch_guard/testing.dart`: runs `ArchAnalysis` and throws `ArchitectureViolationException` on failures. See [Testing](testing.md). |
 | `ProjectScanner` | Finds Dart files (and workspace packages) and reads their directives into a `ScanResult`. |
 | `DependencyGraph` | Builds the graph and finds strongly connected components (`findCircularDependencies`). |
