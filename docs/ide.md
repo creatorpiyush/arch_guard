@@ -45,7 +45,7 @@ warning - lib/domain/user.dart:1:8 - This import closes a circular dependency of
 - It needs no `arch_guard.yaml`. If one exists, its `ignore:` globs apply. Generated files (`*.g.dart`, `*.freezed.dart`…) never count.
 - It covers the files in this package's `lib/`. Cycles across workspace packages are found by the CLI.
 - Cycles in `arch_guard_baseline.json` are not shown.
-- After an edit elsewhere in `lib/`, the warning updates within about two seconds.
+- Editing a file in the cycle, or the file with the warning, updates it on the next analysis. Other changes in `lib/` are picked up within about two seconds.
 
 To turn it off:
 

@@ -59,28 +59,43 @@ class _Visitor extends SimpleAstVisitor<void> {
 
   @override
   void visitImportDirective(ImportDirective node) =>
-      _check(node, node.libraryImport?.uri);
+      _checkDirective(node, node.libraryImport?.uri);
 
   @override
   void visitExportDirective(ExportDirective node) =>
-      _check(node, node.libraryExport?.uri);
+      _checkDirective(node, node.libraryExport?.uri);
 
-  void _check(NamespaceDirective node, DirectiveUri? target) {
-    if (target is! DirectiveUriWithSource) return;
-    final cycles = _PackageCycles.of(context);
-    if (cycles == null) return;
+  void _checkDirective(NamespaceDirective node, DirectiveUri? selected) {
     final unit = context.currentUnit ?? context.definingUnit;
-    final from = cycles.relative(unit.file.path);
-    final hints = cycles.byFile[from];
+    final cycles = _PackageCycles.of(context, unit.file);
+    if (cycles == null) return;
+    final hints = cycles.byFile[cycles.relative(unit.file.path)];
     if (hints == null) return;
-    final to = cycles.relative(target.source.fullName);
+    // ImportReader numbers every URI of a directive by its keyword's line,
+    // after any doc comment or annotations.
     final line = (node.root as CompilationUnit).lineInfo
-        .getLocation(node.offset)
+        .getLocation(node.firstTokenAfterCommentAndMetadata.offset)
         .lineNumber;
+    _check(node.uri, selected, line, cycles, hints);
+    // Every `if (…) 'uri'` clause is an edge too (see layer_violation).
+    for (final c in node.configurations) {
+      _check(c.uri, c.resolvedUri, line, cycles, hints);
+    }
+  }
+
+  void _check(
+    StringLiteral uriNode,
+    DirectiveUri? target,
+    int line,
+    _PackageCycles cycles,
+    List<(CycleBreak, Cycle)> hints,
+  ) {
+    if (target is! DirectiveUriWithSource) return;
+    final to = cycles.relative(target.source.fullName);
     for (final (hint, cycle) in hints) {
       if (hint.to != to || hint.line != line) continue;
       rule.reportAtNode(
-        node.uri,
+        uriNode,
         arguments: [
           'This import closes a circular dependency of '
               '${cycle.files.length} files: ${cycle.exampleChain.join(' -> ')}. '
@@ -100,10 +115,24 @@ class _PackageCycles {
   final String _key;
   DateTime _checkedAt;
 
+  /// Modification stamps of the scanned files, by absolute path; empty when
+  /// the last computation failed.
+  final Map<String, int> _stamps;
+
+  /// Absolute paths of the files in a reported cycle.
+  final Set<String> _cycleFiles;
+
   /// Hints grouped by the importing file (relative `/` path).
   final Map<String, List<(CycleBreak, Cycle)>> byFile;
 
-  _PackageCycles(this._root, this._key, this._checkedAt, this.byFile);
+  _PackageCycles(
+    this._root,
+    this._key,
+    this._checkedAt,
+    this._stamps,
+    this._cycleFiles,
+    this.byFile,
+  );
 
   /// [path] relative to the package root, with `/` separators.
   String relative(String path) {
@@ -111,10 +140,23 @@ class _PackageCycles {
     return ctx.split(ctx.relative(path, from: _root.path)).join('/');
   }
 
+  /// Whether the file being analyzed, or a file in a reported cycle, changed
+  /// since the last computation (cheap: a few stamps, no walk of `lib/`).
+  bool _touched(File current) {
+    if (_stamps.isEmpty) return false; // failed last time: wait for recheck
+    int stamp(String path) {
+      final f = _root.provider.getFile(path);
+      return f.exists ? f.modificationStamp : -1;
+    }
+
+    return stamp(current.path) != (_stamps[current.path] ?? -1) ||
+        _cycleFiles.any((path) => stamp(path) != _stamps[path]);
+  }
+
   // Keyed by provider so in-memory test providers never share entries.
   static final _cache = Expando<Map<String, _PackageCycles>>();
 
-  static _PackageCycles? of(RuleContext context) {
+  static _PackageCycles? of(RuleContext context, File current) {
     if (!context.isInLibDir) return null;
     final root = context.package?.root;
     if (root == null) return null;
@@ -123,12 +165,14 @@ class _PackageCycles {
     final now = DateTime.now();
     if (cached != null &&
         now.difference(cached._checkedAt) <
-            CircularDependencyRule.recheckAfter) {
+            CircularDependencyRule.recheckAfter &&
+        !cached._touched(current)) {
       return cached;
     }
     try {
-      // ponytail: walks lib/ at most every recheckAfter, O(files) per check.
-      // Upgrade path: invalidate from the analysis server's change events.
+      // ponytail: walks lib/ at most every recheckAfter (or when a file in a
+      // cycle or the analyzed file changed), O(files) per walk. Upgrade path:
+      // invalidate from the analysis server's change events.
       final files = _dartFiles(root);
       final key = [
         for (final f in files) '${f.path}:${f.modificationStamp}',
@@ -139,8 +183,16 @@ class _PackageCycles {
       }
       return byPath[root.path] = _compute(root, files, key, now);
     } catch (_) {
-      // Never let a problem here throw inside the analysis server.
-      return null;
+      // Never throw inside the analysis server; remember the failure so the
+      // next files don't repeat the walk until the recheck interval passes.
+      return byPath[root.path] = _PackageCycles(
+        root,
+        '',
+        now,
+        const {},
+        const {},
+        const {},
+      );
     }
   }
 
@@ -183,11 +235,15 @@ class _PackageCycles {
     final ctx = root.provider.pathContext;
     String rel(String path) =>
         ctx.split(ctx.relative(path, from: root.path)).join('/');
-    final pubspec = _file(root, 'pubspec.yaml');
-    final doc = pubspec.exists ? loadYaml(pubspec.readAsStringSync()) : null;
-    final name = doc is Map && doc['name'] is String
-        ? doc['name'] as String
-        : root.shortName;
+    var name = root.shortName;
+    try {
+      final pubspec = _file(root, 'pubspec.yaml');
+      final doc = pubspec.exists ? loadYaml(pubspec.readAsStringSync()) : null;
+      if (doc is Map && doc['name'] is String) name = doc['name'] as String;
+    } catch (_) {
+      // A half-edited pubspec: the folder name only matters for
+      // `package:<self>/` imports.
+    }
 
     final scan = ProjectScanner.scanSources(
       packageName: name,
@@ -213,7 +269,18 @@ class _PackageCycles {
       final hint = cycle.scc?.suggestedBreak;
       if (hint != null) (byFile[hint.from] ??= []).add((hint, cycle));
     }
-    return _PackageCycles(root, key, now, byFile);
+    return _PackageCycles(
+      root,
+      key,
+      now,
+      {for (final f in files) f.path: f.modificationStamp},
+      {
+        for (final c in cycles)
+          for (final f in c.files)
+            ctx.join(root.path, ctx.joinAll(f.split('/'))),
+      },
+      byFile,
+    );
   }
 
   // `Folder.getFile`/`getFolder` only exist from analyzer 14.

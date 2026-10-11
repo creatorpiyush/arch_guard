@@ -100,4 +100,42 @@ class CircularDependencyRuleTest extends AnalysisRuleTest {
     final (out, _) = await applyFix(this, _aPath, RemoveDirective.new);
     expect(out[convertPath(_aPath)], 'class A {}\n');
   }
+
+  void test_docCommentAboveTheImport() async {
+    const code = "/// Docs.\nimport 'b.dart';\nB? b;\nclass A {}\n";
+    newFile(_aPath, code);
+    newFile(_bPath, _b);
+    await assertDiagnosticsInFile(_aPath, [
+      lint(code.indexOf("'b.dart'"), "'b.dart'".length),
+    ]);
+  }
+
+  void test_cycleThroughAConditionalClause() async {
+    newFile('$testPackageLibPath/stub.dart', 'class B {}\n');
+    const code =
+        "import 'stub.dart' if (dart.library.nope) 'b.dart';\n"
+        'B? b;\nclass A {}\n';
+    newFile(_aPath, code);
+    newFile(_bPath, _b);
+    await assertDiagnosticsInFile(_aPath, [
+      lint(code.indexOf("'b.dart'"), "'b.dart'".length),
+    ]);
+  }
+
+  void test_editInTheCycleIsSeenInsideTheRecheckWindow() async {
+    CircularDependencyRule.recheckAfter = const Duration(hours: 1);
+    newFile(_aPath, _a);
+    newFile(_bPath, _b);
+    await assertDiagnosticsInFile(_aPath, [lint(7, "'b.dart'".length)]);
+    newFile(_bPath, 'class B {}\n'); // cycle gone
+    newFile(_aPath, '$_a// edited\n');
+    await assertNoDiagnosticsInFile(_aPath);
+  }
+
+  void test_brokenPubspecStillWorks() async {
+    newFile('$testPackageRootPath/pubspec.yaml', 'name: test\nversion: [');
+    newFile(_aPath, _a);
+    newFile(_bPath, _b);
+    await assertDiagnosticsInFile(_aPath, [lint(7, "'b.dart'".length)]);
+  }
 }
