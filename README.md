@@ -31,7 +31,7 @@ dart run arch_guard          # checks the project
 - 🎯 **`--since origin/main`.** Report only problems touching files changed on the branch.
 - 🩹 **Cycle-breaking hints.** Each cycle names the one import to remove to break it.
 - 🧪 **Architecture tests.** `await expectArchitecture();` in `dart test` / `flutter test` runs the same checks. See [Testing](https://creatorpiyush.github.io/arch_guard/testing.html).
-- 💡 **IDE warnings.** The `arch_guard_lint` analyzer plugin underlines layer violations and forbidden imports as you type. See [IDE](https://creatorpiyush.github.io/arch_guard/ide.html).
+- 💡 **IDE warnings and quick fixes.** The `arch_guard_lint` analyzer plugin underlines layer violations, forbidden imports and the import that closes each cycle as you type, with one-click fixes. See [IDE](https://creatorpiyush.github.io/arch_guard/ide.html).
 - 🤖 **CI-ready.** A GitHub Action that comments on PRs, SARIF for GitHub Code Scanning, Markdown job summaries, pre-commit hooks, standalone binaries.
 - 🎨 **Graphs.** Interactive HTML (works offline), Mermaid, Graphviz DOT and JSON.
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.7.1
+      - uses: creatorpiyush/arch_guard@v1.8.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).

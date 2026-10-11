@@ -1,3 +1,7 @@
+# 1.8.0
+
+- **New: `ProjectScanner.scanSources()`.** Builds a `ScanResult` from in-memory file contents instead of the file system. The `arch_guard_lint` 0.2.0 plugin uses it for live cycle warnings that include unsaved editor changes.
+
 # 1.7.1
 
 - **`--since` output:**

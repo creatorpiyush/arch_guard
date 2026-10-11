@@ -48,7 +48,7 @@ Exit code `1`. Only the new file is reported.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.7.1
+      - uses: creatorpiyush/arch_guard@v1.8.0
         with:
           args: --since origin/${{ github.base_ref }}
 ```
