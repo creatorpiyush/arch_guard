@@ -338,6 +338,22 @@ layers:
 
     tearDown(() => project.deleteSync(recursive: true));
 
+    test('note comes first and counts only scanned files', () {
+      write('notes.txt', 'not Dart'); // changed, but not scanned
+      write('lib/data/c.dart', '');
+      final r = Process.runSync('dart', [
+        'bin/arch_guard.dart',
+        project.path,
+        '--since',
+        'main',
+        '--no-color',
+      ]);
+      final out = r.stdout as String;
+      const note = 'Only problems touching 1 file(s) changed since main.';
+      expect(out, contains(note));
+      expect(out.indexOf(note), lessThan(out.indexOf('Scan Summary')));
+    });
+
     test(
       '--since narrows, rejects --update-baseline, and reports git errors',
       () async {
@@ -361,5 +377,25 @@ layers:
         );
       },
     );
+  });
+
+  test('metrics: hotspots alone lists the most coupled files', () {
+    final dir = Directory.systemTemp.createTempSync('arch_guard_hot_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    File(p.join(dir.path, 'pubspec.yaml')).writeAsStringSync('name: app\n');
+    File(
+      p.join(dir.path, 'arch_guard.yaml'),
+    ).writeAsStringSync('metrics:\n  hotspots: 3\n');
+    Directory(p.join(dir.path, 'lib')).createSync();
+    File(
+      p.join(dir.path, 'lib', 'a.dart'),
+    ).writeAsStringSync("import 'b.dart';\n");
+    File(p.join(dir.path, 'lib', 'b.dart')).writeAsStringSync('');
+    final r = Process.runSync('dart', [
+      'bin/arch_guard.dart',
+      dir.path,
+      '--no-color',
+    ]);
+    expect(r.stdout, contains('Most coupled files'));
   });
 }

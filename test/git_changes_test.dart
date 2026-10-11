@@ -118,4 +118,19 @@ void main() {
       ),
     );
   });
+
+  test('old git without --merge-base gets a version hint', () {
+    expect(
+      GitChanges.errorMessage(
+        'error: invalid option: --merge-base',
+        command: 'diff',
+        ref: 'main',
+      ),
+      contains('git 2.30'),
+    );
+    expect(
+      GitChanges.errorMessage('fatal: bad revision', command: 'diff', ref: 'x'),
+      contains('fetch-depth: 0'),
+    );
+  });
 }

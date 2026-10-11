@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:arch_guard/arch_guard.dart';
 import 'package:test/test.dart';
 
@@ -206,5 +208,25 @@ void main() {
         contains('-. part .->'),
       );
     });
+  });
+
+  test('JSON records --since', () {
+    const result = ScanResult(packageName: 'p', files: {}, edges: []);
+    final json =
+        jsonDecode(
+              JsonExporter.export(
+                result: result,
+                cycles: const [],
+                since: 'main',
+                changedFiles: const {'lib/b.dart', 'lib/a.dart'},
+              ),
+            )
+            as Map<String, dynamic>;
+    expect(json['since'], 'main');
+    expect(json['changedFiles'], ['lib/a.dart', 'lib/b.dart']);
+    expect(
+      jsonDecode(JsonExporter.export(result: result, cycles: const [])),
+      isNot(contains('since')),
+    );
   });
 }

@@ -65,6 +65,9 @@ class ArchGuardConfig {
   /// How many most-coupled files reports list (`metrics: hotspots`).
   final int hotspotCount;
 
+  /// Whether the config has a `metrics:` section (limits or just `hotspots`).
+  final bool metricsConfigured;
+
   /// Whether any metric limit is configured.
   bool get hasMetricRules => maxFanOut != null || maxFanIn != null;
 
@@ -87,6 +90,7 @@ class ArchGuardConfig {
     this.maxFanOut,
     this.maxFanIn,
     this.hotspotCount = 10,
+    this.metricsConfigured = false,
     this.workspaceRules = const {},
     this.warnings = const [],
     this.sourcePath,
@@ -333,12 +337,22 @@ class ArchGuardConfig {
           );
           return;
         }
-        workspaceRules[selector] = _validGlobs(
+        final allowed = _validGlobs(
           rawAllowed.map((e) => e.toString()),
           'workspace_rules `$selector` `allowed`',
           source,
           warnings,
         );
+        // Every entry invalid: don't silently turn the rule into "allow
+        // nothing".
+        if (rawAllowed.isNotEmpty && allowed.isEmpty) {
+          warnings.add(
+            '$source: workspace_rules `$selector` has no valid `allowed` '
+            'entries; ignoring the rule.',
+          );
+          return;
+        }
+        workspaceRules[selector] = allowed;
       });
     } else if (rawRules != null) {
       warnings.add('$source: `workspace_rules` must be a map.');
@@ -456,6 +470,7 @@ class ArchGuardConfig {
       maxFanOut: maxFanOut,
       maxFanIn: maxFanIn,
       hotspotCount: hotspots,
+      metricsConfigured: rawMetrics is Map,
       workspaceRules: workspaceRules,
       warnings: warnings,
       sourcePath: sourcePath,

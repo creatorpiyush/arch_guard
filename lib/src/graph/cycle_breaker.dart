@@ -60,14 +60,22 @@ class CycleBreaker {
       for (final e in edges)
         if (fileSet.contains(e.from) && fileSet.contains(e.to)) e,
     ];
-    final candidates =
-        {
-          for (final e in internal)
-            if (e.type != 'part') '${e.from}\n${e.to}': e,
-        }.values.toList()..sort((a, b) {
-          final c = a.from.compareTo(b.from);
-          return c != 0 ? c : a.to.compareTo(b.to);
-        });
+    // One candidate per file pair, pointing at its first import/export line.
+    final byPair = <String, GraphEdge>{};
+    for (final e in internal) {
+      if (e.type == 'part') continue;
+      final key = '${e.from}\n${e.to}';
+      final seen = byPair[key];
+      if (seen == null ||
+          (e.line != null && (seen.line == null || e.line! < seen.line!))) {
+        byPair[key] = e;
+      }
+    }
+    final candidates = byPair.values.toList()
+      ..sort((a, b) {
+        final c = a.from.compareTo(b.from);
+        return c != 0 ? c : a.to.compareTo(b.to);
+      });
     // ponytail: E × (V+E) per group; past maxEdges we skip the hint rather
     // than slow the run. Upgrade path: a greedy feedback-arc-set heuristic.
     if (candidates.isEmpty || candidates.length > maxEdges) return null;
