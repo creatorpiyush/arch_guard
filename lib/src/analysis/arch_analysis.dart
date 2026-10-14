@@ -271,6 +271,7 @@ class ArchAnalysis {
           : BaselineComparison(
               newCycles: cyc(comparison.newCycles),
               knownCycles: cyc(comparison.knownCycles),
+              newCycleReasons: comparison.newCycleReasons,
               newViolations: lay(comparison.newViolations),
               knownViolations: lay(comparison.knownViolations),
               newPackageViolations: pkg(comparison.newPackageViolations),

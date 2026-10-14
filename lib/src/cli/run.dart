@@ -346,6 +346,8 @@ Future<int> runCli(List<String> args) async {
         '    New cycle${id != null ? ' #$id' : ''}: '
         '${cycle.exampleChain.join(' -> ')}',
       );
+      final reason = comparison.newCycleReasons[cycle];
+      if (reason != null) stdout.writeln('      Why new: $reason');
     }
     if (comparison.fixedCycleCount > 0 ||
         comparison.fixedViolationCount > 0 ||

@@ -1,3 +1,8 @@
+# 1.9.1
+
+- **Baseline says why a cycle is new.** Each new cycle in the terminal and Markdown report now ends with a reason: `grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`. Library: `BaselineComparison.newCycleReasons`.
+- **Docs: the cycle rule is spelled out.** The baseline compares cycle membership, not the imports inside a cycle. With a baseline cycle `a -> b -> c -> a`, adding `a -> c` still passes. A test pins this down.
+
 # 1.9.0
 
 - **`init` handles hybrid layouts.** When it picks `riverpod` or `clean_architecture` and also finds `bloc/` or `cubit/` folders, the generated config adds a `bloc` layer that may import what `presentation` may, and lets `presentation` import it. A bloc that imports UI code is still a violation. Library: `LayoutDetection.blocFolders`.

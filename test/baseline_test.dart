@@ -61,6 +61,36 @@ void main() {
       );
       expect(comparison.newCycles, equals([grown, merged, fresh]));
       expect(comparison.isNewCycle(fresh), isTrue);
+      expect(
+        comparison.newCycleReasons[grown],
+        'grew from a known 3-file cycle, adding lib/z.dart',
+      );
+      expect(comparison.newCycleReasons[merged], 'merges 2 known cycles');
+      expect(
+        comparison.newCycleReasons[fresh],
+        'none of its files is in a baseline cycle',
+      );
+    });
+
+    // Baseline A -> B -> C -> A. Adding A -> C, or removing it again, keeps
+    // the same three members, so both stay known: only membership counts.
+    test('ignores imports added or removed inside a known cycle', () {
+      const abc = Cycle(
+        files: ['lib/a.dart', 'lib/b.dart', 'lib/c.dart'],
+        exampleChain: ['lib/a.dart', 'lib/b.dart', 'lib/c.dart', 'lib/a.dart'],
+      );
+      const withShortcut = Cycle(
+        files: ['lib/a.dart', 'lib/b.dart', 'lib/c.dart'],
+        exampleChain: ['lib/a.dart', 'lib/c.dart', 'lib/a.dart'],
+      );
+      for (final cycle in [withShortcut, abc]) {
+        final comparison = baseline.compare(
+          cycles: [cycle],
+          layerViolations: const [],
+        );
+        expect(comparison.newCycles, isEmpty);
+        expect(comparison.knownCycles, [cycle]);
+      }
     });
 
     test('splits layer violations into known, new and fixed', () {
