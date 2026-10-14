@@ -93,6 +93,57 @@ void main() {
       }
     });
 
+    // Save {a,b,c}, shrink it to {a,b}: the saved group would still accept c
+    // coming back, so the run says the baseline can be tightened.
+    test('flags known cycles that shrank or split', () {
+      BaselineComparison cmp(List<Cycle> cycles) =>
+          baseline.compare(cycles: cycles, layerViolations: const []);
+      final xy = _cycle(['lib/x.dart', 'lib/y.dart']);
+
+      final unchanged = cmp([
+        _cycle(['lib/a.dart', 'lib/b.dart', 'lib/c.dart']),
+        xy,
+      ]);
+      expect(unchanged.shrunkCycleCount, 0);
+      expect(unchanged.improvements, isEmpty);
+
+      final shrunk = cmp([
+        _cycle(['lib/a.dart', 'lib/b.dart']),
+        xy,
+      ]);
+      expect(shrunk.shrunkCycleCount, 1);
+      expect(shrunk.improvements, ['1 cycle group(s) shrank']);
+
+      final tightened =
+          Baseline.capture(
+            cycles: [
+              _cycle(['lib/a.dart', 'lib/b.dart']),
+            ],
+            layerViolations: const [],
+          ).compare(
+            cycles: [
+              _cycle(['lib/a.dart', 'lib/b.dart', 'lib/c.dart']),
+            ],
+            layerViolations: const [],
+          );
+      expect(tightened.newCycles, hasLength(1));
+
+      final baselineAbcd = Baseline.capture(
+        cycles: [
+          _cycle(['lib/a.dart', 'lib/b.dart', 'lib/c.dart', 'lib/d.dart']),
+        ],
+        layerViolations: const [],
+      );
+      final split = baselineAbcd.compare(
+        cycles: [
+          _cycle(['lib/a.dart', 'lib/b.dart']),
+          _cycle(['lib/c.dart', 'lib/d.dart']),
+        ],
+        layerViolations: const [],
+      );
+      expect(split.shrunkCycleCount, 1);
+    });
+
     test('splits layer violations into known, new and fixed', () {
       final known = _violation('lib/d.dart', 'lib/e.dart');
       final fresh = _violation('lib/d.dart', 'lib/f.dart');
@@ -248,6 +299,13 @@ void main() {
       final c = baseline.compare(cycles: const [], layerViolations: const []);
       expect(c.fixedMetricViolationCount, 1);
       expect(cmp(26).fixedMetricViolationCount, 0);
+    });
+
+    test('a lower value is an improvement to lock in', () {
+      expect(cmp(25).improvedMetricCount, 0);
+      expect(cmp(24).improvedMetricCount, 1);
+      expect(cmp(24).improvements, ['1 metric value(s) dropped']);
+      expect(cmp(26).improvedMetricCount, 0);
     });
   });
 

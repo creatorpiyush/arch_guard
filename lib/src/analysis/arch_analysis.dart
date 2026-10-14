@@ -281,6 +281,8 @@ class ArchAnalysis {
               newWorkspaceViolations: ws(comparison.newWorkspaceViolations),
               knownWorkspaceViolations: ws(comparison.knownWorkspaceViolations),
               fixedCycleCount: comparison.fixedCycleCount,
+              shrunkCycleCount: comparison.shrunkCycleCount,
+              improvedMetricCount: comparison.improvedMetricCount,
               fixedViolationCount: comparison.fixedViolationCount,
               fixedPackageViolationCount: comparison.fixedPackageViolationCount,
               fixedMetricViolationCount: comparison.fixedMetricViolationCount,

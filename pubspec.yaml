@@ -3,7 +3,7 @@ description: A CLI tool and Dart library for static architecture analysis, Clean
 repository: https://github.com/creatorpiyush/arch_guard
 issue_tracker: https://github.com/creatorpiyush/arch_guard/issues
 documentation: https://creatorpiyush.github.io/arch_guard/
-version: 1.9.1
+version: 1.9.2
 topics:
   - clean-architecture
   - static-analysis

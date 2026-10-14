@@ -1,3 +1,8 @@
+# 1.9.2
+
+- **Baseline flags improvements to lock in.** A known cycle group that lost files or split, or a known metric value that dropped, is now reported as `N cycle group(s) shrank` / `N metric value(s) dropped since the baseline. Run with --update-baseline to lock this in.` in the terminal and Markdown report. Before, only problems that disappeared entirely were reported, so a shrunk cycle could quietly grow back to its saved size. Library: `BaselineComparison.shrunkCycleCount`, `improvedMetricCount`, `improvements`.
+- **Docs:** updating the baseline is manual; "no regression" is measured against the saved baseline, not the last passing run.
+
 # 1.9.1
 
 - **Baseline says why a cycle is new.** Each new cycle in the terminal and Markdown report now ends with a reason: `grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`. Library: `BaselineComparison.newCycleReasons`.

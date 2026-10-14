@@ -191,6 +191,7 @@ class Baseline {
     final knownCycles = <Cycle>[];
     final newCycleReasons = <Cycle, String>{};
     final matchedBaselineCycles = <int>{};
+    final membersByBaselineCycle = <int, List<List<String>>>{};
     for (final cycle in cycles) {
       final index = this.cycles.indexWhere(
         (known) => known.containsAll(cycle.files),
@@ -201,8 +202,15 @@ class Baseline {
       } else {
         knownCycles.add(cycle);
         matchedBaselineCycles.add(index);
+        (membersByBaselineCycle[index] ??= []).add(cycle.files);
       }
     }
+    // A known group that lost files or split in two can be tightened: the
+    // saved membership would still accept the old, bigger group.
+    final shrunkCycleCount = membersByBaselineCycle.entries.where((e) {
+      final current = e.value.expand((files) => files).toSet();
+      return e.value.length > 1 || current.length < this.cycles[e.key].length;
+    }).length;
 
     final newViolations = <LayerViolation>[];
     final knownViolations = <LayerViolation>[];
@@ -233,12 +241,14 @@ class Baseline {
     final newMetrics = <MetricViolation>[];
     final knownMetrics = <MetricViolation>[];
     final seenMetrics = <String>{};
+    var improvedMetricCount = 0;
     for (final violation in metricViolations) {
       final key = metricKey(violation);
       seenMetrics.add(key);
       final known = this.metricViolations[key];
       if (known != null && violation.value <= known) {
         knownMetrics.add(violation);
+        if (violation.value < known) improvedMetricCount++;
       } else {
         newMetrics.add(violation);
       }
@@ -264,6 +274,8 @@ class Baseline {
       newViolations: newViolations,
       knownViolations: knownViolations,
       fixedCycleCount: this.cycles.length - matchedBaselineCycles.length,
+      shrunkCycleCount: shrunkCycleCount,
+      improvedMetricCount: improvedMetricCount,
       fixedViolationCount: this.layerViolations
           .difference(seenViolations)
           .length,
@@ -347,6 +359,10 @@ class BaselineComparison {
   /// Baseline cycles that no longer occur at all.
   final int fixedCycleCount;
 
+  /// Baseline cycles that still occur but lost files or split, so updating
+  /// the baseline would stop the removed files from coming back.
+  final int shrunkCycleCount;
+
   /// Baseline layer violations that no longer occur.
   final int fixedViolationCount;
 
@@ -368,6 +384,9 @@ class BaselineComparison {
   /// Baseline metric violations that no longer occur.
   final int fixedMetricViolationCount;
 
+  /// Known metric violations whose value dropped below the baseline's.
+  final int improvedMetricCount;
+
   /// Workspace rule violations that are not in the baseline.
   final List<WorkspaceViolation> newWorkspaceViolations;
 
@@ -385,6 +404,8 @@ class BaselineComparison {
     required this.knownViolations,
     this.newCycleReasons = const {},
     this.fixedCycleCount = 0,
+    this.shrunkCycleCount = 0,
+    this.improvedMetricCount = 0,
     this.fixedViolationCount = 0,
     this.newPackageViolations = const [],
     this.knownPackageViolations = const [],
@@ -413,6 +434,13 @@ class BaselineComparison {
     newMetricViolations: metricViolations,
     newWorkspaceViolations: workspaceViolations,
   );
+
+  /// Known problems that got smaller without going away, e.g.
+  /// `1 cycle group(s) shrank`. Updating the baseline locks these in.
+  List<String> get improvements => [
+    if (shrunkCycleCount > 0) '$shrunkCycleCount cycle group(s) shrank',
+    if (improvedMetricCount > 0) '$improvedMetricCount metric value(s) dropped',
+  ];
 
   /// Whether [cycle] is new relative to the baseline.
   bool isNewCycle(Cycle cycle) => newCycles.contains(cycle);
