@@ -358,6 +358,11 @@ Future<int> runCli(List<String> args) async {
         '  $cGreen${_andJoin(fixed)} in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
     }
+    if (comparison.improvements.isNotEmpty) {
+      stdout.writeln(
+        '  $cGreen${_andJoin(comparison.improvements)} since the baseline.$cReset Run with --update-baseline to lock this in.',
+      );
+    }
     stdout.writeln();
   }
 

@@ -28,7 +28,7 @@ In your own project, `dart pub add --dev arch_guard`, then `dart run arch_guard`
 | Check architecture in `dart test` / `flutter test` | [testing](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/testing) | `expectArchitecture()` |
 | Get HTML, Mermaid, DOT, JSON, SARIF or Markdown | [reports](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/reports) | `-f`, `--scope all`, `--offline` |
 | See violations and cycles in the IDE as you type, with quick fixes | [arch_guard_lint example](https://github.com/creatorpiyush/arch_guard/tree/main/arch_guard_lint/example) | analyzer plugin |
-| Run it in CI (GitHub Action, GitLab, pre-commit, lefthook, git hook) | [CI guide](https://creatorpiyush.github.io/arch_guard/ci.html) | `creatorpiyush/arch_guard@v1.9.1` |
+| Run it in CI (GitHub Action, GitLab, pre-commit, lefthook, git hook) | [CI guide](https://creatorpiyush.github.io/arch_guard/ci.html) | `creatorpiyush/arch_guard@v1.9.2` |
 | Use it as a library | [example.dart](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.dart), run on [sample_project](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/sample_project) and [sample_workspace](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/sample_workspace) | `ArchAnalysis.run()`, validators, exporters |
 
 ## Exit codes

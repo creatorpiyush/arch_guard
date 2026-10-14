@@ -266,6 +266,14 @@ class MarkdownExporter {
         )
         ..writeln();
     }
+    if (baseline != null && baseline.improvements.isNotEmpty) {
+      b
+        ..writeln(
+          '📉 ${baseline.improvements.join(', ')} since the baseline. Run '
+          '`arch_guard --update-baseline` to lock this in.',
+        )
+        ..writeln();
+    }
 
     return b.toString();
   }

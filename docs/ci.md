@@ -22,6 +22,8 @@ How later runs compare against the baseline:
   - Only **membership** is compared, not the imports inside the cycle. With a baseline cycle `a -> b -> c -> a`, adding `a -> c` (or removing it again) still passes: the cycle has the same three files. To cap how big a cycle may get, use [`max_scc_size`](configuration.md).
   - Each new cycle says why it is new, e.g. `Why new: grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`.
 - When baseline entries disappear, the run says so. Run `--update-baseline` again to lock in the improvement so the problems cannot come back.
+- The run also says when a known problem got smaller without going away: a cycle group that lost files or split, or a metric value that dropped. Update the baseline to lock that in too. Otherwise a saved `{a, b, c}` still accepts `c` coming back after you shrank the group to `{a, b}`.
+- Updating is always manual. "No regression" means no worse than the saved baseline file, not than the last passing run.
 
 Use `--baseline path/to/file.json` to keep the file somewhere else (paths are relative to the scanned project).
 
@@ -42,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.9.1
+      - uses: creatorpiyush/arch_guard@v1.9.2
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -63,7 +65,7 @@ The PR comment looks like this: a status line, a summary table, the new problems
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.9.1
+      - uses: creatorpiyush/arch_guard@v1.9.2
         with:
           args: --since origin/${{ github.base_ref }}
 ```
@@ -91,7 +93,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.9.1
+    rev: v1.9.2
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]
