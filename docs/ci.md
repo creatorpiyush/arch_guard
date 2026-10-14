@@ -19,6 +19,8 @@ How later runs compare against the baseline:
 
 - A **layer violation** is known if the same `source -> target` import is listed.
 - A **cycle** is known if all its files belong to one baseline cycle. A cycle that shrinks stays accepted; one that grows, or merges two known cycles, is new.
+  - Only **membership** is compared, not the imports inside the cycle. With a baseline cycle `a -> b -> c -> a`, adding `a -> c` (or removing it again) still passes: the cycle has the same three files. To cap how big a cycle may get, use [`max_scc_size`](configuration.md).
+  - Each new cycle says why it is new, e.g. `Why new: grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`.
 - When baseline entries disappear, the run says so. Run `--update-baseline` again to lock in the improvement so the problems cannot come back.
 
 Use `--baseline path/to/file.json` to keep the file somewhere else (paths are relative to the scanned project).
@@ -40,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.9.0
+      - uses: creatorpiyush/arch_guard@v1.9.1
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -61,7 +63,7 @@ The PR comment looks like this: a status line, a summary table, the new problems
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.9.0
+      - uses: creatorpiyush/arch_guard@v1.9.1
         with:
           args: --since origin/${{ github.base_ref }}
 ```
@@ -89,7 +91,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.9.0
+    rev: v1.9.1
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]

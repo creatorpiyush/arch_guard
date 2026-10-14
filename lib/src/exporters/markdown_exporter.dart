@@ -186,8 +186,9 @@ class MarkdownExporter {
             : ' Suggested fix: remove `${hint.from}'
                   '${hint.line != null ? ':${hint.line}' : ''}` → `${hint.to}`'
                   '${hint.breaksCycle ? '' : ' (shrinks it to ${hint.remainingLargestCycle} files)'}.';
+        final reason = comparison.newCycleReasons[c];
         return '- ${id != null ? '**Cycle $id** ' : ''}(${c.files.length} files): '
-            '$chain$fix';
+            '$chain$fix${reason == null ? '' : ' Why new: $reason.'}';
       });
       b.writeln();
     }

@@ -178,7 +178,8 @@ class Baseline {
   ///
   /// A cycle is known when all of its files sit inside one baseline cycle, so
   /// a cycle that shrinks stays accepted while one that grows (or merges two
-  /// known cycles) counts as new.
+  /// known cycles) counts as new. Only membership is compared: a new import
+  /// between files already in one known cycle is not a change.
   BaselineComparison compare({
     required List<Cycle> cycles,
     required List<LayerViolation> layerViolations,
@@ -188,6 +189,7 @@ class Baseline {
   }) {
     final newCycles = <Cycle>[];
     final knownCycles = <Cycle>[];
+    final newCycleReasons = <Cycle, String>{};
     final matchedBaselineCycles = <int>{};
     for (final cycle in cycles) {
       final index = this.cycles.indexWhere(
@@ -195,6 +197,7 @@ class Baseline {
       );
       if (index == -1) {
         newCycles.add(cycle);
+        newCycleReasons[cycle] = _newCycleReason(cycle);
       } else {
         knownCycles.add(cycle);
         matchedBaselineCycles.add(index);
@@ -257,6 +260,7 @@ class Baseline {
     return BaselineComparison(
       newCycles: newCycles,
       knownCycles: knownCycles,
+      newCycleReasons: newCycleReasons,
       newViolations: newViolations,
       knownViolations: knownViolations,
       fixedCycleCount: this.cycles.length - matchedBaselineCycles.length,
@@ -280,6 +284,24 @@ class Baseline {
           .difference(seenWorkspace)
           .length,
     );
+  }
+
+  /// Why [cycle] fails the membership rule, naming the files it added.
+  String _newCycleReason(Cycle cycle) {
+    final overlapping = [
+      for (final known in cycles)
+        if (known.any(cycle.files.contains)) known,
+    ];
+    if (overlapping.isEmpty) return 'none of its files is in a baseline cycle';
+    final added =
+        cycle.files
+            .where((f) => !overlapping.any((known) => known.contains(f)))
+            .toList()
+          ..sort();
+    final what = overlapping.length == 1
+        ? 'grew from a known ${overlapping.single.length}-file cycle'
+        : 'merges ${overlapping.length} known cycles';
+    return added.isEmpty ? what : '$what, adding ${added.join(', ')}';
   }
 
   /// Stable identity of a layer violation, independent of layer names and lines.
@@ -311,6 +333,10 @@ class BaselineComparison {
 
   /// Cycles that the baseline already lists.
   final List<Cycle> knownCycles;
+
+  /// Why each of [newCycles] counts as new, e.g.
+  /// `grew from a known 3-file cycle, adding lib/d.dart`.
+  final Map<Cycle, String> newCycleReasons;
 
   /// Layer violations that are not in the baseline.
   final List<LayerViolation> newViolations;
@@ -357,6 +383,7 @@ class BaselineComparison {
     required this.knownCycles,
     required this.newViolations,
     required this.knownViolations,
+    this.newCycleReasons = const {},
     this.fixedCycleCount = 0,
     this.fixedViolationCount = 0,
     this.newPackageViolations = const [],
