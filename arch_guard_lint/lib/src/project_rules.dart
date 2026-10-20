@@ -12,8 +12,16 @@ class ProjectRules {
   final ArchGuardConfig config;
 
   /// Checks one import against the layer rules.
-  final LayerViolation? Function(String from, String to, {int? line})
+  final LayerViolation? Function(
+    String from,
+    String to, {
+    int? line,
+    List<String> via,
+  })
   checkLayer;
+
+  /// The layer [path] belongs to, or `null`.
+  final String? Function(String path) layerOf;
 
   /// Checks one import against `forbidden_packages`.
   final PackageViolation? Function(String file, String uri, {int? line})
@@ -25,6 +33,7 @@ class ProjectRules {
 
   ProjectRules._(this._root, this.config, this._baseline)
     : checkLayer = LayerValidator.checker(config),
+      layerOf = LayerValidator.layerResolver(config),
       checkPackage = PackageValidator.checker(config),
       // Same files the CLI never scans: generated code plus `ignore:`.
       _ignore = [

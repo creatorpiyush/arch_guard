@@ -71,7 +71,14 @@ layers:
 - In a workspace, each path is also matched from its package's `lib/` folder, so `lib/domain/**` matches `packages/auth/lib/domain/user.dart` as well.
 - A file belongs to the **first** layer whose patterns match. Put narrow layers before broad ones.
 - A layer may always import itself; list it in `allowed_imports` anyway to make the rule readable.
-- Imports between files with no layer, or from a layered file to an unlayered one, are never violations.
+- `import`, `export` and `part` directives all count, including every URI of a conditional import.
+- Imports between files with no layer, or from a layered file to an unlayered one, are never violations themselves. But when an unlayered file re-exports a layered one (a barrel such as `lib/exports.dart`), the import of the barrel is checked against what it re-exports. Chains of unlayered barrels are followed too:
+
+  ```text
+  ❌ Layer Violation: [domain] lib/domain/user.dart:1 -> [data] lib/data/dto.dart (via lib/exports.dart)
+  ```
+
+  A barrel inside a layer is checked as an ordinary file: its own `export` of another layer is the violation.
 
 ## Reading a layer violation
 

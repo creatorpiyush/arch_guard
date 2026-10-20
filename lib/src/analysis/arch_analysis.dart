@@ -226,13 +226,14 @@ class ArchAnalysis {
     );
 
     // Without --since every predicate is true; with it, keep only problems
-    // whose importing file (or, for cycles, any member) changed. The
-    // comparison was made on the full lists, so its fixed counts stay right.
+    // whose importing file (or re-exporting barrel, or for cycles any member)
+    // changed. The comparison was made on the full lists, so its fixed counts
+    // stay right.
     bool touches(String file) => changed == null || changed.contains(file);
     bool cycleTouches(Cycle c) => c.files.any(touches);
     List<Cycle> cyc(List<Cycle> l) => l.where(cycleTouches).toList();
     List<LayerViolation> lay(List<LayerViolation> l) =>
-        l.where((v) => touches(v.sourceFile)).toList();
+        l.where((v) => touches(v.sourceFile) || v.via.any(touches)).toList();
     List<PackageViolation> pkg(List<PackageViolation> l) =>
         l.where((v) => touches(v.sourceFile)).toList();
     // A file goes over max_fan_in because another file starts importing it.

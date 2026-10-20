@@ -247,6 +247,7 @@ class ProjectScanner {
             to: resolvedTarget,
             type: directive.type,
             line: directive.line,
+            condition: directive.condition,
           ),
         );
       }
@@ -281,6 +282,7 @@ class ProjectScanner {
             to: edge.to,
             type: edge.type,
             line: edge.line,
+            condition: edge.condition,
           ),
         );
       }
@@ -329,11 +331,13 @@ class _TempEdge {
   final String to;
   final String type;
   final int? line;
+  final String? condition;
 
   _TempEdge({
     required this.from,
     required this.to,
     required this.type,
     this.line,
+    this.condition,
   });
 }

@@ -344,7 +344,7 @@ Future<int> runCli(List<String> args) async {
       final id = cycle.scc?.id;
       stdout.writeln(
         '    New cycle${id != null ? ' #$id' : ''}: '
-        '${cycle.exampleChain.join(' -> ')}',
+        '${cycle.exampleChain.join(' -> ')}${cycle.platformNote}',
       );
       final reason = comparison.newCycleReasons[cycle];
       if (reason != null) stdout.writeln('      Why new: $reason');

@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.9.2
+      - uses: creatorpiyush/arch_guard@v1.10.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).

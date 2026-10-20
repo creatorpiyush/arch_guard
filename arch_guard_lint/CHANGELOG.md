@@ -1,3 +1,9 @@
+## 0.3.0
+
+- **`layer_violation` follows barrels.** Importing a file in no layer that re-exports another layer is now reported on the import, with `(via lib/exports.dart)` in the message, as the CLI does.
+- **`layer_violation` checks `part` directives.** A library whose `part` file lies in another layer is now reported, as the CLI already did.
+- Requires `arch_guard` ^1.10.0.
+
 ## 0.2.0
 
 - **New: quick fixes.**
