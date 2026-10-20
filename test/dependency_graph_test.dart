@@ -38,4 +38,33 @@ void main() {
       );
     });
   });
+
+  group('DependencyGraph – conditional imports', () {
+    List<Cycle> cycles(Map<String, String> sources) =>
+        DependencyGraph.fromScanResult(
+          ProjectScanner.scanSources(packageName: 'app', sources: sources),
+        ).findCircularDependencies();
+
+    test('a cycle only through a conditional import is platform-specific', () {
+      final c = cycles({
+        'lib/a.dart': "import 'stub.dart' if (dart.library.io) 'b.dart';\n",
+        'lib/b.dart': "import 'a.dart';\n",
+        'lib/stub.dart': '',
+      }).single;
+      expect(c.platformConditions, ['dart.library.io']);
+      expect(c.platformNote, contains('if (dart.library.io)'));
+      expect(c.toJson()['platformConditions'], ['dart.library.io']);
+    });
+
+    test('a cycle that plain imports also form is not', () {
+      final c = cycles({
+        'lib/a.dart':
+            "import 'b.dart';\nimport 'stub.dart' if (dart.library.io) 'b.dart';\n",
+        'lib/b.dart': "import 'a.dart';\n",
+        'lib/stub.dart': '',
+      }).single;
+      expect(c.isPlatformSpecific, isFalse);
+      expect(c.platformNote, isEmpty);
+    });
+  });
 }

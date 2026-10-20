@@ -15,12 +15,18 @@ class GraphEdge {
   /// 1-based line of the directive in [from], if known. Not part of equality.
   final int? line;
 
+  /// For a conditional import or export, the condition that selects this
+  /// URI (`dart.library.io`), or `default` for the fallback URI. `null` for
+  /// a plain directive, which every platform compiles.
+  final String? condition;
+
   /// Creates an edge from [from] to [to].
   const GraphEdge({
     required this.from,
     required this.to,
     this.type = 'import',
     this.line,
+    this.condition,
   });
 
   @override
@@ -30,13 +36,15 @@ class GraphEdge {
           runtimeType == other.runtimeType &&
           from == other.from &&
           to == other.to &&
-          type == other.type;
+          type == other.type &&
+          condition == other.condition;
 
   @override
-  int get hashCode => Object.hash(from, to, type);
+  int get hashCode => Object.hash(from, to, type, condition);
 
   @override
-  String toString() => '$from --($type)--> $to';
+  String toString() =>
+      '$from --($type${condition == null ? '' : ' if $condition'})--> $to';
 }
 
 /// A directive that points outside the scanned files: another package

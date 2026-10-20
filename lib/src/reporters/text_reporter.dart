@@ -70,6 +70,11 @@ class TextReporter {
       buffer.writeln(
         '  ${bold}Strongly Connected Component #$number (${cycle.files.length} files)$reset',
       );
+      if (cycle.isPlatformSpecific) {
+        buffer.writeln(
+          '    ${cyan}Platform-specific${cycle.platformNote}$reset',
+        );
+      }
 
       if (scc != null) {
         buffer.writeln(

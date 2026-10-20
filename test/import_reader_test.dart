@@ -69,6 +69,26 @@ part 'c.dart';
       expect(directives.every((d) => d.type == 'import'), isTrue);
     });
 
+    test('records the condition that selects each URI', () {
+      const code = '''
+        import 'stub.dart'
+            if (dart.library.html) 'web.dart'
+            if (dart.library.io  ==  'true') 'io.dart';
+        import 'plain.dart';
+      ''';
+      expect(
+        ImportReader.extractDirectives(
+          code,
+        ).map((d) => '${d.uri}:${d.condition}'),
+        [
+          'stub.dart:default',
+          'web.dart:dart.library.html',
+          "io.dart:dart.library.io == 'true'",
+          'plain.dart:null',
+        ],
+      );
+    });
+
     test('ignores comments and part-of, extracts part URIs', () {
       const code = '''
         // import 'package:ignored/ignored.dart';

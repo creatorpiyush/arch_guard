@@ -77,7 +77,14 @@ class DependencyGraph {
             edges: scanResult.edges,
           ),
         );
-        cycles.add(Cycle(files: scc, exampleChain: exampleChain, scc: sccComp));
+        cycles.add(
+          Cycle(
+            files: scc,
+            exampleChain: exampleChain,
+            scc: sccComp,
+            platformConditions: _platformConditions(scc),
+          ),
+        );
       } else if (scc.length == 1) {
         final node = scc.first;
         final targets = outgoingEdges[node] ?? const {};
@@ -96,12 +103,40 @@ class DependencyGraph {
             ),
           );
           cycles.add(
-            Cycle(files: scc, exampleChain: exampleChain, scc: sccComp),
+            Cycle(
+              files: scc,
+              exampleChain: exampleChain,
+              scc: sccComp,
+              platformConditions: _platformConditions(scc),
+            ),
           );
         }
       }
     }
 
     return cycles;
+  }
+
+  /// Conditions of the conditional edges inside [scc] when its plain edges
+  /// alone contain no cycle, otherwise empty (the cycle exists everywhere).
+  List<String> _platformConditions(List<String> scc) {
+    final members = scc.toSet();
+    final plain = {for (final f in scc) f: <String>{}};
+    final conditions = <String>{};
+    for (final edge in scanResult.edges) {
+      if (!members.contains(edge.from) || !members.contains(edge.to)) continue;
+      final condition = edge.condition;
+      if (condition == null) {
+        plain[edge.from]!.add(edge.to);
+      } else {
+        conditions.add(condition);
+      }
+    }
+    if (conditions.isEmpty) return const [];
+    final plainCycle = TarjanScc.findSCCs(
+      nodes: members,
+      adjacencyList: plain,
+    ).any((c) => c.length > 1 || plain[c.first]!.contains(c.first));
+    return plainCycle ? const [] : (conditions.toList()..sort());
   }
 }

@@ -176,4 +176,90 @@ void main() {
     expect(v.line, 4);
     expect(check('lib/domain/u.dart', '../other/x.dart'), isNull);
   });
+
+  group('LayerValidator – re-exports through files in no layer', () {
+    const config = ArchGuardConfig(
+      layers: {
+        'domain': LayerDefinition(name: 'domain', patterns: ['lib/domain/**']),
+        'data': LayerDefinition(
+          name: 'data',
+          patterns: ['lib/data/**'],
+          allowedImports: ['domain'],
+        ),
+      },
+    );
+    List<String> check(Map<String, String> sources) => [
+      for (final v in LayerValidator.validate(
+        result: ProjectScanner.scanSources(
+          packageName: 'app',
+          sources: sources,
+        ),
+        config: config,
+      ))
+        '${v.sourceFile}:${v.line} -> ${v.targetFile}${v.viaSuffix}',
+    ];
+
+    test('reports the import a barrel hides', () {
+      expect(
+        check({
+          'lib/domain/user.dart': "import '../exports.dart';\n",
+          'lib/exports.dart': "export 'data/dto.dart';\n",
+          'lib/data/dto.dart': '',
+        }),
+        [
+          'lib/domain/user.dart:1 -> lib/data/dto.dart '
+              '(via lib/exports.dart)',
+        ],
+      );
+    });
+
+    test('follows chained barrels and stops on export loops', () {
+      expect(
+        check({
+          'lib/domain/user.dart': "import '../exports.dart';\n",
+          'lib/exports.dart': "export 'more.dart';\n",
+          'lib/more.dart': "export 'exports.dart';\nexport 'data/dto.dart';\n",
+          'lib/data/dto.dart': '',
+        }),
+        [
+          'lib/domain/user.dart:1 -> lib/data/dto.dart '
+              '(via lib/exports.dart -> lib/more.dart)',
+        ],
+      );
+    });
+
+    test('ignores what a barrel only imports', () {
+      expect(
+        check({
+          'lib/domain/user.dart': "import '../exports.dart';\n",
+          'lib/exports.dart': "import 'data/dto.dart';\n",
+          'lib/data/dto.dart': '',
+        }),
+        isEmpty,
+      );
+    });
+
+    test('reports a direct import once', () {
+      expect(
+        check({
+          'lib/domain/user.dart':
+              "import '../exports.dart';\nimport '../data/dto.dart';\n",
+          'lib/exports.dart': "export 'data/dto.dart';\n",
+          'lib/data/dto.dart': '',
+        }),
+        ['lib/domain/user.dart:2 -> lib/data/dto.dart'],
+      );
+    });
+
+    test('a barrel inside a layer is reported itself', () {
+      expect(
+        check({
+          'lib/domain/user.dart': "import 'index.dart';\n",
+          'lib/domain/index.dart': "export '../data/dto.dart';\n",
+          'lib/data/dto.dart': '',
+        }),
+        ['lib/domain/index.dart:1 -> lib/data/dto.dart'],
+      );
+    });
+  });
 }

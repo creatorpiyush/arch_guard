@@ -11,8 +11,18 @@ class ExtractedDirective {
   /// 1-based line of the directive keyword, if known.
   final int? line;
 
+  /// For a conditional import or export, the condition that selects [uri]
+  /// (`dart.library.io`), or `default` for the URI used when none matches.
+  /// `null` for a plain directive.
+  final String? condition;
+
   /// Creates a directive for [uri].
-  const ExtractedDirective(this.uri, {this.type = 'import', this.line});
+  const ExtractedDirective(
+    this.uri, {
+    this.type = 'import',
+    this.line,
+    this.condition,
+  });
 }
 
 /// Lightweight Dart directive parser for `import`, `export` and `part` URIs.
@@ -132,14 +142,23 @@ class _DirectiveScanner {
           pos += keyword.length;
           final (:uris, firstWord: _) = _readStatement();
           results.addAll(
-            uris.map((u) => ExtractedDirective(u, type: keyword, line: line)),
+            uris.map(
+              (u) => ExtractedDirective(
+                u.uri,
+                type: keyword,
+                line: line,
+                condition: u.condition,
+              ),
+            ),
           );
         case 'part':
           pos += keyword.length;
           final (:uris, :firstWord) = _readStatement();
           if (firstWord != 'of') {
             results.addAll(
-              uris.map((u) => ExtractedDirective(u, type: 'part', line: line)),
+              uris.map(
+                (u) => ExtractedDirective(u.uri, type: 'part', line: line),
+              ),
             );
           }
         case 'library':
@@ -156,12 +175,17 @@ class _DirectiveScanner {
 
   /// Consumes a directive up to and including `;`. Returns the string literals
   /// found outside parentheses (so `if (dart.library.io == 'true')` conditions
-  /// are skipped) and the first identifier token, if the statement starts with one.
-  ({List<String> uris, String? firstWord}) _readStatement() {
-    final uris = <String>[];
+  /// are skipped), each with the `if (...)` condition before it, and the first
+  /// identifier token, if the statement starts with one.
+  ({List<({String uri, String? condition})> uris, String? firstWord})
+  _readStatement() {
+    final uris = <({String uri, String? condition})>[];
     String? firstWord;
     var sawToken = false;
     var depth = 0;
+    var lastWord = '';
+    int? conditionStart;
+    String? condition;
 
     while (true) {
       _skipTrivia();
@@ -175,7 +199,11 @@ class _DirectiveScanner {
 
       final literal = _tryReadString();
       if (literal != null) {
-        if (depth == 0) uris.add(literal);
+        if (depth == 0) {
+          uris.add((uri: literal, condition: condition));
+          condition = null;
+        }
+        lastWord = '';
         sawToken = true;
         continue;
       }
@@ -183,15 +211,33 @@ class _DirectiveScanner {
       final word = _peekIdentifier();
       if (word.isNotEmpty) {
         if (!sawToken) firstWord = word;
+        if (depth == 0) lastWord = word;
         pos += word.length;
       } else {
-        if (c == '(') depth++;
-        if (c == ')' && depth > 0) depth--;
+        if (c == '(') {
+          if (depth == 0 && lastWord == 'if') conditionStart = pos + 1;
+          depth++;
+        }
+        if (c == ')' && depth > 0) {
+          depth--;
+          if (depth == 0 && conditionStart != null) {
+            condition = src
+                .substring(conditionStart, pos)
+                .trim()
+                .replaceAll(RegExp(r'\s+'), ' ');
+            conditionStart = null;
+          }
+        }
+        if (depth == 0) lastWord = '';
         pos++;
       }
       sawToken = true;
     }
 
+    // The first URI of a conditional directive is the fallback.
+    if (uris.length > 1 && uris.first.condition == null) {
+      uris[0] = (uri: uris.first.uri, condition: 'default');
+    }
     return (uris: uris, firstWord: firstWord);
   }
 

@@ -32,7 +32,14 @@ class JsonExporter {
       'cycles': cycles.map((c) => c.toJson()).toList(),
       'nodes': result.files.values.map((f) => f.toJson()).toList(),
       'edges': result.edges
-          .map((e) => {'from': e.from, 'to': e.to, 'type': e.type})
+          .map(
+            (e) => {
+              'from': e.from,
+              'to': e.to,
+              'type': e.type,
+              'condition': ?e.condition,
+            },
+          )
           .toList(),
       'layerViolations': ?layerViolations,
       'packageViolations': ?packageViolations,

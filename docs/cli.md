@@ -64,6 +64,7 @@ Every cycle comes with the one import to remove to break it (or, when no single 
     -> lib/widgets/nav.dart
     Suggested fix: remove lib/screens/home.dart:1 -> lib/widgets/nav.dart (breaks the cycle)
 ```
+A cycle that exists only through a conditional import (`import 'stub.dart' if (dart.library.io) 'io.dart'`) is marked `Platform-specific (only through conditional imports: if (dart.library.io))`. It still counts as a cycle, because it is real on that platform. The JSON export lists the conditions under `platformConditions`, and each edge from a conditional import carries its `condition` (`default` for the fallback URI).
 
 ### Only files changed on this branch
 Analyse the whole project, but report (and fail on) only problems that touch files changed since the merge base with `origin/main`, plus uncommitted and untracked files:

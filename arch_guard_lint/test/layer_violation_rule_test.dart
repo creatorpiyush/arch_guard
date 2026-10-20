@@ -158,6 +158,44 @@ class LayerViolationRuleTest extends AnalysisRuleTest {
     ]);
   }
 
+  void test_partInAnotherLayerIsChecked() async {
+    newFile('$testPackageRootPath/arch_guard.yaml', _config);
+    newFile(
+      '$testPackageLibPath/data/user_view_part.dart',
+      "part of '../domain/user_view.dart';\n",
+    );
+    const code = "part '../data/user_view_part.dart';\n";
+    newFile(_userPath, code);
+    await assertDiagnosticsInFile(_userPath, [
+      lint(code.indexOf("'"), "'../data/user_view_part.dart'".length),
+    ]);
+  }
+
+  void test_barrelInNoLayerIsFollowed() async {
+    newFile('$testPackageRootPath/arch_guard.yaml', _config);
+    newFile('$testPackageLibPath/exports.dart', "export 'data/repo.dart';\n");
+    const code = "import '../exports.dart';\nRepo? r;\n";
+    newFile(_userPath, code);
+    await assertDiagnosticsInFile(_userPath, [
+      lint(
+        code.indexOf("'"),
+        "'../exports.dart'".length,
+        messageContainsAll: ['`lib/data/repo.dart`', 'via lib/exports.dart'],
+      ),
+    ]);
+  }
+
+  void test_barrelThatOnlyImportsIsQuiet() async {
+    newFile('$testPackageRootPath/arch_guard.yaml', _config);
+    newFile(
+      '$testPackageLibPath/exports.dart',
+      "import 'data/repo.dart';\nclass E {}\nRepo? r;\n",
+    );
+    const code = "import '../exports.dart';\nE? e;\n";
+    newFile(_userPath, code);
+    await assertNoDiagnosticsInFile(_userPath);
+  }
+
   void test_conditionalImportIsChecked() async {
     newFile('$testPackageRootPath/arch_guard.yaml', _config);
     // The configured URI is checked even when the condition is false.

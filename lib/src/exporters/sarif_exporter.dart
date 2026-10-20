@@ -83,8 +83,8 @@ class SarifExporter {
         'message': {
           'text':
               '`${v.sourceFile}` (layer `${v.sourceLayer}`) imports '
-              '`${v.targetFile}` (layer `${v.targetLayer}`). ${v.rule} '
-              '${v.suggestion}',
+              '`${v.targetFile}` (layer `${v.targetLayer}`)${v.viaSuffix}. '
+              '${v.rule} ${v.suggestion}',
         },
         'locations': [location(v.sourceFile, line: v.line)],
         'partialFingerprints': {
@@ -168,6 +168,7 @@ class SarifExporter {
           'text':
               'Circular dependency (${id != null ? 'SCC #$id, ' : ''}'
               '${cycle.files.length} files): ${chain.join(' → ')}'
+              '${cycle.platformNote}'
               '${cycle.scc?.suggestedBreak == null ? '' : '. Suggested fix: remove ${cycle.scc!.suggestedBreak!.describe()}'}',
         },
         'locations': [

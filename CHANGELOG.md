@@ -1,3 +1,8 @@
+# 1.10.0
+
+- **Layer rules see through barrels.** When a layered file imports a file in no layer that re-exports another layer (`lib/exports.dart` with `export 'data/dto.dart';`), the import is now checked against what the barrel re-exports. Chains of such barrels are followed. Before, the barrel was skipped, so `domain -> exports.dart -> data` passed. The violation reads `... -> [data] lib/data/dto.dart (via lib/exports.dart)`. With `--since`, a change to the barrel also reports it. Library: `LayerViolation.via`, `viaSuffix`; `LayerValidator.checker` takes `via`.
+- **Platform-specific cycles.** A cycle that exists only through conditional imports is now marked `Platform-specific (only through conditional imports: if (dart.library.io))` in the terminal, Markdown, SARIF and JSON (`platformConditions`). It still counts as a cycle. Edges from conditional imports carry their `condition` in the JSON export. Library: `GraphEdge.condition`, `ExtractedDirective.condition`, `Cycle.platformConditions`, `isPlatformSpecific`, `platformNote`.
+
 # 1.9.2
 
 - **Baseline flags improvements to lock in.** A known cycle group that lost files or split, or a known metric value that dropped, is now reported as `N cycle group(s) shrank` / `N metric value(s) dropped since the baseline. Run with --update-baseline to lock this in.` in the terminal and Markdown report. Before, only problems that disappeared entirely were reported, so a shrunk cycle could quietly grow back to its saved size. Library: `BaselineComparison.shrunkCycleCount`, `improvedMetricCount`, `improvements`.

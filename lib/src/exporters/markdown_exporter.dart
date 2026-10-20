@@ -141,7 +141,7 @@ class MarkdownExporter {
       _writeCapped(b, newViolations, (v) {
         final at = v.line != null ? ':${v.line}' : '';
         return '- `${v.sourceFile}$at` (**${v.sourceLayer}**) imports '
-            '`${v.targetFile}` (**${v.targetLayer}**). ${v.rule}';
+            '`${v.targetFile}` (**${v.targetLayer}**)${v.viaSuffix}. ${v.rule}';
       });
       b.writeln();
     }
@@ -188,7 +188,7 @@ class MarkdownExporter {
                   '${hint.breaksCycle ? '' : ' (shrinks it to ${hint.remainingLargestCycle} files)'}.';
         final reason = comparison.newCycleReasons[c];
         return '- ${id != null ? '**Cycle $id** ' : ''}(${c.files.length} files): '
-            '$chain$fix${reason == null ? '' : ' Why new: $reason.'}';
+            '$chain${c.platformNote}$fix${reason == null ? '' : ' Why new: $reason.'}';
       });
       b.writeln();
     }

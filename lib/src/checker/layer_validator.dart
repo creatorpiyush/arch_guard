@@ -22,6 +22,10 @@ class LayerViolation {
   /// Layers that [sourceLayer] is allowed to import (the rule that was broken).
   final List<String> allowedImports;
 
+  /// Files in no layer that re-export [targetFile] to [sourceFile], in order
+  /// (for example a barrel `lib/exports.dart`). Empty for a direct import.
+  final List<String> via;
+
   /// Creates a violation of [sourceLayer] importing [targetLayer].
   const LayerViolation({
     required this.sourceFile,
@@ -30,6 +34,7 @@ class LayerViolation {
     required this.targetLayer,
     this.line,
     this.allowedImports = const [],
+    this.via = const [],
   });
 
   /// The broken rule, e.g. "`presentation` may only import `domain`, `core`."
@@ -53,12 +58,16 @@ class LayerViolation {
     'targetLayer': targetLayer,
     'line': ?line,
     'allowedImports': allowedImports,
+    if (via.isNotEmpty) 'via': via,
   };
+
+  /// ` (via lib/exports.dart)` for a re-exported import, otherwise empty.
+  String get viaSuffix => via.isEmpty ? '' : ' (via ${via.join(' -> ')})';
 
   @override
   String toString() =>
       '❌ Layer Violation: [$sourceLayer] $sourceFile${line != null ? ':$line' : ''} '
-      '-> [$targetLayer] $targetFile';
+      '-> [$targetLayer] $targetFile$viaSuffix';
 }
 
 /// How well the configured layers cover the scanned files.
@@ -96,18 +105,59 @@ class LayerValidator {
   }) {
     if (config.layers.isEmpty) return const [];
     final check = checker(config);
-    return [
+    final violations = [
       for (final edge in result.edges)
         ?check(edge.from, edge.to, line: edge.line),
     ];
+
+    // A file in no layer is never checked, so a barrel there would hide
+    // `a -> barrel -> c` from the rules. Follow its re-exports to the first
+    // files that have a layer; their own exports are checked as edges above.
+    final resolveLayer = layerResolver(config);
+    final exports = <String, List<String>>{};
+    for (final edge in result.edges) {
+      if (edge.type == 'export') {
+        exports.putIfAbsent(edge.from, () => []).add(edge.to);
+      }
+    }
+    final reported = {
+      for (final v in violations) '${v.sourceFile}\n${v.targetFile}',
+    };
+    for (final edge in result.edges) {
+      if (resolveLayer(edge.from) == null || resolveLayer(edge.to) != null) {
+        continue;
+      }
+      final seen = {edge.to};
+      void follow(String barrel, List<String> via) {
+        for (final next in exports[barrel] ?? const <String>[]) {
+          if (!seen.add(next)) continue;
+          if (resolveLayer(next) == null) {
+            follow(next, [...via, next]);
+            continue;
+          }
+          final v = check(edge.from, next, line: edge.line, via: via);
+          if (v != null && reported.add('${edge.from}\n$next')) {
+            violations.add(v);
+          }
+        }
+      }
+
+      follow(edge.to, [edge.to]);
+    }
+    return violations;
   }
 
-  /// Returns a function that checks one import of [to] by [from].
-  static LayerViolation? Function(String from, String to, {int? line}) checker(
-    ArchGuardConfig config,
-  ) {
+  /// Returns a function that checks one import of [to] by [from], reached
+  /// through the re-exporting files [via] (empty for a direct import).
+  static LayerViolation? Function(
+    String from,
+    String to, {
+    int? line,
+    List<String> via,
+  })
+  checker(ArchGuardConfig config) {
     final resolveLayer = layerResolver(config);
-    return (from, to, {line}) {
+    return (from, to, {line, via = const []}) {
       final sourceLayer = resolveLayer(from);
       final targetLayer = resolveLayer(to);
       if (sourceLayer == null ||
@@ -124,6 +174,7 @@ class LayerValidator {
         targetLayer: targetLayer,
         line: line,
         allowedImports: allowed,
+        via: via,
       );
     };
   }
