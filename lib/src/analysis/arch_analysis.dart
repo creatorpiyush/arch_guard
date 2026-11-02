@@ -197,6 +197,12 @@ class ArchAnalysis {
       config: config,
     );
     final warnings = <String>[
+      // A silent empty scan hides every cycle, e.g. run from the wrong
+      // folder or members outside packages/ and apps/ with no workspace list.
+      if (scan.files.isEmpty)
+        'No Dart files were scanned. Run from the project or workspace root; '
+            'members outside packages/ or apps/ must be listed under '
+            '`workspace:` in the root pubspec.yaml.',
       if (config.workspaceRules.isNotEmpty && scan.packages.isEmpty)
         enableWorkspace
             ? 'workspace_rules is ignored: this project is not a workspace.'
