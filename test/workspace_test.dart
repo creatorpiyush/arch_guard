@@ -144,6 +144,19 @@ void main() {
         final pkgs = PubspecReader.discoverWorkspacePackages(root);
         expect(pkgs.keys, equals(['ws_example']));
       });
+
+      test('matches workspace entries with ./ prefix or trailing slash', () {
+        final root = tempDir.path;
+        Directory(root).createSync(recursive: true);
+        File(p.join(root, 'pubspec.yaml')).writeAsStringSync(
+          'name: ws_root\nworkspace:\n  - ./features/a\n  - features/b/\n',
+        );
+        _writePackage(p.join(root, 'features', 'a'), 'a');
+        _writePackage(p.join(root, 'features', 'b'), 'b');
+
+        final pkgs = PubspecReader.discoverWorkspacePackages(root);
+        expect(pkgs.keys.toSet(), equals({'a', 'b'}));
+      });
     });
   });
 }

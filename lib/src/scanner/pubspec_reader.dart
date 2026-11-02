@@ -68,7 +68,10 @@ class PubspecReader {
           final workspaceEntries = yamlMap['workspace'];
           if (workspaceEntries is List) {
             for (final entry in workspaceEntries) {
-              workspaceGlobs.add(Glob(entry.toString().replaceAll('\\', '/')));
+              // Normalized so `./packages/a` and `packages/a/` still match.
+              workspaceGlobs.add(
+                Glob(p.posix.normalize(entry.toString().replaceAll('\\', '/'))),
+              );
             }
           }
         }

@@ -1,3 +1,8 @@
+# 1.10.1
+
+- **Workspace entries with `./` or a trailing slash now match.** A root `pubspec.yaml` listing `workspace: [./packages/a, packages/b/]` skipped those members, so the scan found 0 files and reported no cycles. Entries are now normalized before matching.
+- **Warning when nothing was scanned.** A run that scans 0 Dart files now prints `Warning: No Dart files were scanned. ...` with the likely causes: run from the wrong folder, or members outside `packages/` or `apps/` that are not listed under `workspace:`. Before, it reported 0 cycles and passed silently.
+
 # 1.10.0
 
 - **Layer rules see through barrels.** When a layered file imports a file in no layer that re-exports another layer (`lib/exports.dart` with `export 'data/dto.dart';`), the import is now checked against what the barrel re-exports. Chains of such barrels are followed. Before, the barrel was skipped, so `domain -> exports.dart -> data` passed. The violation reads `... -> [data] lib/data/dto.dart (via lib/exports.dart)`. With `--since`, a change to the barrel also reports it. Library: `LayerViolation.via`, `viaSuffix`; `LayerValidator.checker` takes `via`.

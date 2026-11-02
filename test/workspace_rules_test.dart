@@ -196,6 +196,18 @@ workspace_rules:
     expect(a.warnings, contains(contains('workspace_rules is ignored')));
   });
 
+  test('warns when no Dart files were scanned', () async {
+    final root = Directory.systemTemp.createTempSync('arch_guard_empty_');
+    addTearDown(() => root.deleteSync(recursive: true));
+    File(p.join(root.path, 'pubspec.yaml')).writeAsStringSync('name: root\n');
+    final unlisted = p.join(root.path, 'features', 'a', 'lib');
+    Directory(unlisted).createSync(recursive: true);
+    File(p.join(unlisted, 'a.dart')).writeAsStringSync('');
+
+    final a = await ArchAnalysis.run(projectPath: root.path);
+    expect(a.warnings, contains(contains('No Dart files were scanned')));
+  });
+
   test('--no-workspace says why workspace_rules is ignored', () async {
     final a = await ArchAnalysis.run(
       projectPath: 'example/cases/workspace_rules',
