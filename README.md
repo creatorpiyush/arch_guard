@@ -17,6 +17,8 @@ dart run arch_guard          # checks the project
 
 📖 **Documentation: [creatorpiyush.github.io/arch_guard](https://creatorpiyush.github.io/arch_guard/)**
 
+🤖 **Using an AI coding agent?** Paste the [setup prompt](https://creatorpiyush.github.io/arch_guard/ai.html) or install the [arch-guard skill](https://github.com/creatorpiyush/arch_guard/blob/main/skills/arch-guard/SKILL.md).
+
 ---
 
 ## Features

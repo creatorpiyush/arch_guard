@@ -24,6 +24,8 @@ dart run arch_guard          # checks the project
 
 `init` recognises Clean Architecture, Riverpod, Bloc and feature-first layouts. On an existing codebase, record today's problems with `dart run arch_guard --update-baseline` so that only new problems fail from then on.
 
+Using Claude Code, Codex, Cursor or another AI coding agent? Paste the [setup prompt](ai.md) and let the agent do these steps, or install the arch-guard skill so it keeps your rules from then on.
+
 ![Terminal report with cycles and a layer violation](images/terminal.png)
 
 ## Where next
@@ -35,5 +37,6 @@ dart run arch_guard          # checks the project
 | Run it on pull requests or before commits | [CI & hooks](ci.md) |
 | See every flag, output format and exit code | [CLI](cli.md) |
 | Build your own tooling on top | [Dart API](api.md) |
+| Let an AI coding agent set it up and fix violations | [AI agents](ai.md) |
 
 Found a bug or missing a preset? [Open an issue](https://github.com/creatorpiyush/arch_guard/issues).
