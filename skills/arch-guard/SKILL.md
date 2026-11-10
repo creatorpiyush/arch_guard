@@ -73,6 +73,8 @@ Suggested fix: remove lib/screens/home.dart:1 -> lib/widgets/nav.dart (breaks th
 
 For a cycle, start with the import named on the `Suggested fix:` line. Move the code both files need into a third file, or invert the dependency. Never just delete the import and leave the code broken.
 
+If the user wants to keep one import as it is, and neither a fix nor the baseline fits, add `// ignore: arch_guard_lint/<code>` on the line above it (`layer_violation`, `forbidden_package` or `circular_dependency`). The CLI, CI and the IDE all honour it. Use it last, and ask first.
+
 To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files.
 
 ## Rules

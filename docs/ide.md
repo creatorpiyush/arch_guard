@@ -71,3 +71,9 @@ Suppress a single warning:
 // ignore: arch_guard_lint/layer_violation
 import '../data/repo.dart';
 ```
+
+The CLI, CI and `expectArchitecture()` honour the same comment, so a silenced import does not fail the build either. The codes are `layer_violation`, `forbidden_package` and `circular_dependency`. To silence a code for a whole file:
+
+```dart
+// ignore_for_file: arch_guard_lint/circular_dependency
+```

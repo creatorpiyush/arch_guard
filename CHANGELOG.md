@@ -1,3 +1,7 @@
+# 1.11.0
+
+- **The CLI honours `// ignore: arch_guard_lint/<code>`.** An import silenced in the IDE with `// ignore: arch_guard_lint/layer_violation`, `forbidden_package` or `circular_dependency` (or `// ignore_for_file:`) is now also left out by the CLI, CI and `expectArchitecture()`. Before, the IDE stayed quiet while CI still failed. The comment works as in the analyzer: alone on its line it applies to the next line, after code it applies to its own line. An ignore on an import of a barrel also hides the violation reported through it. An ignored `circular_dependency` import is left out of cycle detection, the `Suggested fix:` hint and `--explain`, but still appears in the JSON and graph exports. Library: `IgnoreComments`, `GraphEdge.ignored`, `PackageImport.ignored`, `DependencyGraph.edges`.
+
 # 1.10.1
 
 - **Workspace entries with `./` or a trailing slash now match.** A root `pubspec.yaml` listing `workspace: [./packages/a, packages/b/]` skipped those members, so the scan found 0 files and reported no cycles. Entries are now normalized before matching.
