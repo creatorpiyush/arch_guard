@@ -301,6 +301,28 @@ Future<int> runCli(List<String> args) async {
     stdout.writeln();
   }
 
+  final unusedFiles = analysis.unusedFiles;
+  if (unusedFiles.isNotEmpty) {
+    // Report-only by default: not red unless it fails the run.
+    final color = config.failOnUnusedFiles ? cRed : '';
+    stdout.writeln(
+      '$color[!] Unused files (${unusedFiles.length}): no entry point '
+      'imports these, directly or indirectly.$cReset',
+    );
+    for (final f in unusedFiles.take(20)) {
+      stdout.writeln('  $f');
+    }
+    if (unusedFiles.length > 20) {
+      stdout.writeln('  … and ${unusedFiles.length - 20} more');
+    }
+    stdout.writeln();
+    stdout.writeln(
+      '  How to fix: delete them, or add the file that uses them under '
+      '`unused_files: entry_points`.',
+    );
+    stdout.writeln();
+  }
+
   final maxSccSize = config.maxSccSize;
   final oversizedSccs = analysis.oversizedCycles;
   final newOversizedSccs = analysis.newOversizedCycles;
@@ -411,6 +433,7 @@ Future<int> runCli(List<String> args) async {
         workspaceViolations: workspaceViolations
             .map((v) => v.toJson())
             .toList(),
+        unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
         since: since,
         changedFiles: analysis.changedFiles,
       );
@@ -518,6 +541,10 @@ Future<int> runCli(List<String> args) async {
   }
 
   if (newOversizedSccs.isNotEmpty) {
+    return 1;
+  }
+
+  if (config.failOnUnusedFiles && unusedFiles.isNotEmpty) {
     return 1;
   }
 

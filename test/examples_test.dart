@@ -21,6 +21,7 @@ void main() {
       'workspace_rules',
       'baseline',
       'scan_options',
+      'unused_files',
     ]) {
       expect(await runCli(['example/cases/$name']), 1, reason: name);
     }
@@ -109,5 +110,13 @@ void main() {
     expect(a.baseline!.knownCycles, hasLength(1));
     expect(a.newCycles, isEmpty);
     expect(a.newLayerViolations.single.sourceFile, 'lib/domain/order.dart');
+  });
+
+  test('unused_files: the legacy file nothing imports fails', () async {
+    final a = await run('unused_files');
+    expect(a.unusedFiles, ['lib/old/legacy.dart']);
+    expect(a.failures(), [
+      'Unused file: lib/old/legacy.dart (no entry point reaches it).',
+    ]);
   });
 }

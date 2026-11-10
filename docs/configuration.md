@@ -63,6 +63,7 @@ layers:
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
 | `workspace_rules` | map | none | In a workspace: member selector → `allowed:` members it may import. See [Workspace rules](#workspace-rules). |
 | `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
+| `unused_files` | map or `true` | off | Report scanned files that no entry point reaches. `entry_points`: extra globs. `fail: true` makes them fail the run. See [Unused files](#unused-files). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
 ## How layers are matched
@@ -145,6 +146,28 @@ metrics:
 
 - With a baseline, a known file passes while its number stays the same or drops, and **fails again if it grows**. That makes the limit a ratchet for legacy hubs.
 - Markdown and JSON reports always list the most coupled files (fan-in + fan-out). The terminal lists the top five when `metrics:` limits are set.
+
+## Unused files
+
+Find files that nothing uses any more:
+
+```yaml
+unused_files:
+  entry_points:       # extra globs, added to the defaults
+    - lib/app/router.dart
+  fail: false         # true: unused files fail the run (exit code 1)
+```
+
+`unused_files: true` turns the check on with the defaults. Without the key, nothing is checked.
+
+- A file is used when an entry point reaches it through `import`, `export` or `part` directives, directly or through other files. Every directive counts, including conditional imports and imports silenced with an ignore comment.
+- A group of files that only import each other, cycles included, is still unused when no entry point reaches it.
+- Default entry points: `lib/main*.dart` (so `main_dev.dart` and `main_prod.dart` too), `bin/**`, `test/**`, `tool/**`, `example/**`, `*_test.dart`, the same paths inside workspace members, and each package's public library `lib/<package_name>.dart`.
+- Only scanned files are checked, and by default only `lib/` is scanned. A `lib/` file used only from `bin/` or `test/` is reported unless you scan that folder too (`--scan-dir lib --scan-dir bin`) or list the file under `entry_points`.
+- When no scanned file is an entry point, nothing is reported and you get a warning instead. Add your app's entry file under `entry_points`.
+- With `--since`, only unused files changed on the branch are reported, so old dead files don't fail a pull request.
+- There is no baseline for unused files. On a codebase that already has some, keep `fail: false`, or list them under `entry_points` until they are removed.
+- The terminal lists up to 20 files. The JSON report has the full list under `unusedFiles`.
 
 ## Warnings
 

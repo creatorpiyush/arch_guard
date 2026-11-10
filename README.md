@@ -26,6 +26,7 @@ dart run arch_guard          # checks the project
 - 🛡️ **Layer rules.** Say which layers may import which (`domain` must not import `data`); every violation shows the import line and the rule it breaks.
 - 🚫 **Forbidden packages.** Keep `flutter`, `dart:io` or any package out of a layer (or the whole project), with globs like `firebase_*`.
 - 🏢 **Workspace rules.** In a monorepo, say which packages may depend on which: `apps/*` may use `packages/*`, never the reverse.
+- 🧹 **Unused files.** `unused_files:` lists files no entry point imports, directly or indirectly, and can fail the run on them.
 - 📏 **Metric limits and hotspots.** `max_fan_out` / `max_fan_in` stop files from becoming hubs; reports list the most coupled files.
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.

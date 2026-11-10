@@ -229,4 +229,22 @@ void main() {
       isNot(contains('since')),
     );
   });
+
+  test('JSON lists unused files only when given', () {
+    const result = ScanResult(packageName: 'p', files: {}, edges: []);
+    final json =
+        jsonDecode(
+              JsonExporter.export(
+                result: result,
+                cycles: const [],
+                unusedFiles: const ['lib/old.dart'],
+              ),
+            )
+            as Map<String, dynamic>;
+    expect(json['unusedFiles'], ['lib/old.dart']);
+    expect(
+      jsonDecode(JsonExporter.export(result: result, cycles: const [])),
+      isNot(contains('unusedFiles')),
+    );
+  });
 }

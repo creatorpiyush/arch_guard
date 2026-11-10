@@ -1,0 +1,2 @@
+unused_files:
+  fail: true   # unused files fail the run (exit 1)
