@@ -21,6 +21,7 @@ How later runs compare against the baseline:
 - A **cycle** is known if all its files belong to one baseline cycle. A cycle that shrinks stays accepted; one that grows, or merges two known cycles, is new.
   - Only **membership** is compared, not the imports inside the cycle. With a baseline cycle `a -> b -> c -> a`, adding `a -> c` (or removing it again) still passes: the cycle has the same three files. To cap how big a cycle may get, use [`max_scc_size`](configuration.md).
   - Each new cycle says why it is new, e.g. `Why new: grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`.
+- An **unused file** is known if its path is listed. One that is used again or deleted counts as fixed.
 - When baseline entries disappear, the run says so. Run `--update-baseline` again to lock in the improvement so the problems cannot come back.
 - The run also says when a known problem got smaller without going away: a cycle group that lost files or split, or a metric value that dropped. Update the baseline to lock that in too. Otherwise a saved `{a, b, c}` still accepts `c` coming back after you shrank the group to `{a, b}`.
 - Updating is always manual. "No regression" means no worse than the saved baseline file, not than the last passing run.
@@ -44,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.11.0
+      - uses: creatorpiyush/arch_guard@v1.12.0
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -65,10 +66,25 @@ The PR comment looks like this: a status line, a summary table, the new problems
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.11.0
+      - uses: creatorpiyush/arch_guard@v1.12.0
         with:
           args: --since origin/${{ github.base_ref }}
 ```
+
+### How long a run takes
+
+A full run, scan included, takes about 0.07 s per 1,000 files. Most of it is reading the files, which the operating system limits. The [unused-file check](configuration.md#unused-files) adds about 2 ms per 1,000 files. Measured on generated projects with about 6 imports per file, using the compiled CLI (median of 7 runs):
+
+| Files | Workspace members | Unused-file check alone | Full run, check off | Full run, check on |
+| ---: | ---: | ---: | ---: | ---: |
+| 1,000 | none | 1.9 ms | 93 ms | 93 ms |
+| 5,000 | none | 8.9 ms | 382 ms | 410 ms |
+| 5,050 | 50 | 19 ms | 408 ms | 417 ms |
+| 10,000 | none | 19 ms | 709 ms | 735 ms |
+| 20,000 | none | 42 ms | 1,348 ms | 1,439 ms |
+| 20,200 | 200 | 82 ms | 1,502 ms | 1,585 ms |
+
+Differences of a few percent between runs are noise. `dart run arch_guard` adds about a second of Dart startup; the [GitHub Action](#github-action) and the [standalone binaries](cli.md#standalone-binaries-no-dart-sdk-needed) don't.
 
 ## GitLab CI
 
@@ -93,7 +109,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.11.0
+    rev: v1.12.0
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]

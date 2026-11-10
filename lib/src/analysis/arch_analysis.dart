@@ -115,6 +115,9 @@ class ArchAnalysis {
       .take(config.hotspotCount)
       .toList();
 
+  /// Unused files not in the baseline.
+  List<String> get newUnusedFiles => baseline?.newUnusedFiles ?? unusedFiles;
+
   /// Workspace rule violations not in the baseline.
   List<WorkspaceViolation> get newWorkspaceViolations =>
       baseline?.newWorkspaceViolations ?? workspaceViolations;
@@ -128,7 +131,7 @@ class ArchAnalysis {
   /// Mirrors the CLI: layer violations count only with
   /// `fail_on_layer_violation: true`, cycles only with [failOnCycle], and
   /// forbidden packages and `max_scc_size` always, unused files only with
-  /// `unused_files: fail: true`. Unused files have no baseline.
+  /// `unused_files: fail: true`.
   List<String> failures({bool failOnCycle = true}) {
     String at(String file, int? line) => line == null ? file : '$file:$line';
     return [
@@ -137,7 +140,7 @@ class ArchAnalysis {
             '${v.rule}',
       for (final v in newMetricViolations) 'Metric limit: ${v.rule}',
       if (config.failOnUnusedFiles)
-        for (final f in unusedFiles)
+        for (final f in newUnusedFiles)
           'Unused file: $f (no entry point reaches it).',
       for (final v in newWorkspaceViolations)
         'Workspace rule: ${at(v.sourceFile, v.line)} imports ${v.targetFile}. '
@@ -248,6 +251,9 @@ class ArchAnalysis {
       packageViolations: packageViolations,
       metricViolations: metricViolations,
       workspaceViolations: workspaceViolations,
+      // null (not checked) keeps the baseline's unused files from counting
+      // as fixed when the check is off or found no entry point.
+      unusedFiles: unused == null || unused.noEntryPoint ? null : unused.files,
     );
 
     // Without --since every predicate is true; with it, keep only problems
@@ -275,6 +281,7 @@ class ArchAnalysis {
         .toList();
     List<WorkspaceViolation> ws(List<WorkspaceViolation> l) =>
         l.where((v) => touches(v.sourceFile)).toList();
+    List<String> unusedIn(List<String> l) => l.where(touches).toList();
 
     return ArchAnalysis(
       scan: scan,
@@ -286,7 +293,7 @@ class ArchAnalysis {
       fileMetrics: fileMetrics,
       metricViolations: met(metricViolations),
       workspaceViolations: ws(workspaceViolations),
-      unusedFiles: [...?unused?.files.where(touches)],
+      unusedFiles: unusedIn([...?unused?.files]),
       warnings: warnings,
       oversizedCycles: cyc(oversized),
       coverage: LayerValidator.coverage(result: scan, config: config),
@@ -315,6 +322,9 @@ class ArchAnalysis {
               fixedMetricViolationCount: comparison.fixedMetricViolationCount,
               fixedWorkspaceViolationCount:
                   comparison.fixedWorkspaceViolationCount,
+              newUnusedFiles: unusedIn(comparison.newUnusedFiles),
+              knownUnusedFiles: unusedIn(comparison.knownUnusedFiles),
+              fixedUnusedFileCount: comparison.fixedUnusedFileCount,
             ),
     );
   }

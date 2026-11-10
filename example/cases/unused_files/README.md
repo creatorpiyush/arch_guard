@@ -24,6 +24,8 @@ dart run arch_guard example/cases/unused_files
 
 Exit code `1`. Without `fail: true` the files are listed and the run still passes.
 
-A file counts as used when an entry point reaches it through imports, exports or `part` directives, however indirectly. `lib/main*.dart` and the package's `lib/<name>.dart` are entry points by default. Add your own under `entry_points:`.
+A file counts as used when an entry point reaches it through imports, exports or `part` directives, however indirectly. `lib/main.dart`, `lib/main_*.dart` and the package's `lib/<name>.dart` are entry points by default. Add your own under `entry_points:`.
+
+Already have unused files you can't delete yet? Run `dart run arch_guard example/cases/unused_files --update-baseline`; later runs fail only on new ones.
 
 Learn more: [Unused files](https://creatorpiyush.github.io/arch_guard/configuration.html#unused-files)

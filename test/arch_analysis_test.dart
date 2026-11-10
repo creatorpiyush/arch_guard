@@ -285,6 +285,31 @@ layers:
       expect(a.unusedFiles, isEmpty);
     });
 
+    test('a baseline accepts known unused files', () async {
+      write('arch_guard.yaml', 'unused_files:\n  fail: true\n');
+      final full = await ArchAnalysis.run(projectPath: project.path);
+      Baseline.capture(
+        cycles: full.cycles,
+        layerViolations: full.layerViolations,
+        unusedFiles: full.unusedFiles,
+      ).save(full.baselinePath);
+      write('lib/newer.dart', '');
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.unusedFiles, ['lib/newer.dart', 'lib/old.dart']);
+      expect(a.newUnusedFiles, ['lib/newer.dart']);
+      expect(a.failures().where(unusedLine), [
+        'Unused file: lib/newer.dart (no entry point reaches it).',
+      ]);
+
+      // Now used: counted as fixed. Check turned off: not counted as fixed.
+      write('lib/main.dart', "import 'domain/a.dart';\nimport 'old.dart';\n");
+      final fixed = await ArchAnalysis.run(projectPath: project.path);
+      expect(fixed.baseline!.fixedUnusedFileCount, 1);
+      write('arch_guard.yaml', 'max_scc_size: 5\n');
+      final off = await ArchAnalysis.run(projectPath: project.path);
+      expect(off.baseline!.fixedUnusedFileCount, 0);
+    });
+
     test('no entry point warns instead of reporting', () async {
       write('arch_guard.yaml', 'unused_files:\n  fail: true\n');
       File(p.join(project.path, 'lib/main.dart')).deleteSync();

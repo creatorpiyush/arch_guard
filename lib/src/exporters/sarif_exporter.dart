@@ -29,6 +29,9 @@ class SarifExporter {
   /// SARIF rule id for circular dependency groups.
   static const circularDependencyRule = 'circular-dependency';
 
+  /// SARIF rule id for files no entry point reaches (`unused_files:`).
+  static const unusedFileRule = 'unused-file';
+
   /// SARIF rule id for groups larger than `max_scc_size`.
   static const sccSizeLimitRule = 'scc-size-limit';
 
@@ -50,6 +53,8 @@ class SarifExporter {
     int? maxSccSize,
     bool failOnCycle = true,
     bool failOnLayerViolation = true,
+    List<String> unusedFiles = const [],
+    bool failOnUnusedFiles = false,
     String uriPrefix = '',
   }) {
     final lineOf = <String, int>{};
@@ -202,6 +207,24 @@ class SarifExporter {
       });
     }
 
+    for (final file in unusedFiles) {
+      results.add({
+        'ruleId': unusedFileRule,
+        'level': failOnUnusedFiles ? 'error' : 'warning',
+        'message': {
+          'text':
+              '`$file` is not imported by any entry point, directly or '
+              'indirectly. Delete it, or add the file that uses it under '
+              '`unused_files: entry_points`.',
+        },
+        'locations': [location(file)],
+        'partialFingerprints': {'archGuard/v1': '$unusedFileRule:$file'},
+        'baselineState': ?state(
+          !(baseline?.knownUnusedFiles.contains(file) ?? false),
+        ),
+      });
+    }
+
     final log = {
       r'$schema': 'https://json.schemastore.org/sarif-2.1.0.json',
       'version': '2.1.0',
@@ -301,6 +324,22 @@ class SarifExporter {
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
+      },
+    },
+    {
+      'id': unusedFileRule,
+      'name': 'UnusedFile',
+      'shortDescription': {'text': 'File no entry point uses'},
+      'fullDescription': {
+        'text':
+            'No entry point reaches this file through imports, exports or '
+            'parts (see `unused_files:` in arch_guard.yaml).',
+      },
+      'helpUri':
+          'https://creatorpiyush.github.io/arch_guard/configuration.html#unused-files',
+      'defaultConfiguration': {'level': 'warning'},
+      'properties': {
+        'tags': ['maintainability'],
       },
     },
     {

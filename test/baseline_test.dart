@@ -356,4 +356,37 @@ void main() {
       );
     });
   });
+
+  group('Baseline unused files', () {
+    test('round-trips and compares by path', () {
+      final saved = Baseline.capture(
+        cycles: const [],
+        layerViolations: const [],
+        unusedFiles: ['lib/b.dart', 'lib/a.dart'],
+      );
+      final json = saved.toJson();
+      expect(json['unusedFiles'], ['lib/a.dart', 'lib/b.dart']);
+      final loaded = Baseline.fromJson(jsonDecode(jsonEncode(json)));
+      final c = loaded.compare(
+        cycles: const [],
+        layerViolations: const [],
+        unusedFiles: ['lib/b.dart', 'lib/new.dart'],
+      );
+      expect(c.newUnusedFiles, ['lib/new.dart']);
+      expect(c.knownUnusedFiles, ['lib/b.dart']);
+      expect(c.fixedUnusedFileCount, 1);
+    });
+
+    test('a check that did not run fixes nothing', () {
+      const saved = Baseline(unusedFiles: {'lib/a.dart'});
+      final c = saved.compare(cycles: const [], layerViolations: const []);
+      expect(c.fixedUnusedFileCount, 0);
+      expect(c.newUnusedFiles, isEmpty);
+    });
+
+    test('baselines without unused files keep their old shape', () {
+      expect(const Baseline().toJson(), isNot(contains('unusedFiles')));
+      expect(Baseline.fromJson({'version': 1}).unusedFiles, isEmpty);
+    });
+  });
 }

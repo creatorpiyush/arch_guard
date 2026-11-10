@@ -51,6 +51,7 @@ dart run arch_guard          # checks the project
 | Ready-made architecture presets + `init` | ✅ | – | – | – |
 | Circular dependency detection | ✅ with metrics | – | – | ✅ |
 | Baseline for legacy code | ✅ | ✅ | – | – |
+| Unused file detection | ✅ reachability from entry points (dead cycles too), with baseline and `--since` | ✅ `check-unused-files` | – | – |
 | Dependency graph output | HTML, Mermaid, DOT, JSON | DOT (`analyze-structure`) | – | DOT, JSON |
 | PR comment / SARIF / GitHub Action | ✅ | CI integrations on paid plans | – | – |
 | Warnings in the IDE | ✅ (`arch_guard_lint` analyzer plugin) | ✅ | ✅ (analyzer plugin) | – |
@@ -150,7 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.11.0
+      - uses: creatorpiyush/arch_guard@v1.12.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).

@@ -144,12 +144,22 @@ Future<int> runCli(List<String> args) async {
       config.workspaceRules.isNotEmpty ||
       workspaceViolations.isNotEmpty ||
       (comparison?.fixedWorkspaceViolationCount ?? 0) > 0;
-  List<String> counts(int cycles, int layer, int pkg, int metric, int ws) => [
+  final showUnused =
+      config.unusedFilesEnabled || (comparison?.fixedUnusedFileCount ?? 0) > 0;
+  List<String> counts(
+    int cycles,
+    int layer,
+    int pkg,
+    int metric,
+    int ws,
+    int unused,
+  ) => [
     '$cycles cycle group(s)',
     '$layer layer violation(s)',
     '$pkg forbidden package import(s)',
     if (showMetrics) '$metric metric limit violation(s)',
     if (showWorkspace) '$ws workspace rule violation(s)',
+    if (showUnused) '$unused unused file(s)',
   ];
 
   scanResult.skippedFiles.forEach((file, reason) {
@@ -302,18 +312,20 @@ Future<int> runCli(List<String> args) async {
   }
 
   final unusedFiles = analysis.unusedFiles;
-  if (unusedFiles.isNotEmpty) {
+  final newUnusedFiles = analysis.newUnusedFiles;
+  if (newUnusedFiles.isNotEmpty) {
     // Report-only by default: not red unless it fails the run.
     final color = config.failOnUnusedFiles ? cRed : '';
     stdout.writeln(
-      '$color[!] Unused files (${unusedFiles.length}): no entry point '
+      '$color[!] ${comparison == null ? 'Unused' : 'New unused'} files '
+      '(${newUnusedFiles.length}): no entry point '
       'imports these, directly or indirectly.$cReset',
     );
-    for (final f in unusedFiles.take(20)) {
+    for (final f in newUnusedFiles.take(20)) {
       stdout.writeln('  $f');
     }
-    if (unusedFiles.length > 20) {
-      stdout.writeln('  … and ${unusedFiles.length - 20} more');
+    if (newUnusedFiles.length > 20) {
+      stdout.writeln('  … and ${newUnusedFiles.length - 20} more');
     }
     stdout.writeln();
     stdout.writeln(
@@ -337,6 +349,7 @@ Future<int> runCli(List<String> args) async {
       comparison.knownPackageViolations.length,
       comparison.knownMetricViolations.length,
       comparison.knownWorkspaceViolations.length,
+      comparison.knownUnusedFiles.length,
     );
     final added = counts(
       newCycles.length,
@@ -344,6 +357,7 @@ Future<int> runCli(List<String> args) async {
       newPackageViolations.length,
       newMetricViolations.length,
       newWorkspaceViolations.length,
+      analysis.newUnusedFiles.length,
     );
     final fixed = counts(
       comparison.fixedCycleCount,
@@ -351,6 +365,7 @@ Future<int> runCli(List<String> args) async {
       comparison.fixedPackageViolationCount,
       comparison.fixedMetricViolationCount,
       comparison.fixedWorkspaceViolationCount,
+      comparison.fixedUnusedFileCount,
     );
     stdout.writeln('  Known (ignored): ${known.join(', ')}');
     final newColor =
@@ -358,7 +373,8 @@ Future<int> runCli(List<String> args) async {
             newViolations.isEmpty &&
             newPackageViolations.isEmpty &&
             newMetricViolations.isEmpty &&
-            newWorkspaceViolations.isEmpty
+            newWorkspaceViolations.isEmpty &&
+            analysis.newUnusedFiles.isEmpty
         ? cGreen
         : cRed;
     stdout.writeln('  New:             $newColor${added.join(', ')}$cReset');
@@ -375,7 +391,8 @@ Future<int> runCli(List<String> args) async {
         comparison.fixedViolationCount > 0 ||
         comparison.fixedPackageViolationCount > 0 ||
         comparison.fixedMetricViolationCount > 0 ||
-        comparison.fixedWorkspaceViolationCount > 0) {
+        comparison.fixedWorkspaceViolationCount > 0 ||
+        comparison.fixedUnusedFileCount > 0) {
       stdout.writeln(
         '  $cGreen${_andJoin(fixed)} in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
@@ -466,6 +483,8 @@ Future<int> runCli(List<String> args) async {
         maxSccSize: maxSccSize,
         failOnCycle: failOnCycle,
         failOnLayerViolation: config.failOnLayerViolation,
+        unusedFiles: unusedFiles,
+        failOnUnusedFiles: config.failOnUnusedFiles,
         uriPrefix: _repoRelativePrefix(absProjectPath),
       );
       File(sarifPath).writeAsStringSync(sarifContent);
@@ -487,6 +506,8 @@ Future<int> runCli(List<String> args) async {
         maxSccSize: maxSccSize,
         since: since,
         changedFileCount: analysis.changedFiles?.length,
+        unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
+        failOnUnusedFiles: config.failOnUnusedFiles,
       );
       File(markdownPath).writeAsStringSync(markdownContent);
       stdout.writeln('Exported Markdown summary to: $markdownPath');
@@ -514,6 +535,7 @@ Future<int> runCli(List<String> args) async {
       packageViolations.length,
       metricViolations.length,
       workspaceViolations.length,
+      analysis.unusedFiles.length,
     );
     Baseline.capture(
       cycles: cycles,
@@ -521,6 +543,7 @@ Future<int> runCli(List<String> args) async {
       packageViolations: packageViolations,
       metricViolations: metricViolations,
       workspaceViolations: workspaceViolations,
+      unusedFiles: analysis.unusedFiles,
     ).save(baselinePath);
     stdout.writeln(
       '${cGreen}Baseline written to $baselinePath$cReset '
@@ -544,7 +567,7 @@ Future<int> runCli(List<String> args) async {
     return 1;
   }
 
-  if (config.failOnUnusedFiles && unusedFiles.isNotEmpty) {
+  if (config.failOnUnusedFiles && newUnusedFiles.isNotEmpty) {
     return 1;
   }
 

@@ -26,7 +26,7 @@ arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 | `--fail-on-cycle` / `--no-fail-on-cycle` | | Return exit code `1` if circular dependencies are found. | `--fail-on-cycle` (enabled) |
 | `--workspace` / `--no-workspace` | | Auto-discover member packages in Dart 3.6+ workspace or monorepo. | `--workspace` (enabled) |
 | `--baseline` | | Baseline file of known problems. When it exists, only new problems fail the run. | `arch_guard_baseline.json` |
-| `--update-baseline` | | Write current cycles and layer violations to the baseline and exit `0`. | |
+| `--update-baseline` | | Write current problems (cycles, rule violations and, with `unused_files:`, unused files) to the baseline and exit `0`. | |
 | `--since` | | Only report (and fail on) problems touching files changed since the merge base with a git ref, plus uncommitted and untracked files, e.g. `origin/main`. The whole project is still analysed. Cannot be combined with `--update-baseline` or `--explain` (exit `64`); git errors exit `2`. A `max_fan_in` violation counts when a changed file imports the over-limit file. | |
 | `--version` | | Print the arch_guard version. | |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
@@ -44,6 +44,17 @@ arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 | `json` | `.json` | Dashboards and custom scripts. |
 | `sarif` | `.sarif` | GitHub Code Scanning and SARIF viewers; results point at the import line. |
 | `markdown` | `arch_guard_report.md` | PR comments and CI job summaries. |
+
+### Unused files in each format
+
+With [`unused_files:`](configuration.md#unused-files) in the config:
+
+| Format | What it shows |
+| :--- | :--- |
+| Terminal | Up to 20 files, then `… and N more`. With a baseline, only new ones. |
+| JSON | The full sorted list under `unusedFiles`. The key is absent when the check is off. |
+| SARIF | One result per file under the rule `unused-file`: `error` with `fail: true`, `warning` otherwise, with `baselineState` when a baseline is used. |
+| Markdown | An *Unused files* row in the summary table, and a *New unused files* list. |
 
 ## Recipes
 

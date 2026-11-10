@@ -108,4 +108,82 @@ void main() {
     final r = UnusedFiles.find(result: result);
     expect(r.files, ['packages/core/lib/src/dead.dart']);
   });
+
+  test('main-like names are not entry points', () {
+    final r = find({
+      'lib/main.dart': '',
+      'lib/maintenance.dart': '',
+      'lib/mainframe/x.dart': '',
+    });
+    expect(r.files, ['lib/mainframe/x.dart', 'lib/maintenance.dart']);
+  });
+
+  test('package: self-imports and relative ../ imports count', () {
+    final r = find({
+      'lib/main.dart': "import 'package:app/src/a.dart';",
+      'lib/src/a.dart': "import '../src/deep/b.dart';",
+      'lib/src/deep/b.dart': '',
+    });
+    expect(r.files, isEmpty);
+  });
+
+  test('self-import and a dead file importing a used one', () {
+    final r = find({
+      'lib/main.dart': "import 'used.dart';",
+      'lib/used.dart': '',
+      'lib/self.dart': "import 'self.dart';",
+      'lib/dead.dart': "import 'used.dart';",
+    });
+    expect(r.files, ['lib/dead.dart', 'lib/self.dart']);
+  });
+
+  test('bin, test, tool, example and *_test.dart are entry points', () {
+    final r = find({
+      'bin/cli.dart': "import 'package:app/src/a.dart';",
+      'lib/src/a.dart': '',
+      'test/helpers.dart': "import 'package:app/src/b.dart';",
+      'lib/src/b.dart': '',
+      'tool/gen.dart': "import 'package:app/src/c.dart';",
+      'lib/src/c.dart': '',
+      'example/demo.dart': "import 'package:app/src/d.dart';",
+      'lib/src/d.dart': '',
+      'integration/x_test.dart': "import 'package:app/src/e.dart';",
+      'lib/src/e.dart': '',
+      'lib/src/dead.dart': '',
+    });
+    expect(r.files, ['lib/src/dead.dart']);
+  });
+
+  test('entry point globs can name a folder', () {
+    final r = find(
+      {
+        'lib/main.dart': '',
+        'lib/plugins/a.dart': "import 'b.dart';",
+        'lib/plugins/b.dart': '',
+      },
+      entryPoints: ['lib/plugins/**'],
+    );
+    expect(r.files, isEmpty);
+  });
+
+  test('a long chain is followed without recursion limits', () {
+    const n = 20000;
+    final r = find({
+      'lib/main.dart': "import 'f0.dart';",
+      for (var i = 0; i < n; i++)
+        'lib/f$i.dart': i + 1 < n ? "import 'f${i + 1}.dart';" : '',
+      'lib/dead.dart': '',
+    });
+    expect(r.files, ['lib/dead.dart']);
+  });
+
+  test('a test/ folder inside lib/ is no entry point', () {
+    final r = find({
+      'lib/main.dart': '',
+      'lib/features/test/x.dart': '',
+      'integration_test/app_test.dart': "import 'package:app/src/y.dart';",
+      'lib/src/y.dart': '',
+    });
+    expect(r.files, ['lib/features/test/x.dart']);
+  });
 }

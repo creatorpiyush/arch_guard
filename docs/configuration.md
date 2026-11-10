@@ -158,16 +158,56 @@ unused_files:
   fail: false         # true: unused files fail the run (exit code 1)
 ```
 
-`unused_files: true` turns the check on with the defaults. Without the key, nothing is checked.
+| Key | Type | Default | Meaning |
+| :--- | :--- | :--- | :--- |
+| `unused_files` | map or `true` | off | Turns the check on. `unused_files: true` uses the defaults below. Without the key, nothing is checked. |
+| `entry_points` | list of globs | none | Extra entry points, added to the defaults. Paths are relative to the project root. |
+| `fail` | bool | `false` | `true`: unused files fail the run (exit code `1`). `false`: they are only listed. |
 
-- A file is used when an entry point reaches it through `import`, `export` or `part` directives, directly or through other files. Every directive counts, including conditional imports and imports silenced with an ignore comment.
-- A group of files that only import each other, cycles included, is still unused when no entry point reaches it.
-- Default entry points: `lib/main*.dart` (so `main_dev.dart` and `main_prod.dart` too), `bin/**`, `test/**`, `tool/**`, `example/**`, `*_test.dart`, the same paths inside workspace members, and each package's public library `lib/<package_name>.dart`.
-- Only scanned files are checked, and by default only `lib/` is scanned. A `lib/` file used only from `bin/` or `test/` is reported unless you scan that folder too (`--scan-dir lib --scan-dir bin`) or list the file under `entry_points`.
-- When no scanned file is an entry point, nothing is reported and you get a warning instead. Add your app's entry file under `entry_points`.
-- With `--since`, only unused files changed on the branch are reported, so old dead files don't fail a pull request.
-- There is no baseline for unused files. On a codebase that already has some, keep `fail: false`, or list them under `entry_points` until they are removed.
-- The terminal lists up to 20 files. The JSON report has the full list under `unusedFiles`.
+```text
+[!] Unused files (1): no entry point imports these, directly or indirectly.
+  lib/old/legacy.dart
+
+  How to fix: delete them, or add the file that uses them under `unused_files: entry_points`.
+```
+
+### What counts as used
+
+A file is used when an entry point reaches it, directly or through other files.
+
+| Case | Used? |
+| :--- | :--- |
+| Reached through `import`, `export` or `part` | ✅ |
+| Reached only through a conditional import (`if (dart.library.io)`) | ✅ |
+| Reached through an import silenced with `// ignore: arch_guard_lint/...` | ✅ |
+| Imports used files, but nothing imports it | ❌ |
+| Part of a group of files that only import each other (a dead cycle) | ❌ |
+| Used only from a folder that is not scanned (`bin/`, `test/` by default) | ❌ Scan that folder too (`--scan-dir lib --scan-dir bin`), or list the file under `entry_points`. |
+
+### Default entry points
+
+These apply to the project root and, in a workspace, to each member (`packages/core/test/**`).
+
+| Entry point | Why |
+| :--- | :--- |
+| `lib/main.dart`, `lib/main_*.dart` | The app and its flavours (`main_dev.dart`, `main_prod.dart`). `lib/maintenance.dart` is not an entry point. |
+| `lib/<package_name>.dart` | The package's public library, which other packages import. |
+| `bin/**` | Command-line entry points. |
+| `test/**`, `integration_test/**`, `*_test.dart` | Tests. A `test/` folder inside `lib/` is not an entry point. |
+| `tool/**`, `example/**` | Scripts and examples. |
+
+When no scanned file is an entry point, nothing is reported and you get a warning instead. Add your app's entry file under `entry_points`.
+
+### With `--since` and a baseline
+
+| Mode | Behaviour |
+| :--- | :--- |
+| `--since origin/main` | Only unused files changed on the branch are reported, so old dead files don't fail a pull request. |
+| `--update-baseline` | Records today's unused files. Later runs fail only on new ones. See [baseline](ci.md#adopting-on-an-existing-codebase-baseline). |
+| Baseline, file used again or deleted | Counts as fixed. Run `--update-baseline` to lock it in. |
+| Baseline, check turned off | The recorded files are not counted as fixed. |
+
+Unused files appear in every report format; see [Output formats](cli.md#unused-files-in-each-format). The check adds about 2 ms per 1,000 files; see [How long a run takes](ci.md#how-long-a-run-takes).
 
 ## Warnings
 
