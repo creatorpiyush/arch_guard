@@ -14,6 +14,7 @@ import '../graph/dependency_explainer.dart';
 import '../reporters/text_reporter.dart';
 import '../scanner/git_changes.dart';
 import '../version.dart';
+import 'affected_command.dart';
 import 'args_config.dart';
 import 'init_command.dart';
 import 'watch_command.dart';
@@ -28,19 +29,32 @@ Future<int> runCli(List<String> args) async {
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');
     stderr.writeln();
-    stderr.writeln(
-      args.isNotEmpty && args.first == 'init'
-          ? ArgsConfig.buildInitParser().usage
-          : parser.usage,
-    );
+    final sub = args.isEmpty ? null : parser.commands[args.first];
+    stderr.writeln((sub ?? parser).usage);
     return 64; // Sysexit code for command-line usage error
   }
 
   final watch = argResults['watch'] as bool;
   final command = argResults.command;
-  if (watch && command?.name == 'init') {
-    stderr.writeln('Error: --watch cannot be combined with init.');
+  if (watch && command != null) {
+    stderr.writeln('Error: --watch cannot be combined with ${command.name}.');
     return 64;
+  }
+  if (command?.name == 'affected') {
+    if (command!['help'] == true) {
+      stdout.writeln(
+        'Usage: arch_guard affected [project_path] --since <git-ref> [options]',
+      );
+      stdout.writeln();
+      stdout.writeln(
+        'Lists the tests (or files, or packages) that changes since a git '
+        'ref can affect.',
+      );
+      stdout.writeln();
+      stdout.writeln(ArgsConfig.buildAffectedParser().usage);
+      return 0;
+    }
+    return runAffected(command);
   }
   if (command?.name == 'init') {
     if (command!['help'] == true) {
@@ -59,6 +73,7 @@ Future<int> runCli(List<String> args) async {
   if (argResults['help'] == true) {
     stdout.writeln('Usage: arch_guard [project_path] [options]');
     stdout.writeln('       arch_guard init [project_path] [--preset <name>]');
+    stdout.writeln('       arch_guard affected [project_path] --since <ref>');
     stdout.writeln();
     stdout.writeln(parser.usage);
     return 0;
