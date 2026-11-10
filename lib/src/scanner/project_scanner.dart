@@ -24,12 +24,17 @@ class ProjectScanner {
   /// Whether to auto-discover and scan member packages in a Dart 3.6+ workspace or monorepo.
   final bool enableWorkspace;
 
+  /// Folders scanned inside each workspace member, relative to the member
+  /// (`lib`, `test`). Missing folders are skipped.
+  final List<String> memberScanDirs;
+
   /// Creates a scanner for the project at [rootPath].
   ProjectScanner({
     required this.rootPath,
     this.scanDirs = const ['lib'],
     this.exclude = const [],
     this.enableWorkspace = true,
+    this.memberScanDirs = const ['lib'],
   });
 
   /// Performs the scan and returns a [ScanResult].
@@ -64,14 +69,16 @@ class ProjectScanner {
     final packageImports = <PackageImport>[];
 
     // Determine target directories to scan. Member packages contribute their
-    // lib directories; the root package (or a plain project) honours [scanDirs].
+    // [memberScanDirs]; the root package (or a plain project) honours [scanDirs].
     final targetScanDirs = <String>[];
     if (workspacePkgs.isNotEmpty) {
       for (final pkg in workspacePkgs.values) {
         if (pkg.packagePath == '.') {
           targetScanDirs.addAll(scanDirs);
         } else {
-          targetScanDirs.add(pkg.libPath);
+          for (final dir in memberScanDirs) {
+            targetScanDirs.add('${pkg.packagePath}/$dir');
+          }
         }
       }
     } else {

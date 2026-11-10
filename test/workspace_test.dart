@@ -158,5 +158,27 @@ void main() {
         expect(pkgs.keys.toSet(), equals({'a', 'b'}));
       });
     });
+
+    test('memberScanDirs scans member test folders', () async {
+      const testFile = 'packages/auth_pkg/test/helpers.dart';
+      final result = await ProjectScanner(
+        rootPath: 'test/fixtures/workspace_monorepo',
+        memberScanDirs: ['lib', 'test'],
+      ).scan();
+      expect(result.files.keys, contains(testFile));
+      expect(
+        result.edges.any(
+          (e) =>
+              e.from == testFile &&
+              e.to == 'packages/auth_pkg/lib/auth_service.dart',
+        ),
+        isTrue,
+      );
+
+      final byDefault = await ProjectScanner(
+        rootPath: 'test/fixtures/workspace_monorepo',
+      ).scan();
+      expect(byDefault.files.keys, isNot(contains(testFile)));
+    });
   });
 }
