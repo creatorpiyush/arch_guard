@@ -109,4 +109,19 @@ void main() {
       expect(parsed.ignorePatterns, contains('**/*.g.dart'));
     }
   });
+
+  test('config header links to the configuration docs', () {
+    final yaml = buildInitConfig(
+      preset: 'clean_architecture',
+      reason: 'test',
+      rootPath: Directory.systemTemp.path,
+    );
+    expect(
+      yaml,
+      contains(
+        '# Reference: '
+        'https://creatorpiyush.github.io/arch_guard/configuration.html\n',
+      ),
+    );
+  });
 }
