@@ -1,6 +1,6 @@
 # 1.13.0
 
-- **New: `--watch`.** `arch_guard --watch` runs the check, then runs it again whenever a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes, until Ctrl+C. Changes under `build/` and dot folders (`.dart_tool`, `.git`) are ignored, so reports written into the project don't trigger a loop. Rapid saves are merged into one run (300 ms debounce), and a change during a run causes one more run after it. All other flags work as usual. It cannot be combined with `--update-baseline`, `--explain` or `init` (exit `64`). Ctrl+C exits `0`.
+- **New: `--watch`.** `arch_guard --watch` runs the check, then runs it again whenever a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes, until Ctrl+C. Adding, moving, renaming or deleting a folder of Dart files counts too. Changes under `build/` and dot folders (`.dart_tool`, `.git`) are ignored, so reports written into the project don't trigger a loop. Rapid saves are merged into one run (300 ms debounce), and a change during a run causes one more run after it. All other flags work as usual. It cannot be combined with `--update-baseline`, `--explain` or `init` (exit `64`). Ctrl+C exits `0`.
 
 # 1.12.0
 

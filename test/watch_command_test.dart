@@ -23,6 +23,10 @@ void main() {
     expect(r('build/gen.dart'), isFalse);
     expect(r(r'packages\a\build\gen.dart'), isFalse);
     expect(r('README.md'), isFalse);
+    expect(r('lib/feature/'), isTrue); // folder moved or deleted
+    expect(r(r'lib\feature/'), isTrue);
+    expect(r('build/x/'), isFalse);
+    expect(r('.git/refs/'), isFalse);
   });
 
   group('runWatch', () {
@@ -149,7 +153,7 @@ void main() {
   });
 
   test(
-    'real filesystem: a nested edit triggers a rerun',
+    'real filesystem: nested edits and new folders trigger a rerun',
     () async {
       final root = Directory.systemTemp.createTempSync('arch_guard_watch_');
       addTearDown(() => root.deleteSync(recursive: true));
@@ -170,17 +174,33 @@ void main() {
         },
         stop: stop.future,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      expect(calls, 1);
-      deep.writeAsStringSync('// v2\n');
-
-      final deadline = DateTime.now().add(const Duration(seconds: 5));
-      while (calls < 2 && DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 50));
+      // macOS may report the setup writes above once the watch starts, so
+      // count reruns from where the calls settle.
+      await Future<void>.delayed(const Duration(seconds: 1));
+      expect(calls, greaterThanOrEqualTo(1));
+      var expected = calls;
+      Future<void> expectOneRerun() async {
+        expected++;
+        final deadline = DateTime.now().add(const Duration(seconds: 5));
+        while (calls < expected && DateTime.now().isBefore(deadline)) {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        }
+        // Let a wrong extra run show up.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        expect(calls, expected);
       }
+
+      deep.writeAsStringSync('// v2\n');
+      await expectOneRerun();
+
+      // A folder created after the watch started (Linux watches each folder).
+      File(p.join(root.path, 'lib', 'new', 'n.dart'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync('// n\n');
+      await expectOneRerun();
+
       stop.complete();
       expect(await watching, 0);
-      expect(calls, 2);
     },
     timeout: const Timeout(Duration(seconds: 15)),
   );
