@@ -137,6 +137,7 @@ class ArgsConfig {
 
     parser.addCommand('init', buildInitParser());
     parser.addCommand('affected', buildAffectedParser());
+    parser.addCommand('why', buildWhyParser());
 
     return parser;
   }
@@ -204,5 +205,30 @@ class ArgsConfig {
         negatable: false,
         help: 'Print affected usage.',
       );
+  }
+
+  /// Parser for `arch_guard why <from> <to> [project_path]`.
+  static ArgParser buildWhyParser() {
+    return ArgParser()
+      ..addMultiOption(
+        'scan-dir',
+        defaultsTo: ['lib'],
+        help: 'Subdirectory/subdirectories within project root to scan.',
+      )
+      ..addMultiOption(
+        'exclude',
+        help: 'Custom glob pattern(s) to exclude from scanning.',
+      )
+      ..addFlag(
+        'workspace',
+        defaultsTo: true,
+        help: 'Auto-discover and scan workspace member packages.',
+      )
+      ..addFlag(
+        'color',
+        defaultsTo: true,
+        help: 'Enable ANSI colored output in terminal.',
+      )
+      ..addFlag('help', abbr: 'h', negatable: false, help: 'Print why usage.');
   }
 }
