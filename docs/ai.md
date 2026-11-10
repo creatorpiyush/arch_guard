@@ -21,7 +21,7 @@ The agent installs the package, picks a preset, writes `arch_guard.yaml`, runs t
 
 ## Install the skill
 
-The [arch-guard skill](https://github.com/creatorpiyush/arch_guard/blob/main/skills/arch-guard/SKILL.md) tells an agent how to set up arch_guard, read its reports, and fix violations and cycles in the code without weakening your rules. It uses the [Agent Skills](https://agentskills.io) format.
+The [arch-guard skill](https://github.com/creatorpiyush/arch_guard/blob/main/skills/arch-guard/SKILL.md) tells an agent how to set up arch_guard, read its reports, trace an unwanted import with `why`, run only the tests a branch affects, and fix violations and cycles in the code without weakening your rules. It uses the [Agent Skills](https://agentskills.io) format.
 
 Claude Code, for one project (commit it so your team gets it too):
 
@@ -48,4 +48,8 @@ This project's architecture rules are enforced by arch_guard (config: `arch_guar
 - Do not edit `allowed_imports`, `forbidden_packages` or the metric limits, and do not
   run `--update-baseline`, without asking first.
 - `dart run arch_guard --explain <file>` shows why a file is in a cycle.
+- `dart run arch_guard why <from> <to>` (e.g. `why lib/domain package:flutter`) prints the
+  import chain that makes one file or folder depend on another, or on a package.
+- `dart run arch_guard affected --since origin/main` lists the test files a branch can
+  affect. If it prints nothing, no tests are affected: do not run `dart test` with no paths.
 ```

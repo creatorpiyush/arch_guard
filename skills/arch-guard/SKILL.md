@@ -1,6 +1,6 @@
 ---
 name: arch-guard
-description: Set up and use arch_guard to enforce architecture rules in a Dart or Flutter project - layer rules, forbidden packages, circular dependencies, baselines and CI. Use when the user asks to add arch_guard, check or enforce architecture, find circular imports, or when an arch_guard report, test failure or `layer_violation` / `circular_dependency` warning needs fixing.
+description: Set up and use arch_guard to enforce architecture rules in a Dart or Flutter project - layer rules, forbidden packages, circular dependencies, baselines and CI. Use when the user asks to add arch_guard, check or enforce architecture, find circular imports, when an arch_guard report, test failure or `layer_violation` / `circular_dependency` warning needs fixing, when the user asks why one file or folder depends on another file or package, or which tests a branch's changes affect.
 ---
 
 # arch_guard
