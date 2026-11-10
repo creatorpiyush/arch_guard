@@ -16,6 +16,7 @@ import '../scanner/git_changes.dart';
 import '../version.dart';
 import 'args_config.dart';
 import 'init_command.dart';
+import 'watch_command.dart';
 
 /// Entry point logic for CLI execution.
 Future<int> runCli(List<String> args) async {
@@ -35,7 +36,12 @@ Future<int> runCli(List<String> args) async {
     return 64; // Sysexit code for command-line usage error
   }
 
+  final watch = argResults['watch'] as bool;
   final command = argResults.command;
+  if (watch && command?.name == 'init') {
+    stderr.writeln('Error: --watch cannot be combined with init.');
+    return 64;
+  }
   if (command?.name == 'init') {
     if (command!['help'] == true) {
       stdout.writeln('Usage: arch_guard init [project_path] [options]');
@@ -93,6 +99,25 @@ Future<int> runCli(List<String> args) async {
   if (since != null && (explainTarget?.isNotEmpty ?? false)) {
     stderr.writeln('Error: --since cannot be combined with --explain.');
     return 64;
+  }
+  if (watch && updateBaseline) {
+    stderr.writeln('Error: --watch cannot be combined with --update-baseline.');
+    return 64;
+  }
+  if (watch && explainTarget != null) {
+    stderr.writeln('Error: --watch cannot be combined with --explain.');
+    return 64;
+  }
+  if (watch) {
+    final baseline = p.relative(
+      p.absolute(absProjectPath, argResults['baseline'] as String),
+      from: absProjectPath,
+    );
+    return runWatch(
+      args: args.where((a) => a != '--watch').toList(),
+      projectRoot: absProjectPath,
+      baselineRelativePath: p.split(baseline).join('/'),
+    );
   }
 
   ArchAnalysis analysis;

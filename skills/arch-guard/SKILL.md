@@ -82,7 +82,7 @@ If the user wants to keep one import as it is, and neither a fix nor the baselin
 
 For an unused file, check that nothing outside the scan uses it: code generation, reflection, `bin/` or `test/` when they are not scanned. Then ask the user before deleting it. If it is used, add the file that uses it under `unused_files: entry_points`.
 
-To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files.
+To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files. While refactoring, a human can keep `dart run arch_guard --watch` open; agents should run one-shot checks instead, because `--watch` never exits on its own.
 
 ## Rules
 

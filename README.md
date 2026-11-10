@@ -151,7 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.12.0
+      - uses: creatorpiyush/arch_guard@v1.13.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).
@@ -163,6 +163,7 @@ arch_guard [path] [options]
 arch_guard . -f html -o build/reports                      # interactive graph
 arch_guard . --explain lib/services/auth_service.dart      # one file's dependencies
 arch_guard . -f sarif -f markdown -o build/reports         # for CI
+arch_guard . --watch                                       # re-run on every save
 ```
 
 | Exit code | Meaning |

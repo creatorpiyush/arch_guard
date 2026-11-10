@@ -1,3 +1,7 @@
+# 1.13.0
+
+- **New: `--watch`.** `arch_guard --watch` runs the check, then runs it again whenever a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes, until Ctrl+C. Changes under `build/` and dot folders (`.dart_tool`, `.git`) are ignored, so reports written into the project don't trigger a loop. Rapid saves are merged into one run (300 ms debounce), and a change during a run causes one more run after it. All other flags work as usual. It cannot be combined with `--update-baseline`, `--explain` or `init` (exit `64`). Ctrl+C exits `0`.
+
 # 1.12.0
 
 - **Faster runs on large projects.** A full run is 10–40% faster: 5,000 files went from 0.66 s to 0.40 s, and a 200-package workspace with 20,000 files from 2.1 s to 1.6 s. Cycle hints no longer scan every import once per cycle group, the hint search uses integer indexes, and the default excludes skip glob matching. Reports are byte-for-byte the same. Library: `ProjectScanner.excludeMatcher`.
