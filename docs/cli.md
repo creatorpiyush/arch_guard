@@ -7,6 +7,8 @@ title: CLI
 ```bash
 arch_guard [project_path] [options]
 arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
+arch_guard affected [project_path] --since <git-ref> [--print tests|files|packages] [--json]
+arch_guard why <from> <to> [project_path]
 ```
 
 `project_path` defaults to the current directory. Run with `dart run arch_guard` when it is a dev dependency, `dart pub global run arch_guard` after `dart pub global activate arch_guard`, or use a standalone binary. `init` is described on the [Presets](presets.md) page.
@@ -28,7 +30,7 @@ arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 | `--baseline` | | Baseline file of known problems. When it exists, only new problems fail the run. | `arch_guard_baseline.json` |
 | `--update-baseline` | | Write current problems (cycles, rule violations and, with `unused_files:`, unused files) to the baseline and exit `0`. | |
 | `--since` | | Only report (and fail on) problems touching files changed since the merge base with a git ref, plus uncommitted and untracked files, e.g. `origin/main`. The whole project is still analysed. Cannot be combined with `--update-baseline` or `--explain` (exit `64`); git errors exit `2`. A `max_fan_in` violation counts when a changed file imports the over-limit file. | |
-| `--watch` | | Re-run when a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes. Stop with Ctrl+C (exit `0`). Cannot be combined with `--update-baseline`, `--explain` or `init` (exit `64`). See [Watch mode](#watch-mode). | |
+| `--watch` | | Re-run when a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes. Stop with Ctrl+C (exit `0`). Cannot be combined with `--update-baseline`, `--explain`, `init`, `affected` or `why` (exit `64`). See [Watch mode](#watch-mode). | |
 | `--version` | | Print the arch_guard version. | |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
 
@@ -93,6 +95,41 @@ arch_guard --watch --since origin/main     # only problems in changed files
 ```
 Changes are debounced by 300 ms, so one editor save is one run. Changes under `build/` and dot folders such as `.dart_tool` are ignored, and so are report files, so `-f html` in watch mode doesn't loop. After each run it prints `Watching <project> for changes (Ctrl+C to stop). Last run 14:02:11, exit 1.` A failing run keeps watching; Ctrl+C exits `0`.
 
+### Tests affected by a branch
+List the test files that changes since `origin/main` (plus uncommitted and untracked files) can affect, and run only those:
+```bash
+# single package (Flutter: flutter test)
+t=$(arch_guard affected --since origin/main); [ -n "$t" ] && dart test $t
+# melos monorepo: test only affected packages
+p=$(arch_guard affected --since origin/main --print packages | paste -sd, -)
+[ -n "$p" ] && melos exec --scope="$p" -- dart test
+```
+Keep the `[ -n ... ]` guard: `dart test` with no paths runs every test.
+
+`affected` scans `lib/`, `test/` and `integration_test/` in the root and every workspace member, and follows imports, exports and `part` directives backwards from each changed file. Ignored and conditional imports count too, and `ignore:` in the config does not apply. A deleted or generated file (`*.g.dart`) affects the files that import it. A changed `pubspec.yaml` or `pubspec.lock` affects its whole package; the root one affects everything.
+
+| Option | Description | Default |
+| :--- | :--- | :--- |
+| `--since` | Required. The git ref to compare with. | |
+| `--print` | `tests`, `files` or `packages`, one per line on stdout. | `tests` |
+| `--json` | Print `since`, `changedFiles`, `files`, `tests`, `packages` (`name`, `path`) and `ignoredChanges` as JSON. | |
+| `--exclude`, `--[no-]workspace` | As for the main command. | |
+
+Notes go to stderr: changed non-Dart files that affect nothing, and `No affected tests.` when the list is empty. Exits `0` (also when nothing is affected), `2` when git fails, `64` without `--since`.
+
+### Why does A depend on B
+Print the shortest import path from a file or folder to a file, folder or package:
+```bash
+arch_guard why lib/domain flutter
+```
+```text
+lib/domain/user.dart reaches package:flutter in 3 step(s):
+  lib/domain/user.dart:3  import  lib/domain/repo.dart
+  lib/domain/repo.dart:5  export  lib/data/api.dart
+  lib/data/api.dart:1  import  package:flutter/material.dart
+```
+`<from>` is a file, a folder, or a file name that matches exactly one file (`user.dart`). `<to>` can also be `package:x`, a bare package name, or `dart:io`. A conditional import step ends with `(if dart.library.io)`. With no path, `why` prints `No import path from <from> to <to>.` and exits `1`, so a CI step can assert that a path never appears. An unknown argument, or a file name that matches several files, exits `64`. It accepts `--scan-dir`, `--exclude`, `--[no-]workspace` and `--[no-]color`. See the [why example](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/why).
+
 ### Explain one file
 Inspect why a specific file belongs to an SCC and view its direct incoming/outgoing edges:
 ```bash
@@ -142,6 +179,8 @@ arch_guard . -f sarif -f markdown -o build/reports
 | `1` | **Violations / Cycles Found**: Circular dependencies or Clean Architecture layer violations detected (only new ones when a baseline exists). |
 | `2` | **Scan Error**: Provided directory does not exist, the project could not be scanned, the baseline file is invalid, or git failed for `--since`. |
 | `64` | **Usage Error**: Invalid CLI flags or arguments provided (`EX_USAGE`). |
+
+`affected` exits `0` on success, even when nothing is affected. `why` exits `0` when it finds a path and `1` when there is none. Both use `2` and `64` as above.
 
 ## Standalone binaries (no Dart SDK needed)
 

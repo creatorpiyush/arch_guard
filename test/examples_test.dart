@@ -119,4 +119,27 @@ void main() {
       'Unused file: lib/old/legacy.dart (no entry point reaches it).',
     ]);
   });
+
+  test('why: domain reaches http in 2 steps; data never reaches domain', () {
+    ProcessResult why(String from, String to) =>
+        Process.runSync(Platform.resolvedExecutable, [
+          'bin/arch_guard.dart',
+          'why',
+          from,
+          to,
+          'example/cases/why',
+          '--no-color',
+        ]);
+    final found = why('lib/domain', 'http');
+    expect(found.exitCode, 0);
+    expect(
+      found.stdout,
+      'lib/domain/user.dart reaches package:http in 2 step(s):\n'
+      '  lib/domain/user.dart:1  import  lib/data/user_repo.dart\n'
+      '  lib/data/user_repo.dart:2  import  package:http/http.dart\n',
+    );
+    final none = why('lib/data', 'lib/domain');
+    expect(none.exitCode, 1);
+    expect(none.stdout, 'No import path from lib/data to lib/domain/.\n');
+  });
 }

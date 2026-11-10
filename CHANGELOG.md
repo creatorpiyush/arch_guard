@@ -1,3 +1,11 @@
+# 1.14.0
+
+- **New: `arch_guard affected`.** `arch_guard affected --since origin/main` prints the test files that the branch's changes can affect, one per line, so you can run only those: `t=$(arch_guard affected --since origin/main); [ -n "$t" ] && dart test $t`. It scans `lib/`, `test/` and `integration_test/` of the root and each workspace member, and walks imports, exports and `part` directives backwards from each changed file, including ignored and conditional imports. A deleted or generated file (`*.g.dart`, `*.mocks.dart`) affects the files that import it. A changed `pubspec.yaml` or `pubspec.lock` affects its whole package (the root one affects everything). `--print files` and `--print packages` list affected files or package names instead (`melos exec --scope=...`). `--json` prints all lists. Changed non-Dart files are listed in a note on stderr. With nothing affected, stdout is empty and stderr says `No affected tests.` Exits `0`, or `2` when git fails, or `64` without `--since`.
+- **New: `arch_guard why`.** `arch_guard why lib/domain flutter` prints the shortest import path from a file or folder to a file, folder or package, one `file:line  import  target` line per step. Arguments can be a file, a folder, a file name that matches one file, `package:x`, a bare package name or `dart:io`. With no path it prints `No import path from ... to ....` and exits `1`, so CI can assert that a path never appears. An unknown or ambiguous argument exits `64`.
+- `--watch` now rejects every subcommand (`init`, `affected`, `why`) with exit `64`.
+
+Library: `ProjectScanner.memberScanDirs`, `AffectedFiles`, `AffectedResult`, `ImportPath`, `ImportStep`, `PathTarget`, `FileTarget`, `PackageTarget`.
+
 # 1.13.0
 
 - **New: `--watch`.** `arch_guard --watch` runs the check, then runs it again whenever a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes, until Ctrl+C. Adding, moving, renaming or deleting a folder of Dart files counts too. Changes under `build/` and dot folders (`.dart_tool`, `.git`) are ignored, so reports written into the project don't trigger a loop. Rapid saves are merged into one run (300 ms debounce), and a change during a run causes one more run after it. All other flags work as usual. It cannot be combined with `--update-baseline`, `--explain` or `init` (exit `64`). Ctrl+C exits `0`.

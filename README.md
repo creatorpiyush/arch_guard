@@ -38,6 +38,8 @@ dart run arch_guard          # checks the project
 - 🤖 **CI-ready.** A GitHub Action that comments on PRs, SARIF for GitHub Code Scanning, Markdown job summaries, pre-commit hooks, standalone binaries.
 - 🎨 **Graphs.** Interactive HTML (works offline), Mermaid, Graphviz DOT and JSON.
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.
+- 🧭 **`arch_guard why <from> <to>`.** The shortest import chain from a file or folder to a file or package, with line numbers. Exits `1` when there is none.
+- 🧪 **`arch_guard affected --since origin/main`.** The test files a branch's changes can affect, for running only those.
 - 🔍 **`--explain <file>`.** Why is this file in a cycle? What does it import and what imports it?
 
 **Examples:** a small, runnable project for each feature, with the command and its real output. See [example/example.md](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.md).
@@ -164,6 +166,8 @@ arch_guard . -f html -o build/reports                      # interactive graph
 arch_guard . --explain lib/services/auth_service.dart      # one file's dependencies
 arch_guard . -f sarif -f markdown -o build/reports         # for CI
 arch_guard . --watch                                       # re-run on every save
+arch_guard why lib/domain flutter                          # which imports lead there
+arch_guard affected --since origin/main                    # tests a branch can affect
 ```
 
 | Exit code | Meaning |

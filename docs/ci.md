@@ -71,6 +71,24 @@ The PR comment looks like this: a status line, a summary table, the new problems
           args: --since origin/${{ github.base_ref }}
 ```
 
+### Run only the tests a PR can affect
+
+`arch_guard affected` lists the test files that the branch's changes can reach through imports, so a large repository can skip unrelated tests:
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # affected needs the merge base
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - name: Affected tests
+        run: |
+          t=$(dart run arch_guard affected --since origin/${{ github.base_ref }})
+          if [ -n "$t" ]; then dart test $t; else echo "No affected tests."; fi
+```
+
+Keep the empty check: `dart test` with no paths runs every test. Flutter projects use `flutter test`. See [Tests affected by a branch](cli.md#tests-affected-by-a-branch).
+
 ### How long a run takes
 
 A full run, scan included, takes about 0.07 s per 1,000 files. Most of it is reading the files, which the operating system limits. The [unused-file check](configuration.md#unused-files) adds about 2 ms per 1,000 files. Measured on generated projects with about 6 imports per file, using the compiled CLI (median of 7 runs):
