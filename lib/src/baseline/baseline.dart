@@ -31,6 +31,9 @@ class Baseline {
   /// Known workspace rule violations, keyed by `sourceFile -> targetFile`.
   final Set<String> workspaceViolations;
 
+  /// Known unused files (`unused_files:`), by path.
+  final Set<String> unusedFiles;
+
   /// Creates a baseline holding [cycles], [layerViolations] and
   /// [packageViolations].
   const Baseline({
@@ -39,6 +42,7 @@ class Baseline {
     this.packageViolations = const {},
     this.metricViolations = const {},
     this.workspaceViolations = const {},
+    this.unusedFiles = const {},
   });
 
   /// Captures the current problems as a baseline.
@@ -48,12 +52,14 @@ class Baseline {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<String> unusedFiles = const [],
   }) => Baseline(
     cycles: cycles.map((c) => c.files.toSet()).toList(),
     layerViolations: layerViolations.map(violationKey).toSet(),
     packageViolations: packageViolations.map(packageViolationKey).toSet(),
     metricViolations: {for (final v in metricViolations) metricKey(v): v.value},
     workspaceViolations: workspaceViolations.map(workspaceViolationKey).toSet(),
+    unusedFiles: unusedFiles.toSet(),
   );
 
   /// Parses a baseline from its JSON form. Throws [FormatException] if invalid.
@@ -106,6 +112,9 @@ class Baseline {
       packageViolations: packages,
       metricViolations: metrics,
       workspaceViolations: workspace,
+      unusedFiles: {
+        for (final f in json['unusedFiles'] as List? ?? const []) f as String,
+      },
     );
   }
 
@@ -162,6 +171,8 @@ class Baseline {
             'targetFile': key.split(_separator).last,
           },
       ],
+      // Only when used, so baselines of projects without the check don't change.
+      if (unusedFiles.isNotEmpty) 'unusedFiles': unusedFiles.toList()..sort(),
     };
   }
 
@@ -180,12 +191,16 @@ class Baseline {
   /// a cycle that shrinks stays accepted while one that grows (or merges two
   /// known cycles) counts as new. Only membership is compared: a new import
   /// between files already in one known cycle is not a change.
+  ///
+  /// [unusedFiles] is `null` when the unused-file check did not run, so the
+  /// baseline's unused files are neither new nor fixed.
   BaselineComparison compare({
     required List<Cycle> cycles,
     required List<LayerViolation> layerViolations,
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<String>? unusedFiles,
   }) {
     final newCycles = <Cycle>[];
     final knownCycles = <Cycle>[];
@@ -267,6 +282,7 @@ class Baseline {
       }
     }
 
+    final checkedUnused = unusedFiles ?? const <String>[];
     return BaselineComparison(
       newCycles: newCycles,
       knownCycles: knownCycles,
@@ -295,6 +311,17 @@ class Baseline {
       fixedWorkspaceViolationCount: this.workspaceViolations
           .difference(seenWorkspace)
           .length,
+      newUnusedFiles: [
+        for (final f in checkedUnused)
+          if (!this.unusedFiles.contains(f)) f,
+      ],
+      knownUnusedFiles: [
+        for (final f in checkedUnused)
+          if (this.unusedFiles.contains(f)) f,
+      ],
+      fixedUnusedFileCount: unusedFiles == null
+          ? 0
+          : this.unusedFiles.difference(unusedFiles.toSet()).length,
     );
   }
 
@@ -396,6 +423,15 @@ class BaselineComparison {
   /// Baseline workspace rule violations that no longer occur.
   final int fixedWorkspaceViolationCount;
 
+  /// Unused files that are not in the baseline.
+  final List<String> newUnusedFiles;
+
+  /// Unused files that the baseline already lists.
+  final List<String> knownUnusedFiles;
+
+  /// Baseline unused files that are now used or deleted.
+  final int fixedUnusedFileCount;
+
   /// Creates a comparison from already split problem lists.
   const BaselineComparison({
     required this.newCycles,
@@ -416,6 +452,9 @@ class BaselineComparison {
     this.newWorkspaceViolations = const [],
     this.knownWorkspaceViolations = const [],
     this.fixedWorkspaceViolationCount = 0,
+    this.newUnusedFiles = const [],
+    this.knownUnusedFiles = const [],
+    this.fixedUnusedFileCount = 0,
   });
 
   /// Treats every problem as new (used when there is no baseline).
@@ -425,6 +464,7 @@ class BaselineComparison {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<String> unusedFiles = const [],
   }) => BaselineComparison(
     newCycles: cycles,
     knownCycles: const [],
@@ -433,6 +473,7 @@ class BaselineComparison {
     newPackageViolations: packageViolations,
     newMetricViolations: metricViolations,
     newWorkspaceViolations: workspaceViolations,
+    newUnusedFiles: unusedFiles,
   );
 
   /// Known problems that got smaller without going away, e.g.

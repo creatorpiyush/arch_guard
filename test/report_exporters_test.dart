@@ -420,4 +420,73 @@ void main() {
     ).firstMatch(pubspec)!.group(1);
     expect(packageVersion, equals(version));
   });
+
+  group('unused files', () {
+    const baseline = Baseline(unusedFiles: {'lib/c.dart'});
+    final comparison = baseline.compare(
+      cycles: const [],
+      layerViolations: const [],
+      unusedFiles: ['lib/b.dart', 'lib/c.dart'],
+    );
+
+    test('SARIF has one result per file with baselineState', () {
+      final sarif =
+          jsonDecode(
+                SarifExporter.export(
+                  result: result,
+                  cycles: const [],
+                  unusedFiles: ['lib/b.dart', 'lib/c.dart'],
+                  baseline: comparison,
+                ),
+              )
+              as Map<String, dynamic>;
+      final run = (sarif['runs'] as List).single as Map;
+      final results = (run['results'] as List).cast<Map>();
+      expect(results.map((r) => r['ruleId']).toSet(), {'unused-file'});
+      expect(results.map((r) => r['level']).toSet(), {'warning'});
+      expect(results.map((r) => r['baselineState']), ['new', 'unchanged']);
+      final rules = ((run['tool'] as Map)['driver'] as Map)['rules'] as List;
+      expect(rules.map((r) => (r as Map)['id']), contains('unused-file'));
+    });
+
+    test('SARIF level is error with fail: true', () {
+      final sarif = SarifExporter.export(
+        result: result,
+        cycles: const [],
+        unusedFiles: ['lib/b.dart'],
+        failOnUnusedFiles: true,
+      );
+      expect(sarif, contains('"level": "error"'));
+    });
+
+    test('Markdown lists new unused files and the table row', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        unusedFiles: ['lib/b.dart', 'lib/c.dart'],
+        baseline: comparison,
+      );
+      expect(md, contains('| Unused files | 2 | 1 |'));
+      expect(md, contains('### New unused files'));
+      expect(md, contains('- `lib/b.dart`'));
+      expect(md, isNot(contains('- `lib/c.dart`')));
+      // Report-only by default, so the run still reads as passing.
+      expect(md, isNot(contains('❌')));
+    });
+
+    test('Markdown fails the headline only with fail: true', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        unusedFiles: ['lib/b.dart'],
+        failOnUnusedFiles: true,
+      );
+      expect(md, contains('❌ **Architecture problems found.**'));
+    });
+
+    test('Markdown leaves the row out when the check is off', () {
+      final md = MarkdownExporter.export(result: result, cycles: const []);
+      expect(md, isNot(contains('Unused files')));
+    });
+  });
 }

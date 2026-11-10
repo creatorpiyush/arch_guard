@@ -13,6 +13,7 @@ class JsonExporter {
     List<Map<String, dynamic>>? metricViolations,
     List<Map<String, dynamic>>? hotspots,
     List<Map<String, dynamic>>? workspaceViolations,
+    List<String>? unusedFiles,
     String? since,
     Set<String>? changedFiles,
   }) {
@@ -46,6 +47,7 @@ class JsonExporter {
       'metricViolations': ?metricViolations,
       'hotspots': ?hotspots,
       'workspaceViolations': ?workspaceViolations,
+      'unusedFiles': ?unusedFiles,
       'since': ?since,
       'changedFiles': ?(changedFiles?.toList()?..sort()),
     };

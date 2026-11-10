@@ -63,6 +63,7 @@ layers:
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
 | `workspace_rules` | map | none | In a workspace: member selector → `allowed:` members it may import. See [Workspace rules](#workspace-rules). |
 | `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
+| `unused_files` | map or `true` | off | Report scanned files that no entry point reaches. `entry_points`: extra globs. `fail: true` makes them fail the run. See [Unused files](#unused-files). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
 ## How layers are matched
@@ -145,6 +146,68 @@ metrics:
 
 - With a baseline, a known file passes while its number stays the same or drops, and **fails again if it grows**. That makes the limit a ratchet for legacy hubs.
 - Markdown and JSON reports always list the most coupled files (fan-in + fan-out). The terminal lists the top five when `metrics:` limits are set.
+
+## Unused files
+
+Find files that nothing uses any more:
+
+```yaml
+unused_files:
+  entry_points:       # extra globs, added to the defaults
+    - lib/app/router.dart
+  fail: false         # true: unused files fail the run (exit code 1)
+```
+
+| Key | Type | Default | Meaning |
+| :--- | :--- | :--- | :--- |
+| `unused_files` | map or `true` | off | Turns the check on. `unused_files: true` uses the defaults below. Without the key, nothing is checked. |
+| `entry_points` | list of globs | none | Extra entry points, added to the defaults. Paths are relative to the project root. |
+| `fail` | bool | `false` | `true`: unused files fail the run (exit code `1`). `false`: they are only listed. |
+
+```text
+[!] Unused files (1): no entry point imports these, directly or indirectly.
+  lib/old/legacy.dart
+
+  How to fix: delete them, or add the file that uses them under `unused_files: entry_points`.
+```
+
+### What counts as used
+
+A file is used when an entry point reaches it, directly or through other files.
+
+| Case | Used? |
+| :--- | :--- |
+| Reached through `import`, `export` or `part` | ✅ |
+| Reached only through a conditional import (`if (dart.library.io)`) | ✅ |
+| Reached through an import silenced with `// ignore: arch_guard_lint/...` | ✅ |
+| Imports used files, but nothing imports it | ❌ |
+| Part of a group of files that only import each other (a dead cycle) | ❌ |
+| Used only from a folder that is not scanned (`bin/`, `test/` by default) | ❌ Scan that folder too (`--scan-dir lib --scan-dir bin`), or list the file under `entry_points`. |
+
+### Default entry points
+
+These apply to the project root and, in a workspace, to each member (`packages/core/test/**`).
+
+| Entry point | Why |
+| :--- | :--- |
+| `lib/main.dart`, `lib/main_*.dart` | The app and its flavours (`main_dev.dart`, `main_prod.dart`). `lib/maintenance.dart` is not an entry point. |
+| `lib/<package_name>.dart` | The package's public library, which other packages import. |
+| `bin/**` | Command-line entry points. |
+| `test/**`, `integration_test/**`, `*_test.dart` | Tests. A `test/` folder inside `lib/` is not an entry point. |
+| `tool/**`, `example/**` | Scripts and examples. |
+
+When no scanned file is an entry point, nothing is reported and you get a warning instead. Add your app's entry file under `entry_points`.
+
+### With `--since` and a baseline
+
+| Mode | Behaviour |
+| :--- | :--- |
+| `--since origin/main` | Only unused files changed on the branch are reported, so old dead files don't fail a pull request. |
+| `--update-baseline` | Records today's unused files. Later runs fail only on new ones. See [baseline](ci.md#adopting-on-an-existing-codebase-baseline). |
+| Baseline, file used again or deleted | Counts as fixed. Run `--update-baseline` to lock it in. |
+| Baseline, check turned off | The recorded files are not counted as fixed. |
+
+Unused files appear in every report format; see [Output formats](cli.md#unused-files-in-each-format). The check adds about 2 ms per 1,000 files; see [How long a run takes](ci.md#how-long-a-run-takes).
 
 ## Warnings
 

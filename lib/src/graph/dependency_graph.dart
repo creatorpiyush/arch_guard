@@ -71,7 +71,22 @@ class DependencyGraph {
     final cycles = <Cycle>[];
     int sccIndex = 1;
 
-    for (final scc in sccs) {
+    // Edges inside each group, bucketed once: filtering every edge per group
+    // was O(groups × edges), slow with hundreds of small cycles.
+    final groupOf = <String, int>{};
+    for (var i = 0; i < sccs.length; i++) {
+      for (final f in sccs[i]) {
+        groupOf[f] = i;
+      }
+    }
+    final internal = <int, List<GraphEdge>>{};
+    for (final e in edges) {
+      final g = groupOf[e.from];
+      if (g != null && g == groupOf[e.to]) (internal[g] ??= []).add(e);
+    }
+
+    for (final (i, scc) in sccs.indexed) {
+      final groupEdges = internal[i] ?? const <GraphEdge>[];
       if (scc.length > 1) {
         // Multi-node cycle
         final exampleChain = CyclePathFinder.findExampleChain(
@@ -84,14 +99,14 @@ class DependencyGraph {
           exampleChain: exampleChain,
           outgoingEdges: outgoingEdges,
           incomingEdges: incomingEdges,
-          suggestedBreak: CycleBreaker.suggest(files: scc, edges: edges),
+          suggestedBreak: CycleBreaker.suggest(files: scc, edges: groupEdges),
         );
         cycles.add(
           Cycle(
             files: scc,
             exampleChain: exampleChain,
             scc: sccComp,
-            platformConditions: _platformConditions(scc),
+            platformConditions: _platformConditions(scc, groupEdges),
           ),
         );
       } else if (scc.length == 1) {
@@ -106,14 +121,14 @@ class DependencyGraph {
             exampleChain: exampleChain,
             outgoingEdges: outgoingEdges,
             incomingEdges: incomingEdges,
-            suggestedBreak: CycleBreaker.suggest(files: scc, edges: edges),
+            suggestedBreak: CycleBreaker.suggest(files: scc, edges: groupEdges),
           );
           cycles.add(
             Cycle(
               files: scc,
               exampleChain: exampleChain,
               scc: sccComp,
-              platformConditions: _platformConditions(scc),
+              platformConditions: _platformConditions(scc, groupEdges),
             ),
           );
         }
@@ -125,7 +140,7 @@ class DependencyGraph {
 
   /// Conditions of the conditional edges inside [scc] when its plain edges
   /// alone contain no cycle, otherwise empty (the cycle exists everywhere).
-  List<String> _platformConditions(List<String> scc) {
+  List<String> _platformConditions(List<String> scc, List<GraphEdge> edges) {
     final members = scc.toSet();
     final plain = {for (final f in scc) f: <String>{}};
     final conditions = <String>{};

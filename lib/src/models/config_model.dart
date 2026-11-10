@@ -24,6 +24,7 @@ class ArchGuardConfig {
     'forbidden_packages',
     'metrics',
     'workspace_rules',
+    'unused_files',
   };
 
   /// Glob patterns of files left out of the scan.
@@ -68,6 +69,17 @@ class ArchGuardConfig {
   /// Whether the config has a `metrics:` section (limits or just `hotspots`).
   final bool metricsConfigured;
 
+  /// Whether the config has an `unused_files:` section, which turns on the
+  /// unused-file report (see `UnusedFiles`).
+  final bool unusedFilesEnabled;
+
+  /// Extra entry-point globs from `unused_files: entry_points`, added to
+  /// `UnusedFiles.defaultEntryPoints`.
+  final List<String> unusedFileEntryPoints;
+
+  /// Whether unused files make the run fail (`unused_files: fail: true`).
+  final bool failOnUnusedFiles;
+
   /// Whether any metric limit is configured.
   bool get hasMetricRules => maxFanOut != null || maxFanIn != null;
 
@@ -92,6 +104,9 @@ class ArchGuardConfig {
     this.hotspotCount = 10,
     this.metricsConfigured = false,
     this.workspaceRules = const {},
+    this.unusedFilesEnabled = false,
+    this.unusedFileEntryPoints = const [],
+    this.failOnUnusedFiles = false,
     this.warnings = const [],
     this.sourcePath,
   });
@@ -316,6 +331,46 @@ class ArchGuardConfig {
       warnings.add('$source: `metrics` must be a map.');
     }
 
+    var unusedEnabled = false;
+    var unusedEntryPoints = const <String>[];
+    var failOnUnused = false;
+    var rawUnused = raw['unused_files'];
+    if (rawUnused == true) rawUnused = const {};
+    if (rawUnused is Map) {
+      unusedEnabled = true;
+      for (final key in rawUnused.keys) {
+        if (!const {'entry_points', 'fail'}.contains('$key')) {
+          warnings.add(
+            '$source: unknown key `unused_files: $key` (expected one of: '
+            'entry_points, fail).',
+          );
+        }
+      }
+      final rawEntries = rawUnused['entry_points'];
+      if (rawEntries is List) {
+        unusedEntryPoints = _validGlobs(
+          rawEntries.map((e) => e.toString()),
+          '`unused_files: entry_points`',
+          source,
+          warnings,
+        );
+      } else if (rawEntries != null) {
+        warnings.add(
+          '$source: `unused_files: entry_points` must be a list of globs.',
+        );
+      }
+      final rawFail = rawUnused['fail'];
+      if (rawFail is bool) {
+        failOnUnused = rawFail;
+      } else if (rawFail != null) {
+        warnings.add(
+          '$source: `unused_files: fail` must be true or false; using false.',
+        );
+      }
+    } else if (rawUnused != null && rawUnused != false) {
+      warnings.add('$source: `unused_files` must be a map or true.');
+    }
+
     final workspaceRules = <String, List<String>>{};
     final rawRules = raw['workspace_rules'];
     if (rawRules is Map) {
@@ -472,6 +527,9 @@ class ArchGuardConfig {
       hotspotCount: hotspots,
       metricsConfigured: rawMetrics is Map,
       workspaceRules: workspaceRules,
+      unusedFilesEnabled: unusedEnabled,
+      unusedFileEntryPoints: unusedEntryPoints,
+      failOnUnusedFiles: failOnUnused,
       warnings: warnings,
       sourcePath: sourcePath,
     );

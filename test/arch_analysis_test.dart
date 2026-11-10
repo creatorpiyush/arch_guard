@@ -239,5 +239,87 @@ layers:
       expect(narrowed.baseline!.fixedViolationCount, 0);
       expect(narrowed.baseline!.fixedCycleCount, 0);
     });
+
+    test('keeps only unused files that changed', () async {
+      write('arch_guard.yaml', 'unused_files: true\n');
+      write('lib/main.dart', "import 'domain/a.dart';\n");
+      write('lib/old.dart', '');
+      git(['add', '.']);
+      git(['commit', '-qm', 'old dead file']);
+      write('lib/new_dead.dart', '');
+      final a = await ArchAnalysis.run(
+        projectPath: project.path,
+        since: 'main',
+      );
+      expect(a.unusedFiles, ['lib/new_dead.dart']);
+    });
+  });
+
+  group('unused files', () {
+    setUp(() {
+      write('lib/main.dart', "import 'domain/a.dart';\n");
+      write('lib/old.dart', '');
+    });
+
+    bool unusedLine(String f) => f.startsWith('Unused file');
+
+    test('fail with fail: true', () async {
+      write('arch_guard.yaml', 'unused_files:\n  fail: true\n');
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.unusedFiles, ['lib/old.dart']);
+      expect(
+        a.failures(),
+        contains('Unused file: lib/old.dart (no entry point reaches it).'),
+      );
+    });
+
+    test('are reported but do not fail by default', () async {
+      write('arch_guard.yaml', 'unused_files: true\n');
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.unusedFiles, ['lib/old.dart']);
+      expect(a.failures().where(unusedLine), isEmpty);
+    });
+
+    test('are not checked without the config key', () async {
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.unusedFiles, isEmpty);
+    });
+
+    test('a baseline accepts known unused files', () async {
+      write('arch_guard.yaml', 'unused_files:\n  fail: true\n');
+      final full = await ArchAnalysis.run(projectPath: project.path);
+      Baseline.capture(
+        cycles: full.cycles,
+        layerViolations: full.layerViolations,
+        unusedFiles: full.unusedFiles,
+      ).save(full.baselinePath);
+      write('lib/newer.dart', '');
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.unusedFiles, ['lib/newer.dart', 'lib/old.dart']);
+      expect(a.newUnusedFiles, ['lib/newer.dart']);
+      expect(a.failures().where(unusedLine), [
+        'Unused file: lib/newer.dart (no entry point reaches it).',
+      ]);
+
+      // Now used: counted as fixed. Check turned off: not counted as fixed.
+      write('lib/main.dart', "import 'domain/a.dart';\nimport 'old.dart';\n");
+      final fixed = await ArchAnalysis.run(projectPath: project.path);
+      expect(fixed.baseline!.fixedUnusedFileCount, 1);
+      write('arch_guard.yaml', 'max_scc_size: 5\n');
+      final off = await ArchAnalysis.run(projectPath: project.path);
+      expect(off.baseline!.fixedUnusedFileCount, 0);
+    });
+
+    test('no entry point warns instead of reporting', () async {
+      write('arch_guard.yaml', 'unused_files:\n  fail: true\n');
+      File(p.join(project.path, 'lib/main.dart')).deleteSync();
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.unusedFiles, isEmpty);
+      expect(
+        a.warnings.join(),
+        contains('unused_files: no scanned file matches an entry point'),
+      );
+      expect(a.failures().where(unusedLine), isEmpty);
+    });
   });
 }

@@ -4,6 +4,7 @@ import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/unused_files.dart';
 import '../checker/workspace_validator.dart';
 import '../graph/dependency_graph.dart';
 import '../models/config_model.dart';
@@ -45,6 +46,10 @@ class ArchAnalysis {
   /// Imports between workspace members that `workspace_rules` forbids.
   final List<WorkspaceViolation> workspaceViolations;
 
+  /// Scanned files no entry point reaches, sorted (see [UnusedFiles]).
+  /// Empty unless `unused_files:` is configured.
+  final List<String> unusedFiles;
+
   /// Problems with the configuration found while analysing (for example
   /// `workspace_rules` in a project that isn't a workspace).
   final List<String> warnings;
@@ -80,6 +85,7 @@ class ArchAnalysis {
     this.fileMetrics = const [],
     this.metricViolations = const [],
     this.workspaceViolations = const [],
+    this.unusedFiles = const [],
     this.warnings = const [],
     required this.coverage,
     required this.baselinePath,
@@ -109,6 +115,9 @@ class ArchAnalysis {
       .take(config.hotspotCount)
       .toList();
 
+  /// Unused files not in the baseline.
+  List<String> get newUnusedFiles => baseline?.newUnusedFiles ?? unusedFiles;
+
   /// Workspace rule violations not in the baseline.
   List<WorkspaceViolation> get newWorkspaceViolations =>
       baseline?.newWorkspaceViolations ?? workspaceViolations;
@@ -121,7 +130,8 @@ class ArchAnalysis {
   ///
   /// Mirrors the CLI: layer violations count only with
   /// `fail_on_layer_violation: true`, cycles only with [failOnCycle], and
-  /// forbidden packages and `max_scc_size` always.
+  /// forbidden packages and `max_scc_size` always, unused files only with
+  /// `unused_files: fail: true`.
   List<String> failures({bool failOnCycle = true}) {
     String at(String file, int? line) => line == null ? file : '$file:$line';
     return [
@@ -129,6 +139,9 @@ class ArchAnalysis {
         'Forbidden package: ${at(v.sourceFile, v.line)} imports ${v.uri}. '
             '${v.rule}',
       for (final v in newMetricViolations) 'Metric limit: ${v.rule}',
+      if (config.failOnUnusedFiles)
+        for (final f in newUnusedFiles)
+          'Unused file: $f (no entry point reaches it).',
       for (final v in newWorkspaceViolations)
         'Workspace rule: ${at(v.sourceFile, v.line)} imports ${v.targetFile}. '
             '${v.rule}',
@@ -196,7 +209,16 @@ class ArchAnalysis {
       result: scan,
       config: config,
     );
+    final unused = config.unusedFilesEnabled
+        ? UnusedFiles.find(
+            result: scan,
+            entryPoints: config.unusedFileEntryPoints,
+          )
+        : null;
     final warnings = <String>[
+      if (unused?.noEntryPoint ?? false)
+        'unused_files: no scanned file matches an entry point; add your '
+            "app's entry file under unused_files: entry_points.",
       // A silent empty scan hides every cycle, e.g. run from the wrong
       // folder or members outside packages/ and apps/ with no workspace list.
       if (scan.files.isEmpty)
@@ -229,6 +251,9 @@ class ArchAnalysis {
       packageViolations: packageViolations,
       metricViolations: metricViolations,
       workspaceViolations: workspaceViolations,
+      // null (not checked) keeps the baseline's unused files from counting
+      // as fixed when the check is off or found no entry point.
+      unusedFiles: unused == null || unused.noEntryPoint ? null : unused.files,
     );
 
     // Without --since every predicate is true; with it, keep only problems
@@ -256,6 +281,7 @@ class ArchAnalysis {
         .toList();
     List<WorkspaceViolation> ws(List<WorkspaceViolation> l) =>
         l.where((v) => touches(v.sourceFile)).toList();
+    List<String> unusedIn(List<String> l) => l.where(touches).toList();
 
     return ArchAnalysis(
       scan: scan,
@@ -267,6 +293,7 @@ class ArchAnalysis {
       fileMetrics: fileMetrics,
       metricViolations: met(metricViolations),
       workspaceViolations: ws(workspaceViolations),
+      unusedFiles: unusedIn([...?unused?.files]),
       warnings: warnings,
       oversizedCycles: cyc(oversized),
       coverage: LayerValidator.coverage(result: scan, config: config),
@@ -295,6 +322,9 @@ class ArchAnalysis {
               fixedMetricViolationCount: comparison.fixedMetricViolationCount,
               fixedWorkspaceViolationCount:
                   comparison.fixedWorkspaceViolationCount,
+              newUnusedFiles: unusedIn(comparison.newUnusedFiles),
+              knownUnusedFiles: unusedIn(comparison.knownUnusedFiles),
+              fixedUnusedFileCount: comparison.fixedUnusedFileCount,
             ),
     );
   }

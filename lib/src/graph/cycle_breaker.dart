@@ -1,5 +1,6 @@
+import 'dart:typed_data';
+
 import '../models/scan_result.dart';
-import 'tarjan_scc.dart';
 
 /// One import whose removal breaks (or shrinks) a circular dependency group.
 class CycleBreak {
@@ -80,14 +81,26 @@ class CycleBreaker {
     // than slow the run. Upgrade path: a greedy feedback-arc-set heuristic.
     if (candidates.isEmpty || candidates.length > maxEdges) return null;
 
+    // Int-indexed graph built once; each candidate only skips its pair.
+    final n = files.length;
+    final index = {for (var i = 0; i < n; i++) files[i]: i};
+    final adjacency = [for (var i = 0; i < n; i++) <int>[]];
+    final pairs = <int>{};
+    // A pair also linked by a `part` directive stays linked after the cut.
+    final partPairs = <int>{};
+    for (final e in internal) {
+      final a = index[e.from]!, b = index[e.to]!;
+      if (pairs.add(a * n + b)) adjacency[a].add(b);
+      if (e.type == 'part') partPairs.add(a * n + b);
+    }
+
     CycleBreak? best;
     for (final cut in candidates) {
-      final adjacency = {for (final f in files) f: <String>{}};
-      for (final e in internal) {
-        if (e.from == cut.from && e.to == cut.to && e.type != 'part') continue;
-        adjacency[e.from]!.add(e.to);
-      }
-      final remaining = _largestCycle(fileSet, adjacency);
+      final code = index[cut.from]! * n + index[cut.to]!;
+      final remaining = _largestCycle(
+        adjacency,
+        partPairs.contains(code) ? -1 : code,
+      );
       if (best == null || remaining < best.remainingLargestCycle) {
         best = CycleBreak(
           from: cut.from,
@@ -102,19 +115,64 @@ class CycleBreaker {
     return best;
   }
 
-  static int _largestCycle(
-    Set<String> nodes,
-    Map<String, Set<String>> adjacency,
-  ) {
+  /// Size of the largest cycle in [adjacency] (a self-import counts as 1)
+  /// with the edge `skip ~/ n -> skip % n` left out; iterative Tarjan.
+  static int _largestCycle(List<List<int>> adjacency, int skip) {
+    final n = adjacency.length;
+    final order = Int32List(n)..fillRange(0, n, -1);
+    final low = Int32List(n);
+    final onStack = List<bool>.filled(n, false);
+    final stack = <int>[];
+    final callNode = Int32List(n);
+    final callEdge = Int32List(n);
+    var counter = 0;
     var largest = 0;
-    for (final scc in TarjanScc.findSCCs(
-      nodes: nodes,
-      adjacencyList: adjacency,
-    )) {
-      final size = scc.length > 1
-          ? scc.length
-          : (adjacency[scc.first]!.contains(scc.first) ? 1 : 0);
-      if (size > largest) largest = size;
+    for (var root = 0; root < n; root++) {
+      if (order[root] != -1) continue;
+      var depth = 0;
+      callNode[0] = root;
+      callEdge[0] = 0;
+      order[root] = low[root] = counter++;
+      stack.add(root);
+      onStack[root] = true;
+      while (depth >= 0) {
+        final u = callNode[depth];
+        final out = adjacency[u];
+        if (callEdge[depth] < out.length) {
+          final v = out[callEdge[depth]++];
+          if (u * n + v == skip) continue;
+          if (order[v] == -1) {
+            order[v] = low[v] = counter++;
+            stack.add(v);
+            onStack[v] = true;
+            depth++;
+            callNode[depth] = v;
+            callEdge[depth] = 0;
+          } else if (onStack[v] && order[v] < low[u]) {
+            low[u] = order[v];
+          }
+          continue;
+        }
+        depth--;
+        if (depth >= 0) {
+          final parent = callNode[depth];
+          if (low[u] < low[parent]) low[parent] = low[u];
+        }
+        if (low[u] == order[u]) {
+          var size = 0;
+          int w;
+          do {
+            w = stack.removeLast();
+            onStack[w] = false;
+            size++;
+          } while (w != u);
+          // A lone file is a cycle only if it imports itself.
+          if (size == 1 && (u * n + u == skip || !adjacency[u].contains(u))) {
+            size = 0;
+          }
+          if (size > largest) largest = size;
+        }
+      }
     }
     return largest;
   }

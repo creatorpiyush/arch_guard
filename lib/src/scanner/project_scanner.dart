@@ -38,14 +38,14 @@ class ProjectScanner {
     final primaryPkgName =
         PubspecReader.readPackageName(absRoot) ?? p.basename(absRoot);
 
-    final excludeGlobs = [
+    final excludeMatchers = [
       ...defaultExcludePatterns,
       ...exclude,
-    ].map((pattern) => Glob(pattern)).toList();
+    ].map(excludeMatcher).toList();
 
     bool isExcluded(String relPath) {
       final normalized = relPath.replaceAll('\\', '/');
-      return excludeGlobs.any((glob) => glob.matches(normalized));
+      return excludeMatchers.any((matches) => matches(normalized));
     }
 
     // Discover workspace packages if enabled
@@ -195,6 +195,28 @@ class ProjectScanner {
     );
   }
 
+  /// Returns a test for whether a `/` path matches the glob [pattern].
+  ///
+  /// The common shapes `**/*.ext` and `**/name/**` (all default excludes)
+  /// are checked with string operations; `Glob.matches` is slow enough to
+  /// show up when run on tens of thousands of files.
+  static bool Function(String) excludeMatcher(String pattern) {
+    const special = r'*?[]{}\\';
+    bool plain(String s) => s.isNotEmpty && !s.split('').any(special.contains);
+    if (pattern.startsWith('**/*.') && plain(pattern.substring(5))) {
+      final suffix = pattern.substring(4);
+      return (path) => path.endsWith(suffix);
+    }
+    if (pattern.startsWith('**/') && pattern.endsWith('/**')) {
+      final name = pattern.substring(3, pattern.length - 3);
+      if (plain(name) && !name.contains('/')) {
+        final segment = '/$name/';
+        return (path) => '/$path'.contains(segment);
+      }
+    }
+    return Glob(pattern).matches;
+  }
+
   /// Reads one file's directives into [files], [edges] and [packageImports].
   static void _readFile({
     required String relPath,
@@ -312,15 +334,13 @@ class ProjectScanner {
       files.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
     );
     validEdges.sort((a, b) {
-      for (final c in [
-        a.from.compareTo(b.from),
-        a.to.compareTo(b.to),
-        a.type.compareTo(b.type),
-        (a.line ?? 0).compareTo(b.line ?? 0),
-      ]) {
-        if (c != 0) return c;
-      }
-      return 0;
+      var c = a.from.compareTo(b.from);
+      if (c != 0) return c;
+      c = a.to.compareTo(b.to);
+      if (c != 0) return c;
+      c = a.type.compareTo(b.type);
+      if (c != 0) return c;
+      return (a.line ?? 0).compareTo(b.line ?? 0);
     });
 
     return ScanResult(

@@ -75,11 +75,18 @@ For a cycle, start with the import named on the `Suggested fix:` line. Move the 
 
 If the user wants to keep one import as it is, and neither a fix nor the baseline fits, add `// ignore: arch_guard_lint/<code>` on the line above it (`layer_violation`, `forbidden_package` or `circular_dependency`). The CLI, CI and the IDE all honour it. Use it last, and ask first.
 
+```text
+[!] Unused files (1): no entry point imports these, directly or indirectly.
+  lib/old/legacy.dart
+```
+
+For an unused file, check that nothing outside the scan uses it: code generation, reflection, `bin/` or `test/` when they are not scanned. Then ask the user before deleting it. If it is used, add the file that uses it under `unused_files: entry_points`.
+
 To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files.
 
 ## Rules
 
-- Do not add a layer to `allowed_imports`, remove a `forbidden_packages` entry, raise `max_fan_in` / `max_fan_out` / `max_scc_size`, or run `--update-baseline` to make a failure go away. Each weakens the user's rules. Ask first.
+- Do not add a layer to `allowed_imports`, remove a `forbidden_packages` entry, raise `max_fan_in` / `max_fan_out` / `max_scc_size`, set `unused_files: fail: false`, or run `--update-baseline` to make a failure go away. Each weakens the user's rules. Ask first.
 - When a baseline is in use and the report says known problems are fixed, tell the user. Suggest `--update-baseline` so they cannot return.
 - After a fix, rerun `dart run arch_guard` and confirm exit code `0` before you report the fix as done.
 

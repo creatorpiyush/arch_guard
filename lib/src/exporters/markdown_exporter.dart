@@ -39,6 +39,8 @@ class MarkdownExporter {
     int? maxSccSize,
     String? since,
     int? changedFileCount,
+    List<String>? unusedFiles,
+    bool failOnUnusedFiles = false,
   }) {
     final comparison =
         baseline ??
@@ -48,7 +50,9 @@ class MarkdownExporter {
           packageViolations: packageViolations,
           metricViolations: metricViolations,
           workspaceViolations: workspaceViolations,
+          unusedFiles: unusedFiles ?? const [],
         );
+    final newUnused = comparison.newUnusedFiles;
     final newCycles = comparison.newCycles;
     final newViolations = comparison.newViolations;
     final newPackages = comparison.newPackageViolations;
@@ -61,7 +65,8 @@ class MarkdownExporter {
         newPackages.isNotEmpty ||
         newMetrics.isNotEmpty ||
         newWorkspace.isNotEmpty ||
-        newOversized.isNotEmpty;
+        newOversized.isNotEmpty ||
+        (failOnUnusedFiles && newUnused.isNotEmpty);
 
     final b = StringBuffer()
       ..writeln(marker)
@@ -123,6 +128,12 @@ class MarkdownExporter {
       b.writeln(
         '| Workspace rule violations | ${workspaceViolations.length} | '
         '${newWorkspace.length} |',
+      );
+    }
+    // null: the check is off, so the row is left out.
+    if (unusedFiles != null) {
+      b.writeln(
+        '| Unused files | ${unusedFiles.length} | ${newUnused.length} |',
       );
     }
     if (maxSccSize != null) {
@@ -203,6 +214,18 @@ class MarkdownExporter {
       b.writeln();
     }
 
+    if (newUnused.isNotEmpty) {
+      b.writeln('### New unused files');
+      b.writeln();
+      b.writeln(
+        'No entry point imports these, directly or indirectly. Delete them, '
+        'or add the file that uses them under `unused_files: entry_points`.',
+      );
+      b.writeln();
+      _writeCapped(b, newUnused, (f) => '- `$f`');
+      b.writeln();
+    }
+
     if (hotspots.isNotEmpty) {
       b
         ..writeln('<details><summary>Most coupled files</summary>')
@@ -248,7 +271,8 @@ class MarkdownExporter {
             baseline.fixedViolationCount > 0 ||
             baseline.fixedPackageViolationCount > 0 ||
             baseline.fixedMetricViolationCount > 0 ||
-            baseline.fixedWorkspaceViolationCount > 0)) {
+            baseline.fixedWorkspaceViolationCount > 0 ||
+            baseline.fixedUnusedFileCount > 0)) {
       final fixed = _andJoin([
         '${baseline.fixedCycleCount} cycle group(s)',
         '${baseline.fixedViolationCount} layer violation(s)',
@@ -258,6 +282,8 @@ class MarkdownExporter {
         if (baseline.fixedWorkspaceViolationCount > 0)
           '${baseline.fixedWorkspaceViolationCount} workspace rule '
               'violation(s)',
+        if (baseline.fixedUnusedFileCount > 0)
+          '${baseline.fixedUnusedFileCount} unused file(s)',
       ]);
       b
         ..writeln(
