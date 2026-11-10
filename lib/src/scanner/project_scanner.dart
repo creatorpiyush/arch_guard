@@ -72,6 +72,11 @@ class ProjectScanner {
     // [memberScanDirs]; the root package (or a plain project) honours [scanDirs].
     final targetScanDirs = <String>[];
     if (workspacePkgs.isNotEmpty) {
+      // A workspace root without lib/ is not a member, but its other scan
+      // dirs (test/) still belong to the scan.
+      if (!workspacePkgs.values.any((pkg) => pkg.packagePath == '.')) {
+        targetScanDirs.addAll(scanDirs);
+      }
       for (final pkg in workspacePkgs.values) {
         if (pkg.packagePath == '.') {
           targetScanDirs.addAll(scanDirs);

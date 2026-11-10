@@ -157,6 +157,19 @@ import 'stub.dart' if (dart.library.io) 'io.dart';
       expect(r.packages.map((p) => p.name), ['app', 'core']);
     });
 
+    test('root tests count when the root has no lib/', () async {
+      write('pubspec.yaml', 'name: root\nworkspace:\n  - packages/*\n');
+      write('packages/core/pubspec.yaml', 'name: core\n');
+      write('packages/core/lib/x.dart', '');
+      write('test/root_test.dart', "import 'package:core/x.dart';");
+
+      final r = AffectedFiles.find(
+        result: await scan(),
+        changed: {'packages/core/lib/x.dart'},
+      );
+      expect(r.tests, ['test/root_test.dart']);
+    });
+
     test('member pubspec change affects only that member', () async {
       write('pubspec.yaml', 'name: root\nworkspace:\n  - packages/*\n');
       write('packages/a/pubspec.yaml', 'name: a\n');
