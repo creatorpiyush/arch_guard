@@ -13,6 +13,7 @@ import '../version.dart';
 /// GitHub Code Scanning, Azure DevOps and most IDE SARIF viewers.
 class SarifExporter {
   static const _infoUri = 'https://github.com/creatorpiyush/arch_guard';
+  static const _docsUri = 'https://creatorpiyush.github.io/arch_guard';
 
   /// SARIF rule id for layer violations.
   static const layerViolationRule = 'layer-violation';
@@ -257,7 +258,7 @@ class SarifExporter {
             'A file imports a file from a layer that its own layer is not '
             'allowed to depend on (see `allowed_imports` in arch_guard.yaml).',
       },
-      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'helpUri': '$_docsUri/configuration.html#how-layers-are-matched',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
@@ -273,7 +274,7 @@ class SarifExporter {
             '`forbidden_packages` in arch_guard.yaml, for the whole project '
             'or for the layer the file belongs to.',
       },
-      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'helpUri': '$_docsUri/configuration.html#forbidden-packages',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
@@ -288,7 +289,7 @@ class SarifExporter {
             'A file imports, or is imported by, more project files than '
             '`metrics: max_fan_out` / `max_fan_in` in arch_guard.yaml allow.',
       },
-      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'helpUri': '$_docsUri/configuration.html#metric-limits',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
@@ -305,7 +306,7 @@ class SarifExporter {
             'A file in one workspace member imports a file in another member '
             'that `workspace_rules` in arch_guard.yaml does not allow.',
       },
-      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'helpUri': '$_docsUri/configuration.html#workspace-rules',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
@@ -320,7 +321,7 @@ class SarifExporter {
             'These files form a strongly connected component: each one '
             'depends, directly or indirectly, on all the others.',
       },
-      'helpUri': _infoUri,
+      'helpUri': '$_docsUri/cli.html#fix-a-cycle',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
@@ -335,8 +336,7 @@ class SarifExporter {
             'No entry point reaches this file through imports, exports or '
             'parts (see `unused_files:` in arch_guard.yaml).',
       },
-      'helpUri':
-          'https://creatorpiyush.github.io/arch_guard/configuration.html#unused-files',
+      'helpUri': '$_docsUri/configuration.html#unused-files',
       'defaultConfiguration': {'level': 'warning'},
       'properties': {
         'tags': ['maintainability'],
@@ -351,7 +351,7 @@ class SarifExporter {
             'A circular dependency group has more files than the '
             '`max_scc_size` configured in arch_guard.yaml.',
       },
-      'helpUri': '$_infoUri#configuration-arch_guardyaml-or-pubspecyaml',
+      'helpUri': '$_docsUri/configuration.html#keys',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],

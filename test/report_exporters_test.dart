@@ -489,4 +489,26 @@ void main() {
       expect(md, isNot(contains('Unused files')));
     });
   });
+
+  test('every SARIF rule links to its docs section', () {
+    final rules =
+        ((jsonDecode(SarifExporter.export(result: result, cycles: const []))
+                    as Map)['runs'][0]['tool']['driver']['rules']
+                as List)
+            .cast<Map<String, dynamic>>();
+    final helpUris = {for (final r in rules) r['id']: r['helpUri']};
+    const docs = 'https://creatorpiyush.github.io/arch_guard/';
+    expect(helpUris, {
+      SarifExporter.layerViolationRule:
+          '${docs}configuration.html#how-layers-are-matched',
+      SarifExporter.forbiddenPackageRule:
+          '${docs}configuration.html#forbidden-packages',
+      SarifExporter.metricLimitRule: '${docs}configuration.html#metric-limits',
+      SarifExporter.workspaceDependencyRule:
+          '${docs}configuration.html#workspace-rules',
+      SarifExporter.circularDependencyRule: '${docs}cli.html#fix-a-cycle',
+      SarifExporter.unusedFileRule: '${docs}configuration.html#unused-files',
+      SarifExporter.sccSizeLimitRule: '${docs}configuration.html#keys',
+    });
+  });
 }
