@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
 </head>
 <body>
+  {%- assign flat = "" | split: "" -%}
+  {%- for group in site.data.nav -%}{%- for item in group.pages -%}{%- assign flat = flat | push: item -%}{%- endfor -%}{%- endfor -%}
   <header class="topbar">
     <a class="brand" href="{{ '/' | relative_url }}"><span class="brand-mark">◆</span> arch_guard</a>
     <nav class="toplinks">
@@ -16,17 +18,30 @@
     </nav>
     <label class="menu-toggle" for="menu">Menu</label>
   </header>
-  <input type="checkbox" id="menu" class="menu-checkbox" hidden>
+  <input type="checkbox" id="menu" class="menu-checkbox" aria-label="Show navigation" hidden>
   <div class="shell">
     <aside class="sidebar">
-      <nav>
-        {% for item in site.data.nav %}
-        <a href="{{ item.url | relative_url }}"{% if page.url == item.url %} class="active"{% endif %}>{{ item.title }}</a>
-        {% endfor %}
+      <nav aria-label="Documentation">
+        {%- for group in site.data.nav %}
+        <p class="nav-section">{{ group.section }}</p>
+        {%- for item in group.pages %}
+        <a href="{{ item.url | relative_url }}"{% if page.url == item.url %} class="active" aria-current="page"{% endif %}>{{ item.title }}</a>
+        {%- endfor %}
+        {%- endfor %}
       </nav>
     </aside>
     <main class="content">
       {{ content }}
+      {%- for item in flat -%}
+        {%- if item.url == page.url -%}
+          {%- assign prev_i = forloop.index0 | minus: 1 -%}
+          {%- assign next_i = forloop.index0 | plus: 1 -%}
+          <nav class="pager" aria-label="Previous and next page">
+            {%- if prev_i >= 0 -%}<a class="pager-prev" href="{{ flat[prev_i].url | relative_url }}"><small>Previous</small>{{ flat[prev_i].title }}</a>{%- else -%}<span></span>{%- endif -%}
+            {%- if flat[next_i] -%}<a class="pager-next" href="{{ flat[next_i].url | relative_url }}"><small>Next</small>{{ flat[next_i].title }}</a>{%- endif -%}
+          </nav>
+        {%- endif -%}
+      {%- endfor %}
       <footer class="footer">
         <a href="https://github.com/{{ site.repository }}/edit/main/docs/{{ page.path }}">Edit this page</a>
         <span>·</span>
@@ -35,6 +50,49 @@
         <span>MIT licensed</span>
       </footer>
     </main>
+    <aside class="toc" aria-label="On this page"></aside>
   </div>
+  <script>
+    // Heading anchors, "On this page" list and copy buttons. The page works without it.
+    (function () {
+      var content = document.querySelector('.content');
+      content.querySelectorAll('h2[id], h3[id]').forEach(function (h) {
+        var a = document.createElement('a');
+        a.className = 'anchor';
+        a.href = '#' + h.id;
+        a.setAttribute('aria-label', 'Link to this section');
+        a.textContent = '#';
+        h.appendChild(a);
+      });
+      var h2s = content.querySelectorAll('h2[id]');
+      var toc = document.querySelector('.toc');
+      if (h2s.length > 1) {
+        var title = document.createElement('p');
+        title.className = 'toc-title';
+        title.textContent = 'On this page';
+        toc.appendChild(title);
+        h2s.forEach(function (h) {
+          var a = document.createElement('a');
+          a.href = '#' + h.id;
+          a.textContent = h.firstChild.textContent;
+          toc.appendChild(a);
+        });
+      }
+      content.querySelectorAll('pre').forEach(function (pre) {
+        var b = document.createElement('button');
+        b.className = 'copy';
+        b.type = 'button';
+        b.textContent = 'Copy';
+        b.addEventListener('click', function () {
+          navigator.clipboard.writeText(pre.innerText.replace(/\n$/, '')).then(function () {
+            b.textContent = 'Copied';
+            setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+          });
+        });
+        pre.parentNode.classList.add('has-copy');
+        pre.parentNode.insertBefore(b, pre);
+      });
+    })();
+  </script>
 </body>
 </html>

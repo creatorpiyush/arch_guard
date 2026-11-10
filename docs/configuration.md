@@ -6,6 +6,23 @@ title: Configuration
 
 arch_guard reads `arch_guard.yaml` in the project root, or an `arch_guard:` section in `pubspec.yaml`. The quickest start is `arch_guard init`, which writes the file for you (see [Presets](presets.md)).
 
+## Layers in one minute
+
+A **layer** is a set of files picked by glob patterns. Each layer lists the layers it may import. Any other import between layers is a violation.
+
+```yaml
+# arch_guard.yaml
+layers:
+  domain:
+    patterns: ["lib/domain/**"]
+    allowed_imports: [domain]               # domain imports nothing else
+  presentation:
+    patterns: ["lib/presentation/**"]
+    allowed_imports: [presentation, domain] # never data
+```
+
+With this config, `lib/presentation/page.dart` may import `lib/domain/user.dart`. It may also import `lib/data/api.dart`, because `lib/data` belongs to no layer and so is never checked. Give `data` a layer and that import becomes a violation. A [preset](presets.md) is a ready-made `layers:` block: `preset: clean_architecture` replaces all of the above.
+
 ## Full example
 
 ```yaml
