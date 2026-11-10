@@ -212,6 +212,12 @@ class ProjectScanner {
     final exports = <String>[];
     final parts = <String>[];
     for (final directive in directives) {
+      // The plugin reports at the URI, so an ignore above the URI's line
+      // counts as well as one above the directive keyword.
+      final ignored = {
+        ...ignores.codesAt(directive.line),
+        ...ignores.codesAt(directive.uriLine),
+      };
       switch (directive.type) {
         case 'export':
           exports.add(directive.uri);
@@ -232,7 +238,7 @@ class ProjectScanner {
             package: package,
             type: directive.type,
             line: directive.line,
-            ignored: ignores.codesAt(directive.line),
+            ignored: ignored,
           ),
         );
       }
@@ -251,7 +257,7 @@ class ProjectScanner {
             type: directive.type,
             line: directive.line,
             condition: directive.condition,
-            ignored: ignores.codesAt(directive.line),
+            ignored: ignored,
           ),
         );
       }

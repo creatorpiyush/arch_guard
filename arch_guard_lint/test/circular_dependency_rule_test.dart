@@ -78,6 +78,15 @@ class CircularDependencyRuleTest extends AnalysisRuleTest {
     await assertNoDiagnosticsInFile(_aPath);
   }
 
+  void test_ignoredImportLeavesTheCycle() async {
+    // The CLI drops an ignored import from cycle detection, so the plugin
+    // must not move the warning onto the other import of the pair.
+    newFile(_aPath, '// ignore: arch_guard_lint/circular_dependency\n$_a');
+    newFile(_bPath, _b);
+    await assertNoDiagnosticsInFile(_aPath);
+    await assertNoDiagnosticsInFile(_bPath);
+  }
+
   void test_generatedFilesDoNotCount() async {
     newFile(_aPath, "import 'a.g.dart';\nG? g;\nclass A {}\n");
     newFile(

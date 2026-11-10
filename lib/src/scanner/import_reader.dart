@@ -16,12 +16,17 @@ class ExtractedDirective {
   /// `null` for a plain directive.
   final String? condition;
 
+  /// 1-based line of the [uri] string itself, which differs from [line]
+  /// when a directive spans lines (`if (...) 'io.dart'` on its own line).
+  final int? uriLine;
+
   /// Creates a directive for [uri].
   const ExtractedDirective(
     this.uri, {
     this.type = 'import',
     this.line,
     this.condition,
+    this.uriLine,
   });
 }
 
@@ -148,6 +153,7 @@ class _DirectiveScanner {
                 type: keyword,
                 line: line,
                 condition: u.condition,
+                uriLine: u.line,
               ),
             ),
           );
@@ -157,7 +163,12 @@ class _DirectiveScanner {
           if (firstWord != 'of') {
             results.addAll(
               uris.map(
-                (u) => ExtractedDirective(u.uri, type: 'part', line: line),
+                (u) => ExtractedDirective(
+                  u.uri,
+                  type: 'part',
+                  line: line,
+                  uriLine: u.line,
+                ),
               ),
             );
           }
@@ -177,9 +188,9 @@ class _DirectiveScanner {
   /// found outside parentheses (so `if (dart.library.io == 'true')` conditions
   /// are skipped), each with the `if (...)` condition before it, and the first
   /// identifier token, if the statement starts with one.
-  ({List<({String uri, String? condition})> uris, String? firstWord})
+  ({List<({String uri, String? condition, int line})> uris, String? firstWord})
   _readStatement() {
-    final uris = <({String uri, String? condition})>[];
+    final uris = <({String uri, String? condition, int line})>[];
     String? firstWord;
     var sawToken = false;
     var depth = 0;
@@ -197,10 +208,11 @@ class _DirectiveScanner {
         break;
       }
 
+      final literalLine = _lineAt(pos);
       final literal = _tryReadString();
       if (literal != null) {
         if (depth == 0) {
-          uris.add((uri: literal, condition: condition));
+          uris.add((uri: literal, condition: condition, line: literalLine));
           condition = null;
         }
         lastWord = '';
@@ -236,7 +248,11 @@ class _DirectiveScanner {
 
     // The first URI of a conditional directive is the fallback.
     if (uris.length > 1 && uris.first.condition == null) {
-      uris[0] = (uri: uris.first.uri, condition: 'default');
+      uris[0] = (
+        uri: uris.first.uri,
+        condition: 'default',
+        line: uris.first.line,
+      );
     }
     return (uris: uris, firstWord: firstWord);
   }

@@ -40,6 +40,27 @@ void main() {
       expect(r.packageImports.single.ignored, {'forbidden_package'});
     });
 
+    test('an ignore above a conditional URI applies to that URI only', () {
+      final r = ProjectScanner.scanSources(
+        packageName: 'app',
+        sources: {
+          'lib/a.dart':
+              "import 'b.dart'\n"
+              '    // ignore: arch_guard_lint/layer_violation\n'
+              "    if (dart.library.io) 'c.dart';\n",
+          'lib/b.dart': '',
+          'lib/c.dart': '',
+        },
+      );
+      expect(
+        {for (final e in r.edges) e.to: e.ignored},
+        {
+          'lib/b.dart': <String>{},
+          'lib/c.dart': {'layer_violation'},
+        },
+      );
+    });
+
     test('scanSources resolves self package imports and parts', () {
       final r = ProjectScanner.scanSources(
         packageName: 'app',
