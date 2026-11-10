@@ -1,3 +1,8 @@
+## 0.3.1
+
+- **Ignore comments now count everywhere.** Requires `arch_guard` ^1.11.0, whose CLI, CI and `expectArchitecture()` honour the same `// ignore: arch_guard_lint/<code>` comments the plugin does. An import ignored with `circular_dependency` is left out of cycle detection, so the warning no longer moves onto the other import of the pair.
+- README: documents `ignore_for_file` and that the CLI honours the same comments. The install snippet now reads `^0.3.1`; it still said `^0.2.0`, which never resolves to 0.3.x.
+
 ## 0.3.0
 
 - **`layer_violation` follows barrels.** Importing a file in no layer that re-exports another layer is now reported on the import, with `(via lib/exports.dart)` in the message, as the CLI does.

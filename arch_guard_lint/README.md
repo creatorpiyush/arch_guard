@@ -15,7 +15,7 @@ Requires Dart 3.10 / Flutter 3.38 or later.
 ```yaml
 # analysis_options.yaml
 plugins:
-  arch_guard_lint: ^0.2.0
+  arch_guard_lint: ^0.3.1
 ```
 
 Restart the Dart analysis server afterwards (in VS Code: *Dart: Restart Analysis Server*).
