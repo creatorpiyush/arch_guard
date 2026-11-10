@@ -24,6 +24,22 @@ void main() {
       expect(edges(mem), edges(disk));
     });
 
+    test('scanSources attaches ignore codes to edges and package imports', () {
+      final r = ProjectScanner.scanSources(
+        packageName: 'app',
+        sources: {
+          'lib/a.dart':
+              '// ignore: arch_guard_lint/circular_dependency\n'
+              "import 'b.dart';\n"
+              "import 'package:dio/dio.dart'; "
+              '// ignore: arch_guard_lint/forbidden_package\n',
+          'lib/b.dart': '',
+        },
+      );
+      expect(r.edges.single.ignored, {'circular_dependency'});
+      expect(r.packageImports.single.ignored, {'forbidden_package'});
+    });
+
     test('scanSources resolves self package imports and parts', () {
       final r = ProjectScanner.scanSources(
         packageName: 'app',
