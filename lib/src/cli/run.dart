@@ -14,9 +14,11 @@ import '../graph/dependency_explainer.dart';
 import '../reporters/text_reporter.dart';
 import '../scanner/git_changes.dart';
 import '../version.dart';
+import 'affected_command.dart';
 import 'args_config.dart';
 import 'init_command.dart';
 import 'watch_command.dart';
+import 'why_command.dart';
 
 /// Entry point logic for CLI execution.
 Future<int> runCli(List<String> args) async {
@@ -28,19 +30,49 @@ Future<int> runCli(List<String> args) async {
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');
     stderr.writeln();
-    stderr.writeln(
-      args.isNotEmpty && args.first == 'init'
-          ? ArgsConfig.buildInitParser().usage
-          : parser.usage,
-    );
+    final sub = args.isEmpty ? null : parser.commands[args.first];
+    stderr.writeln((sub ?? parser).usage);
     return 64; // Sysexit code for command-line usage error
   }
 
   final watch = argResults['watch'] as bool;
   final command = argResults.command;
-  if (watch && command?.name == 'init') {
-    stderr.writeln('Error: --watch cannot be combined with init.');
+  if (watch && command != null) {
+    stderr.writeln('Error: --watch cannot be combined with ${command.name}.');
     return 64;
+  }
+  if (command?.name == 'affected') {
+    if (command!['help'] == true) {
+      stdout.writeln(
+        'Usage: arch_guard affected [project_path] --since <git-ref> [options]',
+      );
+      stdout.writeln();
+      stdout.writeln(
+        'Lists the tests (or files, or packages) that changes since a git '
+        'ref can affect.',
+      );
+      stdout.writeln();
+      stdout.writeln(ArgsConfig.buildAffectedParser().usage);
+      return 0;
+    }
+    return runAffected(command);
+  }
+  if (command?.name == 'why') {
+    if (command!['help'] == true) {
+      stdout.writeln(
+        'Usage: arch_guard why <from> <to> [project_path] [options]',
+      );
+      stdout.writeln();
+      stdout.writeln(
+        'Prints the shortest import path from a file or folder to a file, '
+        'folder or package (package:flutter, dart:io). Exits 1 when there '
+        'is none.',
+      );
+      stdout.writeln();
+      stdout.writeln(ArgsConfig.buildWhyParser().usage);
+      return 0;
+    }
+    return runWhy(command);
   }
   if (command?.name == 'init') {
     if (command!['help'] == true) {
@@ -59,6 +91,8 @@ Future<int> runCli(List<String> args) async {
   if (argResults['help'] == true) {
     stdout.writeln('Usage: arch_guard [project_path] [options]');
     stdout.writeln('       arch_guard init [project_path] [--preset <name>]');
+    stdout.writeln('       arch_guard affected [project_path] --since <ref>');
+    stdout.writeln('       arch_guard why <from> <to> [project_path]');
     stdout.writeln();
     stdout.writeln(parser.usage);
     return 0;
@@ -142,7 +176,7 @@ Future<int> runCli(List<String> args) async {
   }
   final config = analysis.config;
   for (final warning in [...config.warnings, ...analysis.warnings]) {
-    _warn(warning, useColor);
+    printWarning(warning, useColor);
   }
   final scanResult = analysis.scan;
   final graph = analysis.graph;
@@ -188,14 +222,14 @@ Future<int> runCli(List<String> args) async {
   ];
 
   scanResult.skippedFiles.forEach((file, reason) {
-    _warn('could not read $file: $reason', useColor);
+    printWarning('could not read $file: $reason', useColor);
   });
 
   final coverage = analysis.coverage;
   for (final layer in coverage.emptyLayers.where(
     (l) => !config.presetOnlyLayers.contains(l),
   )) {
-    _warn(
+    printWarning(
       'layer `$layer` matched no scanned files; check its patterns.',
       useColor,
     );
@@ -206,7 +240,7 @@ Future<int> runCli(List<String> args) async {
     final more = coverage.unassignedFiles.length > previewCount
         ? ', ... (+${coverage.unassignedFiles.length - previewCount} more)'
         : '';
-    _warn(
+    printWarning(
       '${coverage.unassignedFiles.length} file(s) belong to no layer and are '
       'not checked for layer violations: $preview$more',
       useColor,
@@ -629,7 +663,8 @@ String _repoRelativePrefix(String absProjectPath) {
   }
 }
 
-void _warn(String message, bool useColor) {
+/// Prints a yellow `Warning:` line to stderr.
+void printWarning(String message, bool useColor) {
   final cYellow = useColor ? '\x1B[33m' : '';
   final cReset = useColor ? '\x1B[0m' : '';
   stderr.writeln('${cYellow}Warning:$cReset $message');

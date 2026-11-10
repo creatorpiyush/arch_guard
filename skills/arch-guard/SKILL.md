@@ -1,6 +1,6 @@
 ---
 name: arch-guard
-description: Set up and use arch_guard to enforce architecture rules in a Dart or Flutter project - layer rules, forbidden packages, circular dependencies, baselines and CI. Use when the user asks to add arch_guard, check or enforce architecture, find circular imports, or when an arch_guard report, test failure or `layer_violation` / `circular_dependency` warning needs fixing.
+description: Set up and use arch_guard to enforce architecture rules in a Dart or Flutter project - layer rules, forbidden packages, circular dependencies, baselines and CI. Use when the user asks to add arch_guard, check or enforce architecture, find circular imports, when an arch_guard report, test failure or `layer_violation` / `circular_dependency` warning needs fixing, when the user asks why one file or folder depends on another file or package, or which tests a branch's changes affect.
 ---
 
 # arch_guard
@@ -82,7 +82,7 @@ If the user wants to keep one import as it is, and neither a fix nor the baselin
 
 For an unused file, check that nothing outside the scan uses it: code generation, reflection, `bin/` or `test/` when they are not scanned. Then ask the user before deleting it. If it is used, add the file that uses it under `unused_files: entry_points`.
 
-To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files. While refactoring, a human can keep `dart run arch_guard --watch` open; agents should run one-shot checks instead, because `--watch` never exits on its own.
+To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. To find where a forbidden import or layer violation comes from, run `dart run arch_guard why <from> <to>` (for example `why lib/domain flutter`); it prints the shortest import chain with line numbers, and exits `1` when there is none. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files. While refactoring, a human can keep `dart run arch_guard --watch` open; agents should run one-shot checks instead, because `--watch` never exits on its own.
 
 ## Rules
 
@@ -94,5 +94,6 @@ To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. O
 
 - Interactive graph: `dart run arch_guard -f html -o build/reports`, then open `build/reports/dependency_graph.html`.
 - Mermaid diagram for a README or PR: `dart run arch_guard -f mermaid -o build/reports`.
+- Tests a branch can affect: `dart run arch_guard affected --since origin/main` prints one test file per line (`--print files` or `--print packages` for other lists, `--json` for all). Empty output means no tests are affected; do not pass empty output to `dart test`, which would run every test.
 - Machine-readable report: `dart run arch_guard -f json -o build/reports`.
 - Config reference (every key, workspaces, `forbidden_packages`, metric limits): https://creatorpiyush.github.io/arch_guard/configuration.html

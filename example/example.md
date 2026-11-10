@@ -26,6 +26,7 @@ In your own project, `dart pub add --dev arch_guard`, then `dart run arch_guard`
 | Control which packages of a monorepo depend on which | [workspace_rules](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/workspace_rules) | `workspace_rules` |
 | Adopt on a codebase that already has problems | [baseline](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/baseline) | `--update-baseline`, `--baseline` |
 | Check only what a branch changed | [since](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/since) | `--since origin/main` |
+| Find which import chain makes one file depend on another or on a package | [why](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/why) | `arch_guard why <from> <to>` |
 | Check architecture in `dart test` / `flutter test` | [testing](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/testing) | `expectArchitecture()` |
 | Get HTML, Mermaid, DOT, JSON, SARIF or Markdown | [reports](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/reports) | `-f`, `--scope all`, `--offline` |
 | See violations and cycles in the IDE as you type, with quick fixes | [arch_guard_lint example](https://github.com/creatorpiyush/arch_guard/tree/main/arch_guard_lint/example) | analyzer plugin |

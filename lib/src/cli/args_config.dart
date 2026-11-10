@@ -136,6 +136,8 @@ class ArgsConfig {
     );
 
     parser.addCommand('init', buildInitParser());
+    parser.addCommand('affected', buildAffectedParser());
+    parser.addCommand('why', buildWhyParser());
 
     return parser;
   }
@@ -165,5 +167,68 @@ class ArgsConfig {
         help: 'Print the configuration instead of writing it.',
       )
       ..addFlag('help', abbr: 'h', negatable: false, help: 'Print init usage.');
+  }
+
+  /// Parser for `arch_guard affected [project_path] --since <ref>`.
+  static ArgParser buildAffectedParser() {
+    return ArgParser()
+      ..addOption(
+        'since',
+        valueHelp: 'git-ref',
+        help:
+            'Required. Files changed since the merge base with this ref '
+            '(plus uncommitted and untracked files), e.g. origin/main.',
+      )
+      ..addOption(
+        'print',
+        allowed: ['tests', 'files', 'packages'],
+        defaultsTo: 'tests',
+        help: 'What to list, one per line.',
+      )
+      ..addFlag(
+        'json',
+        negatable: false,
+        help: 'Print every list as JSON instead.',
+      )
+      ..addMultiOption(
+        'exclude',
+        help: 'Custom glob pattern(s) to exclude from scanning.',
+      )
+      ..addFlag(
+        'workspace',
+        defaultsTo: true,
+        help: 'Auto-discover and scan workspace member packages.',
+      )
+      ..addFlag(
+        'help',
+        abbr: 'h',
+        negatable: false,
+        help: 'Print affected usage.',
+      );
+  }
+
+  /// Parser for `arch_guard why <from> <to> [project_path]`.
+  static ArgParser buildWhyParser() {
+    return ArgParser()
+      ..addMultiOption(
+        'scan-dir',
+        defaultsTo: ['lib'],
+        help: 'Subdirectory/subdirectories within project root to scan.',
+      )
+      ..addMultiOption(
+        'exclude',
+        help: 'Custom glob pattern(s) to exclude from scanning.',
+      )
+      ..addFlag(
+        'workspace',
+        defaultsTo: true,
+        help: 'Auto-discover and scan workspace member packages.',
+      )
+      ..addFlag(
+        'color',
+        defaultsTo: true,
+        help: 'Enable ANSI colored output in terminal.',
+      )
+      ..addFlag('help', abbr: 'h', negatable: false, help: 'Print why usage.');
   }
 }

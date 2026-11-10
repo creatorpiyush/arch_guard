@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.13.0
+      - uses: creatorpiyush/arch_guard@v1.14.0
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -66,10 +66,28 @@ The PR comment looks like this: a status line, a summary table, the new problems
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.13.0
+      - uses: creatorpiyush/arch_guard@v1.14.0
         with:
           args: --since origin/${{ github.base_ref }}
 ```
+
+### Run only the tests a PR can affect
+
+`arch_guard affected` lists the test files that the branch's changes can reach through imports, so a large repository can skip unrelated tests:
+
+```yaml
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # affected needs the merge base
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - name: Affected tests
+        run: |
+          t=$(dart run arch_guard affected --since origin/${{ github.base_ref }})
+          if [ -n "$t" ]; then dart test $t; else echo "No affected tests."; fi
+```
+
+Keep the empty check: `dart test` with no paths runs every test. Flutter projects use `flutter test`. See [Tests affected by a branch](cli.md#tests-affected-by-a-branch).
 
 ### How long a run takes
 
@@ -109,7 +127,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.13.0
+    rev: v1.14.0
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]
