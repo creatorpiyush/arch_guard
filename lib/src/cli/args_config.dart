@@ -85,6 +85,14 @@ class ArgsConfig {
     );
 
     parser.addFlag(
+      'watch',
+      negatable: false,
+      help:
+          'Re-run when Dart files, the config or the baseline change. '
+          'Stop with Ctrl+C.',
+    );
+
+    parser.addFlag(
       'color',
       defaultsTo: true,
       negatable: true,

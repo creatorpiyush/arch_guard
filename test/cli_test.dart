@@ -398,4 +398,23 @@ layers:
     ]);
     expect(r.stdout, contains('Most coupled files'));
   });
+
+  group('CLI --watch', () {
+    for (final (name, extra) in [
+      ('--update-baseline', ['--update-baseline']),
+      ('--explain', ['--explain', 'lib/a.dart']),
+      ('init', ['init']),
+    ]) {
+      test('rejects --watch with $name', () async {
+        final r = await Process.run(Platform.resolvedExecutable, [
+          'bin/arch_guard.dart',
+          '--watch',
+          if (name != 'init') 'example/cases/sample_project',
+          ...extra,
+        ]);
+        expect(r.exitCode, 64);
+        expect(r.stderr, contains('--watch cannot be combined with $name'));
+      });
+    }
+  });
 }

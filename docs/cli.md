@@ -28,6 +28,7 @@ arch_guard init [project_path] [--preset <name>] [--dry-run] [--force]
 | `--baseline` | | Baseline file of known problems. When it exists, only new problems fail the run. | `arch_guard_baseline.json` |
 | `--update-baseline` | | Write current problems (cycles, rule violations and, with `unused_files:`, unused files) to the baseline and exit `0`. | |
 | `--since` | | Only report (and fail on) problems touching files changed since the merge base with a git ref, plus uncommitted and untracked files, e.g. `origin/main`. The whole project is still analysed. Cannot be combined with `--update-baseline` or `--explain` (exit `64`); git errors exit `2`. A `max_fan_in` violation counts when a changed file imports the over-limit file. | |
+| `--watch` | | Re-run when a scanned `.dart` file, `arch_guard.yaml`, a `pubspec.yaml` or the baseline changes. Stop with Ctrl+C (exit `0`). Cannot be combined with `--update-baseline`, `--explain` or `init` (exit `64`). See [Watch mode](#watch-mode). | |
 | `--version` | | Print the arch_guard version. | |
 | `--help` | `-h` | Display usage help and available CLI flags. | |
 
@@ -83,6 +84,14 @@ Analyse the whole project, but report (and fail on) only problems that touch fil
 arch_guard --since origin/main
 ```
 The report ends with `Only problems touching 7 file(s) changed since origin/main.` In CI, check out with full history (`fetch-depth: 0`); see [CI](ci.md#large-repositories-only-changed-files).
+
+### Watch mode
+Keep a terminal open while you refactor; the check re-runs on every save:
+```bash
+arch_guard --watch
+arch_guard --watch --since origin/main     # only problems in changed files
+```
+Changes are debounced by 300 ms, so one editor save is one run. Changes under `build/` and dot folders such as `.dart_tool` are ignored, and so are report files, so `-f html` in watch mode doesn't loop. After each run it prints `Watching <project> for changes (Ctrl+C to stop). Last run 14:02:11, exit 1.` A failing run keeps watching; Ctrl+C exits `0`.
 
 ### Explain one file
 Inspect why a specific file belongs to an SCC and view its direct incoming/outgoing edges:
