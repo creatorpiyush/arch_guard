@@ -201,4 +201,51 @@ layers:
       hasLength(4),
     );
   });
+
+  group('unused_files', () {
+    ArchGuardConfig parse(String yaml) =>
+        ArchGuardConfig.parse(yaml, rootPath: Directory.systemTemp.path);
+
+    test('is off by default', () {
+      final config = parse('ignore: []\n');
+      expect(config.unusedFilesEnabled, isFalse);
+      expect(config.failOnUnusedFiles, isFalse);
+    });
+
+    test('parses entry_points and fail', () {
+      final config = parse(
+        'unused_files:\n  entry_points: [lib/x.dart]\n  fail: true\n',
+      );
+      expect(config.unusedFilesEnabled, isTrue);
+      expect(config.unusedFileEntryPoints, ['lib/x.dart']);
+      expect(config.failOnUnusedFiles, isTrue);
+      expect(config.warnings, isEmpty);
+    });
+
+    test('true is shorthand for defaults', () {
+      final config = parse('unused_files: true\n');
+      expect(config.unusedFilesEnabled, isTrue);
+      expect(config.unusedFileEntryPoints, isEmpty);
+      expect(config.failOnUnusedFiles, isFalse);
+      expect(config.warnings, isEmpty);
+    });
+
+    test('warns on unknown sub-keys and wrong types', () {
+      expect(
+        parse('unused_files:\n  foo: 1\n').warnings.join(),
+        contains('unknown key `unused_files: foo`'),
+      );
+      final bad = parse('unused_files: 3\n');
+      expect(bad.unusedFilesEnabled, isFalse);
+      expect(bad.warnings.join(), contains('must be a map'));
+      expect(
+        parse('unused_files:\n  fail: yes please\n').warnings.join(),
+        contains('`unused_files: fail` must be true or false'),
+      );
+      expect(
+        parse('unused_files:\n  entry_points: lib/x.dart\n').warnings.join(),
+        contains('`unused_files: entry_points` must be a list'),
+      );
+    });
+  });
 }
