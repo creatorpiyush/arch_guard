@@ -53,7 +53,7 @@ To turn it off:
 # analysis_options.yaml
 plugins:
   arch_guard_lint:
-    version: ^0.2.0
+    version: ^0.3.1
     diagnostics:
       circular_dependency: false
 ```

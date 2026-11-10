@@ -1,18 +1,30 @@
-- title: Overview
-  url: /
-- title: Presets
-  url: /presets.html
-- title: Configuration
-  url: /configuration.html
-- title: CI & hooks
-  url: /ci.html
-- title: Testing
-  url: /testing.html
-- title: IDE
-  url: /ide.html
-- title: CLI
-  url: /cli.html
-- title: Dart API
-  url: /api.html
-- title: AI agents
-  url: /ai.html
+- section: Start here
+  pages:
+    - title: Overview
+      url: /
+    - title: Getting started
+      url: /getting-started.html
+- section: Rules
+  pages:
+    - title: Presets
+      url: /presets.html
+    - title: Configuration
+      url: /configuration.html
+- section: Workflows
+  pages:
+    - title: CI & hooks
+      url: /ci.html
+    - title: Testing
+      url: /testing.html
+    - title: IDE warnings
+      url: /ide.html
+    - title: AI agents
+      url: /ai.html
+- section: Reference
+  pages:
+    - title: CLI
+      url: /cli.html
+    - title: Dart API
+      url: /api.html
+    - title: Troubleshooting
+      url: /troubleshooting.html

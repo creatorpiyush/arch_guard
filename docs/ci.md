@@ -1,32 +1,19 @@
 ---
 title: CI & hooks
 ---
-
+{% raw %}
 # CI & hooks
 
-Run arch_guard where it stops problems early: on every pull request, and optionally before each commit. Exit codes are listed on the [CLI](cli.md#exit-codes) page.
+Run arch_guard where it stops problems early: on every pull request, and optionally before each commit. Every option below reads the same `arch_guard.yaml` and baseline.
 
-## Adopting on an existing codebase (baseline)
+| Where | Use | Needs Dart in CI |
+| :--- | :--- | :--- |
+| GitHub pull requests | [GitHub Action](#github-action): PR comment, job summary, optional Code Scanning | No |
+| GitLab merge requests | [GitLab CI](#gitlab-ci) job with report artifacts | Yes |
+| Before each commit | [pre-commit](#pre-commit), [lefthook](#lefthook) or a [plain git hook](#plain-git-hook) | Yes, locally |
+| Inside `dart test` | [`expectArchitecture()`](testing.md) | Yes |
 
-Large projects rarely start clean. Record the problems you have today, commit the file, and from then on only *new* problems fail the run:
-
-```bash
-arch_guard --update-baseline        # writes arch_guard_baseline.json
-git add arch_guard_baseline.json
-```
-
-How later runs compare against the baseline:
-
-- A **layer violation** is known if the same `source -> target` import is listed.
-- A **cycle** is known if all its files belong to one baseline cycle. A cycle that shrinks stays accepted; one that grows, or merges two known cycles, is new.
-  - Only **membership** is compared, not the imports inside the cycle. With a baseline cycle `a -> b -> c -> a`, adding `a -> c` (or removing it again) still passes: the cycle has the same three files. To cap how big a cycle may get, use [`max_scc_size`](configuration.md).
-  - Each new cycle says why it is new, e.g. `Why new: grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`.
-- An **unused file** is known if its path is listed. One that is used again or deleted counts as fixed.
-- When baseline entries disappear, the run says so. Run `--update-baseline` again to lock in the improvement so the problems cannot come back.
-- The run also says when a known problem got smaller without going away: a cycle group that lost files or split, or a metric value that dropped. Update the baseline to lock that in too. Otherwise a saved `{a, b, c}` still accepts `c` coming back after you shrank the group to `{a, b}`.
-- Updating is always manual. "No regression" means no worse than the saved baseline file, not than the last passing run.
-
-Use `--baseline path/to/file.json` to keep the file somewhere else (paths are relative to the scanned project).
+On an existing codebase, start with a [baseline](#adopting-on-an-existing-codebase-baseline) so CI fails only on new problems. Exit codes are listed on the [CLI](cli.md#exit-codes) page.
 
 ## GitHub Action
 
@@ -52,11 +39,21 @@ jobs:
           # upload-sarif: true     # show results in the Security tab / PR diff
 ```
 
-The action downloads the release binary (checksum-verified, no Dart SDK needed), writes the Markdown summary to the job summary, keeps a single PR comment up to date, and fails the job when arch_guard exits non-zero. Inputs: `path`, `version`, `args`, `comment`, `upload-sarif`, `output-dir`, `token`. Outputs: `exit-code`, `sarif-file`, `markdown-file`. Prebuilt binaries cover Linux x64/arm64, macOS arm64 and Windows x64; on other runners install Dart and set `version: source`.
+The action downloads the release binary (checksum-verified, no Dart SDK needed), writes the Markdown report to the job summary, keeps a single PR comment up to date, and fails the job when arch_guard exits non-zero. The comment has a status line, a summary table, the new problems with the rule each one breaks, and the cycle graph in a collapsible Mermaid block.
 
-Code Scanning (`upload-sarif: true`) is free for public repositories; private repositories need GitHub Advanced Security.
+| Input | Default | Description |
+| :--- | :--- | :--- |
+| `path` | `.` | Project folder to scan, relative to the repository root. |
+| `args` | | Extra CLI flags, e.g. `--scan-dir lib --since origin/main`. |
+| `version` | the action's tag | Release to run, e.g. `v1.14.0`. Without a version tag, the latest release. `source` builds from the action's checkout and needs Dart on the runner. |
+| `comment` | `true` | Post and update the PR comment. Needs `pull-requests: write`. |
+| `upload-sarif` | `false` | Upload SARIF to GitHub Code Scanning. Needs `security-events: write`. Free for public repositories; private ones need GitHub Advanced Security. |
+| `output-dir` | `arch_guard_output` | Report folder, relative to `path`. |
+| `token` | `github.token` | Token for the PR comment. |
 
-The PR comment looks like this: a status line, a summary table, the new problems with the rule each one breaks, and the cycle graph in a collapsible Mermaid block.
+Outputs: `exit-code`, `sarif-file`, `markdown-file`.
+
+Prebuilt binaries cover Linux x64/arm64, macOS arm64 and Windows x64. On other runners, install Dart and set `version: source`.
 
 ### Large repositories: only changed files
 
@@ -102,7 +99,29 @@ A full run, scan included, takes about 0.07 s per 1,000 files. Most of it is rea
 | 20,000 | none | 42 ms | 1,348 ms | 1,439 ms |
 | 20,200 | 200 | 82 ms | 1,502 ms | 1,585 ms |
 
-Differences of a few percent between runs are noise. `dart run arch_guard` adds about a second of Dart startup; the [GitHub Action](#github-action) and the [standalone binaries](cli.md#standalone-binaries-no-dart-sdk-needed) don't.
+Differences of a few percent between runs are noise. `dart run arch_guard` adds about a second of Dart startup; the [GitHub Action](#github-action) and the [standalone binaries](cli.md#standalone-binaries) don't.
+
+## Adopting on an existing codebase (baseline)
+
+Large projects rarely start clean. Record the problems you have today, commit the file, and from then on only *new* problems fail the run:
+
+```bash
+arch_guard --update-baseline        # writes arch_guard_baseline.json
+git add arch_guard_baseline.json
+```
+
+How later runs compare against the baseline:
+
+- A **layer violation** is known if the same `source -> target` import is listed.
+- A **cycle** is known if all its files belong to one baseline cycle. A cycle that shrinks stays accepted; one that grows, or merges two known cycles, is new.
+  - Only **membership** is compared, not the imports inside the cycle. With a baseline cycle `a -> b -> c -> a`, adding `a -> c` (or removing it again) still passes: the cycle has the same three files. To cap how big a cycle may get, use [`max_scc_size`](configuration.md).
+  - Each new cycle says why it is new, e.g. `Why new: grew from a known 3-file cycle, adding lib/d.dart`, `merges 2 known cycles`, or `none of its files is in a baseline cycle`.
+- An **unused file** is known if its path is listed. One that is used again or deleted counts as fixed.
+- When baseline entries disappear, the run says so. Run `--update-baseline` again to lock in the improvement so the problems cannot come back.
+- The run also says when a known problem got smaller without going away: a cycle group that lost files or split, or a metric value that dropped. Update the baseline to lock that in too. Otherwise a saved `{a, b, c}` still accepts `c` coming back after you shrank the group to `{a, b}`.
+- Updating is always manual. "No regression" means no worse than the saved baseline file, not than the last passing run.
+
+Use `--baseline path/to/file.json` to keep the file somewhere else (paths are relative to the scanned project).
 
 ## GitLab CI
 
@@ -159,3 +178,4 @@ dart run arch_guard --no-color || {
 ```
 
 With a committed baseline, hooks only block commits that introduce *new* problems.
+{% endraw %}

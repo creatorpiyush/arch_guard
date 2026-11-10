@@ -11,7 +11,7 @@ Run the architecture rules inside your test suite, so `dart test` and `flutter t
 ```yaml
 # pubspec.yaml
 dev_dependencies:
-  arch_guard: ^1.5.0
+  arch_guard: ^1.14.0
 ```
 
 ```dart
