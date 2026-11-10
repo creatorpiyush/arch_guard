@@ -147,4 +147,23 @@ void main() {
     expect(ImportPath.matchFiles(result, r'lib\domain'), {'lib/domain/a.dart'});
     expect(ImportPath.matchTarget(result, r'lib\domain').label, 'lib/domain/');
   });
+
+  test('package: URI of the scanned package is a file target', () {
+    final sources = {
+      'lib/a.dart': "import 'package:app/data/c.dart';",
+      'lib/data/c.dart': '',
+    };
+    final path = _why(sources, 'lib/a.dart', 'package:app/data/c.dart')!;
+    expect(path.single.to, 'lib/data/c.dart');
+    final result = _scan(sources);
+    expect(
+      ImportPath.matchTarget(result, 'package:app/data').label,
+      'lib/data/',
+    );
+    expect(ImportPath.matchTarget(result, 'package:app').label, 'lib/');
+    expect(
+      () => ImportPath.matchTarget(result, 'package:app/nope.dart'),
+      throwsArgumentError,
+    );
+  });
 }

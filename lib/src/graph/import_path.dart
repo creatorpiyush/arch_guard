@@ -75,7 +75,21 @@ class ImportPath {
   static PathTarget matchTarget(ScanResult result, String arg) {
     if (arg.startsWith('dart:')) return PackageTarget(arg);
     if (arg.startsWith('package:')) {
-      return PackageTarget(arg.substring('package:'.length).split('/').first);
+      final rest = arg.substring('package:'.length);
+      final name = rest.split('/').first;
+      // A scanned package's own files are files, not a package import.
+      final lib =
+          {for (final pkg in result.packages) pkg.name: pkg.libPath}[name] ??
+          (name == result.packageName ? 'lib' : null);
+      if (lib == null) return PackageTarget(name);
+      final inner = rest.length > name.length
+          ? rest.substring(name.length)
+          : '';
+      final (files, label) = _match(result, '$lib$inner');
+      if (files.isEmpty) {
+        throw ArgumentError('no scanned file or folder matches "$arg".');
+      }
+      return FileTarget(files, label);
     }
     final (files, label) = _match(result, arg);
     if (files.isNotEmpty) return FileTarget(files, label);
