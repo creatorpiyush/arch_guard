@@ -39,6 +39,9 @@ class GitChanges {
             '--no-ext-diff',
             '--no-color',
             '--name-only',
+            // List both sides of a rename: files still importing the old
+            // path are affected.
+            '--no-renames',
             '-z',
             '--merge-base',
             ref,

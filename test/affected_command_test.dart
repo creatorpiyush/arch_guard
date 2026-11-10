@@ -76,6 +76,14 @@ void main() {
     expect(json['ignoredChanges'], ['assets/logo.png']);
   });
 
+  test('renamed file lists tests importing the old path', () {
+    git(['checkout', '-qb', 'feature']);
+    git(['mv', 'lib/b.dart', 'lib/c.dart']);
+    git(['commit', '-qm', 'rename']);
+    final r = affected(['--since', 'main']);
+    expect(r.stdout, 'test/b_test.dart\n');
+  });
+
   test('no affected tests prints nothing to stdout', () {
     write('lib/lonely.dart', '');
     final r = affected(['--since', 'main']);
