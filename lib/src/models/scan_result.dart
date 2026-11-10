@@ -20,6 +20,10 @@ class GraphEdge {
   /// a plain directive, which every platform compiles.
   final String? condition;
 
+  /// `arch_guard_lint/<code>` ignore codes (without the prefix) that apply to
+  /// this directive. Not part of equality.
+  final Set<String> ignored;
+
   /// Creates an edge from [from] to [to].
   const GraphEdge({
     required this.from,
@@ -27,6 +31,7 @@ class GraphEdge {
     this.type = 'import',
     this.line,
     this.condition,
+    this.ignored = const {},
   });
 
   @override
@@ -65,6 +70,10 @@ class PackageImport {
   /// 1-based line of the directive in [file], if known.
   final int? line;
 
+  /// `arch_guard_lint/<code>` ignore codes (without the prefix) that apply to
+  /// this directive.
+  final Set<String> ignored;
+
   /// Creates a record of [file] importing [uri].
   const PackageImport({
     required this.file,
@@ -72,6 +81,7 @@ class PackageImport {
     required this.package,
     this.type = 'import',
     this.line,
+    this.ignored = const {},
   });
 
   /// Returns `dio` for `package:dio/...`, `dart:io` for `dart:io`, or `null`

@@ -109,6 +109,74 @@ layers:
     expect(a.hotspots, hasLength(1));
   });
 
+  group('ignore comments', () {
+    const ignoreLayer = '// ignore: arch_guard_lint/layer_violation\n';
+    const ignoreCycle = '// ignore: arch_guard_lint/circular_dependency\n';
+
+    test('ignored layer import is not a violation', () async {
+      write('arch_guard.yaml', 'preset: clean_architecture\n');
+      write('lib/domain/u.dart', "${ignoreLayer}import '../data/d.dart';\n");
+      write('lib/data/d.dart', '');
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(
+        a.layerViolations.where((v) => v.sourceFile == 'lib/domain/u.dart'),
+        isEmpty,
+      );
+    });
+
+    test('ignore on a barrel import hides the via violation', () async {
+      write('arch_guard.yaml', 'preset: clean_architecture\n');
+      write('lib/domain/u.dart', "${ignoreLayer}import '../exports.dart';\n");
+      write('lib/exports.dart', "export 'data/d.dart';\n");
+      write('lib/data/d.dart', '');
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(
+        a.layerViolations.where((v) => v.sourceFile == 'lib/domain/u.dart'),
+        isEmpty,
+      );
+    });
+
+    test('ignored forbidden package', () async {
+      write(
+        'lib/domain/a.dart',
+        "import 'package:flutter/widgets.dart'; "
+            '// ignore: arch_guard_lint/forbidden_package\n',
+      );
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.packageViolations, isEmpty);
+    });
+
+    test('ignored import breaks a two-file cycle', () async {
+      write('lib/data/b.dart', "${ignoreCycle}import '../domain/a.dart';\n");
+      final a = await ArchAnalysis.run(projectPath: project.path);
+      expect(a.cycles, isEmpty);
+      expect(
+        a.scan.edges.map((e) => '${e.from}>${e.to}'),
+        contains('lib/data/b.dart>lib/domain/a.dart'),
+      );
+    });
+
+    test(
+      'cycle with another path survives, hint avoids the ignored import',
+      () async {
+        write('arch_guard.yaml', 'max_scc_size: 10\n');
+        write('lib/a.dart', "import 'b.dart';\n");
+        write(
+          'lib/b.dart',
+          "${ignoreCycle}import 'a.dart';\nimport 'c.dart';\n",
+        );
+        write('lib/c.dart', "import 'a.dart';\n");
+        final a = await ArchAnalysis.run(projectPath: project.path);
+        final cycle = a.cycles.singleWhere(
+          (c) => c.files.contains('lib/c.dart'),
+        );
+        expect(cycle.files.toSet(), {'lib/a.dart', 'lib/b.dart', 'lib/c.dart'});
+        final hint = cycle.scc!.suggestedBreak!;
+        expect('${hint.from}>${hint.to}', isNot('lib/b.dart>lib/a.dart'));
+      },
+    );
+  });
+
   group('since', () {
     void git(List<String> args) {
       final r = Process.runSync('git', args, workingDirectory: project.path);

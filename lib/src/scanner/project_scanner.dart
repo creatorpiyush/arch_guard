@@ -6,6 +6,7 @@ import '../models/file_node.dart';
 import '../models/scan_result.dart';
 import '../models/workspace_package.dart';
 import 'default_excludes.dart';
+import 'ignore_comments.dart';
 import 'import_reader.dart';
 import 'pubspec_reader.dart';
 
@@ -206,10 +207,17 @@ class ProjectScanner {
     required List<PackageImport> packageImports,
   }) {
     final directives = ImportReader.extractDirectives(content);
+    final ignores = IgnoreComments.parse(content);
     final imports = <String>[];
     final exports = <String>[];
     final parts = <String>[];
     for (final directive in directives) {
+      // The plugin reports at the URI, so an ignore above the URI's line
+      // counts as well as one above the directive keyword.
+      final ignored = {
+        ...ignores.codesAt(directive.line),
+        ...ignores.codesAt(directive.uriLine),
+      };
       switch (directive.type) {
         case 'export':
           exports.add(directive.uri);
@@ -230,6 +238,7 @@ class ProjectScanner {
             package: package,
             type: directive.type,
             line: directive.line,
+            ignored: ignored,
           ),
         );
       }
@@ -248,6 +257,7 @@ class ProjectScanner {
             type: directive.type,
             line: directive.line,
             condition: directive.condition,
+            ignored: ignored,
           ),
         );
       }
@@ -283,6 +293,7 @@ class ProjectScanner {
             type: edge.type,
             line: edge.line,
             condition: edge.condition,
+            ignored: edge.ignored,
           ),
         );
       }
@@ -332,6 +343,7 @@ class _TempEdge {
   final String type;
   final int? line;
   final String? condition;
+  final Set<String> ignored;
 
   _TempEdge({
     required this.from,
@@ -339,5 +351,6 @@ class _TempEdge {
     required this.type,
     this.line,
     this.condition,
+    this.ignored = const {},
   });
 }

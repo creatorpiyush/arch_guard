@@ -1,6 +1,7 @@
 import 'package:glob/glob.dart';
 import '../models/config_model.dart';
 import '../models/scan_result.dart';
+import '../scanner/ignore_comments.dart';
 
 /// Violation record for Clean Architecture layer rule checking.
 class LayerViolation {
@@ -105,9 +106,14 @@ class LayerValidator {
   }) {
     if (config.layers.isEmpty) return const [];
     final check = checker(config);
-    final violations = [
+    // An ignore belongs to the importing directive, so it also hides
+    // violations reached through a barrel that directive imports.
+    final checked = [
       for (final edge in result.edges)
-        ?check(edge.from, edge.to, line: edge.line),
+        if (!edge.ignored.contains(IgnoreComments.layerViolation)) edge,
+    ];
+    final violations = [
+      for (final edge in checked) ?check(edge.from, edge.to, line: edge.line),
     ];
 
     // A file in no layer is never checked, so a barrel there would hide
@@ -123,7 +129,7 @@ class LayerValidator {
     final reported = {
       for (final v in violations) '${v.sourceFile}\n${v.targetFile}',
     };
-    for (final edge in result.edges) {
+    for (final edge in checked) {
       if (resolveLayer(edge.from) == null || resolveLayer(edge.to) != null) {
         continue;
       }

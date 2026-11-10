@@ -1,5 +1,6 @@
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
+import '../scanner/ignore_comments.dart';
 import 'cycle_breaker.dart';
 import 'cycle_path_finder.dart';
 import 'tarjan_scc.dart';
@@ -17,8 +18,14 @@ class DependencyGraph {
   /// Map from file path to set of file paths that import/export it (incoming edges).
   final Map<String, Set<String>> incomingEdges;
 
+  /// [ScanResult.edges] minus those marked
+  /// `// ignore: arch_guard_lint/circular_dependency`: the edges cycle
+  /// detection and cycle hints see.
+  final List<GraphEdge> edges;
+
   DependencyGraph._({
     required this.scanResult,
+    required this.edges,
     required this.outgoingEdges,
     required this.incomingEdges,
   });
@@ -33,7 +40,11 @@ class DependencyGraph {
       incoming[nodePath] = <String>{};
     }
 
-    for (final edge in result.edges) {
+    final edges = [
+      for (final edge in result.edges)
+        if (!edge.ignored.contains(IgnoreComments.circularDependency)) edge,
+    ];
+    for (final edge in edges) {
       outgoing.putIfAbsent(edge.from, () => <String>{}).add(edge.to);
       incoming.putIfAbsent(edge.to, () => <String>{}).add(edge.from);
       // Ensure destination node is represented in graph keys
@@ -43,6 +54,7 @@ class DependencyGraph {
 
     return DependencyGraph._(
       scanResult: result,
+      edges: edges,
       outgoingEdges: outgoing,
       incomingEdges: incoming,
     );
@@ -72,10 +84,7 @@ class DependencyGraph {
           exampleChain: exampleChain,
           outgoingEdges: outgoingEdges,
           incomingEdges: incomingEdges,
-          suggestedBreak: CycleBreaker.suggest(
-            files: scc,
-            edges: scanResult.edges,
-          ),
+          suggestedBreak: CycleBreaker.suggest(files: scc, edges: edges),
         );
         cycles.add(
           Cycle(
@@ -97,10 +106,7 @@ class DependencyGraph {
             exampleChain: exampleChain,
             outgoingEdges: outgoingEdges,
             incomingEdges: incomingEdges,
-            suggestedBreak: CycleBreaker.suggest(
-              files: scc,
-              edges: scanResult.edges,
-            ),
+            suggestedBreak: CycleBreaker.suggest(files: scc, edges: edges),
           );
           cycles.add(
             Cycle(
@@ -123,7 +129,7 @@ class DependencyGraph {
     final members = scc.toSet();
     final plain = {for (final f in scc) f: <String>{}};
     final conditions = <String>{};
-    for (final edge in scanResult.edges) {
+    for (final edge in edges) {
       if (!members.contains(edge.from) || !members.contains(edge.to)) continue;
       final condition = edge.condition;
       if (condition == null) {

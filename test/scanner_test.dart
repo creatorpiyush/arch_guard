@@ -24,6 +24,43 @@ void main() {
       expect(edges(mem), edges(disk));
     });
 
+    test('scanSources attaches ignore codes to edges and package imports', () {
+      final r = ProjectScanner.scanSources(
+        packageName: 'app',
+        sources: {
+          'lib/a.dart':
+              '// ignore: arch_guard_lint/circular_dependency\n'
+              "import 'b.dart';\n"
+              "import 'package:dio/dio.dart'; "
+              '// ignore: arch_guard_lint/forbidden_package\n',
+          'lib/b.dart': '',
+        },
+      );
+      expect(r.edges.single.ignored, {'circular_dependency'});
+      expect(r.packageImports.single.ignored, {'forbidden_package'});
+    });
+
+    test('an ignore above a conditional URI applies to that URI only', () {
+      final r = ProjectScanner.scanSources(
+        packageName: 'app',
+        sources: {
+          'lib/a.dart':
+              "import 'b.dart'\n"
+              '    // ignore: arch_guard_lint/layer_violation\n'
+              "    if (dart.library.io) 'c.dart';\n",
+          'lib/b.dart': '',
+          'lib/c.dart': '',
+        },
+      );
+      expect(
+        {for (final e in r.edges) e.to: e.ignored},
+        {
+          'lib/b.dart': <String>{},
+          'lib/c.dart': {'layer_violation'},
+        },
+      );
+    });
+
     test('scanSources resolves self package imports and parts', () {
       final r = ProjectScanner.scanSources(
         packageName: 'app',

@@ -93,6 +93,10 @@ The line shows the importing file and line, both layers, and the rule that was b
 2. **Move the code** to a layer the importing file may import.
 3. **Allow it**, if the dependency is intended, by adding the layer to `allowed_imports`.
 
+## Ignoring one import
+
+To accept a single import without changing the rules, put `// ignore: arch_guard_lint/layer_violation` (or `forbidden_package`, `circular_dependency`) on the line above it. The CLI, CI, `expectArchitecture()` and the IDE plugin all honour it. See [IDE warnings](ide.md).
+
 ## Forbidden packages
 
 `forbidden_packages` keeps packages and core libraries out of code that should not depend on them:

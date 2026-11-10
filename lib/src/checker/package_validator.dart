@@ -3,6 +3,7 @@ import 'package:path/path.dart' as p;
 
 import '../models/config_model.dart';
 import '../models/scan_result.dart';
+import '../scanner/ignore_comments.dart';
 import 'layer_validator.dart';
 
 /// An import of a package or core library that `forbidden_packages` rules out.
@@ -76,7 +77,8 @@ class PackageValidator {
     final check = checker(config);
     return [
       for (final i in result.packageImports)
-        ?check(i.file, i.uri, line: i.line),
+        if (!i.ignored.contains(IgnoreComments.forbiddenPackage))
+          ?check(i.file, i.uri, line: i.line),
     ];
   }
 
