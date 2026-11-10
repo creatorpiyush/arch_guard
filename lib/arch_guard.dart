@@ -34,6 +34,7 @@ export 'src/graph/affected_files.dart';
 export 'src/graph/cycle_breaker.dart';
 export 'src/graph/dependency_explainer.dart';
 export 'src/graph/dependency_graph.dart';
+export 'src/graph/import_path.dart';
 export 'src/models/config_model.dart';
 export 'src/models/cycle.dart';
 export 'src/models/file_metrics.dart';
