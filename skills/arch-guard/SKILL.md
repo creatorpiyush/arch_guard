@@ -95,5 +95,5 @@ To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. T
 - Interactive graph: `dart run arch_guard -f html -o build/reports`, then open `build/reports/dependency_graph.html`.
 - Mermaid diagram for a README or PR: `dart run arch_guard -f mermaid -o build/reports`.
 - Tests a branch can affect: `dart run arch_guard affected --since origin/main` prints one test file per line (`--print files` or `--print packages` for other lists, `--json` for all). Empty output means no tests are affected; do not pass empty output to `dart test`, which would run every test.
-- Machine-readable report: `dart run arch_guard -f json -o build/reports`.
+- Machine-readable report: `dart run arch_guard --json` prints the JSON report to stdout (the human report goes to stderr; the exit code is the same). `-f json -o build/reports` writes it to a file instead.
 - Config reference (every key, workspaces, `forbidden_packages`, metric limits): https://creatorpiyush.github.io/arch_guard/configuration.html

@@ -93,6 +93,14 @@ class ArgsConfig {
     );
 
     parser.addFlag(
+      'json',
+      negatable: false,
+      help:
+          'Print the JSON report to stdout and nothing else. The usual '
+          'report goes to stderr; the exit code is unchanged.',
+    );
+
+    parser.addFlag(
       'color',
       defaultsTo: true,
       negatable: true,

@@ -56,6 +56,7 @@ Flags for the main check. Repeatable flags can be given more than once (`--scan-
 | :--- | :--- | :--- |
 | `-f`, `--format` | `text` | `text`, `html`, `mermaid`, `dot`, `json`, `sarif`, `markdown` or `all`. Repeatable. See [Output formats](#output-formats). |
 | `-o`, `--output` | `arch_guard_output` | Folder for report files. |
+| `--json` | off | Print the JSON report (the same as `-f json`) to stdout and nothing else, for scripts and AI agents. The usual report and warnings go to stderr. The exit code is unchanged. |
 | `--scope` | `cycles` | What graphs show: `cycles` (each cycle plus the files one import away) or `all` (the full graph). |
 | `--offline` | off | Inline the scripts in the HTML report, for machines without internet. |
 | `--[no-]color` | on | ANSI colours in the terminal. |
@@ -69,7 +70,7 @@ Flags for the main check. Repeatable flags can be given more than once (`--scan-
 | `--version` | Print the version. |
 | `-h`, `--help` | Print usage. |
 
-These combinations are rejected with exit `64`: `--since` or `--watch` with `--update-baseline` or `--explain`, and `--watch` with `init`, `affected` or `why`.
+These combinations are rejected with exit `64`: `--since` or `--watch` with `--update-baseline` or `--explain`, `--watch` with `init`, `affected` or `why`, and `--json` with `--watch` or `--explain`.
 
 ## Fix a cycle
 

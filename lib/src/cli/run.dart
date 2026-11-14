@@ -142,6 +142,15 @@ Future<int> runCli(List<String> args) async {
     stderr.writeln('Error: --watch cannot be combined with --explain.');
     return 64;
   }
+  final jsonStdout = argResults['json'] as bool;
+  if (jsonStdout && watch) {
+    stderr.writeln('Error: --json cannot be combined with --watch.');
+    return 64;
+  }
+  if (jsonStdout && explainTarget != null) {
+    stderr.writeln('Error: --json cannot be combined with --explain.');
+    return 64;
+  }
   if (watch) {
     final baseline = p.relative(
       p.absolute(absProjectPath, argResults['baseline'] as String),
@@ -260,114 +269,117 @@ Future<int> runCli(List<String> args) async {
     return 0;
   }
 
+  // With --json, stdout carries only the JSON; the usual report goes to
+  // stderr so a terminal still shows it.
+  final IOSink out = jsonStdout ? stderr : stdout;
   final cRed = useColor ? '\x1B[31m' : '';
   final cGreen = useColor ? '\x1B[32m' : '';
   final cReset = useColor ? '\x1B[0m' : '';
 
   // Before the report, so "no cycles found" reads as "in changed files".
   if (analysis.changedFiles != null) {
-    stdout.writeln(
+    out.writeln(
       'Only problems touching ${analysis.changedFiles!.length} file(s) '
       'changed since $since.',
     );
-    stdout.writeln();
+    out.writeln();
   }
 
   // Text summary report is always printed to terminal
   final textReporter = TextReporter(useColor: useColor);
-  stdout.write(textReporter.formatReport(result: scanResult, cycles: cycles));
+  out.write(textReporter.formatReport(result: scanResult, cycles: cycles));
 
   if (newViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
-    stdout.writeln(
+    out.writeln(
       '$cRed[!] ${label}LAYER BOUNDARY VIOLATIONS DETECTED (${newViolations.length}):$cReset',
     );
     final cDim = useColor ? '\x1B[2m' : '';
     for (final v in newViolations) {
-      stdout.writeln('  $v');
-      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+      out.writeln('  $v');
+      out.writeln('     ${cDim}Rule: ${v.rule}$cReset');
     }
     final configName = config.sourcePath == null
         ? 'arch_guard.yaml'
         : p.basename(config.sourcePath!);
-    stdout.writeln();
-    stdout.writeln(
+    out.writeln();
+    out.writeln(
       '  How to fix: invert the dependency (an interface in the importing '
       'layer, implemented by the imported one), move the code to a layer it '
       'may import, or, if the dependency is intended, add the layer to '
       '`allowed_imports` in $configName.',
     );
     if (config.preset != null) {
-      stdout.writeln(
+      out.writeln(
         '  (Using preset `${config.preset}`: to change a layer\'s rules, list '
         'it under `layers:` with only the keys to change, e.g. '
         '`allowed_imports`.)',
       );
     }
-    stdout.writeln();
+    out.writeln();
   }
 
   if (newPackageViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
     final cDim = useColor ? '\x1B[2m' : '';
-    stdout.writeln(
+    out.writeln(
       '$cRed[!] ${label}FORBIDDEN PACKAGE IMPORTS '
       '(${newPackageViolations.length}):$cReset',
     );
     for (final v in newPackageViolations) {
-      stdout.writeln('  $v');
-      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+      out.writeln('  $v');
+      out.writeln('     ${cDim}Rule: ${v.rule}$cReset');
     }
-    stdout.writeln();
-    stdout.writeln(
+    out.writeln();
+    out.writeln(
       '  How to fix: depend on an interface in the importing layer and '
       'implement it where the package is allowed, or remove the entry from '
       '`forbidden_packages`.',
     );
-    stdout.writeln();
+    out.writeln();
   }
 
   if (newWorkspaceViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
     final cDim = useColor ? '\x1B[2m' : '';
-    stdout.writeln(
+    out.writeln(
       '$cRed[!] ${label}WORKSPACE RULE VIOLATIONS '
       '(${newWorkspaceViolations.length}):$cReset',
     );
     for (final v in newWorkspaceViolations) {
-      stdout.writeln('  $v');
-      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+      out.writeln('  $v');
+      out.writeln('     ${cDim}Rule: ${v.rule}$cReset');
     }
-    stdout.writeln();
-    stdout.writeln('  How to fix: ${newWorkspaceViolations.first.suggestion}');
-    stdout.writeln();
+    out.writeln();
+    out.writeln('  How to fix: ${newWorkspaceViolations.first.suggestion}');
+    out.writeln();
   }
 
   if (newMetricViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
     final cDim = useColor ? '\x1B[2m' : '';
-    stdout.writeln(
+    out.writeln(
       '$cRed[!] ${label}METRIC LIMITS EXCEEDED '
       '(${newMetricViolations.length}):$cReset',
     );
     for (final v in newMetricViolations) {
-      stdout.writeln('  $v');
-      stdout.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+      out.writeln('  $v');
+      out.writeln('     ${cDim}Rule: ${v.rule}$cReset');
     }
-    stdout.writeln();
-    stdout.writeln(
+    out.writeln();
+    out.writeln(
       '  How to fix: split large files by responsibility so each depends on, '
       'and is used by, fewer files; or raise the limit under `metrics:`.',
     );
-    stdout.writeln();
+    out.writeln();
   }
 
   if (config.metricsConfigured && analysis.hotspots.isNotEmpty) {
-    stdout.writeln('Most coupled files:');
+    out.writeln('Most coupled files:');
     for (final m in analysis.hotspots.take(5)) {
-      stdout.writeln('  ${m.file}  in ${m.fanIn}  out ${m.fanOut}');
+      out.writeln('  ${m.file}  in ${m.fanIn}  out ${m.fanOut}');
     }
-    stdout.writeln();
+    out.writeln();
   }
 
   final unusedFiles = analysis.unusedFiles;
@@ -375,23 +387,23 @@ Future<int> runCli(List<String> args) async {
   if (newUnusedFiles.isNotEmpty) {
     // Report-only by default: not red unless it fails the run.
     final color = config.failOnUnusedFiles ? cRed : '';
-    stdout.writeln(
+    out.writeln(
       '$color[!] ${comparison == null ? 'Unused' : 'New unused'} files '
       '(${newUnusedFiles.length}): no entry point '
       'imports these, directly or indirectly.$cReset',
     );
     for (final f in newUnusedFiles.take(20)) {
-      stdout.writeln('  $f');
+      out.writeln('  $f');
     }
     if (newUnusedFiles.length > 20) {
-      stdout.writeln('  … and ${newUnusedFiles.length - 20} more');
+      out.writeln('  … and ${newUnusedFiles.length - 20} more');
     }
-    stdout.writeln();
-    stdout.writeln(
+    out.writeln();
+    out.writeln(
       '  How to fix: delete them, or add the file that uses them under '
       '`unused_files: entry_points`.',
     );
-    stdout.writeln();
+    out.writeln();
   }
 
   final maxSccSize = config.maxSccSize;
@@ -399,9 +411,7 @@ Future<int> runCli(List<String> args) async {
   final newOversizedSccs = analysis.newOversizedCycles;
 
   if (comparison != null) {
-    stdout.writeln(
-      'Baseline: ${p.relative(baselinePath, from: absProjectPath)}',
-    );
+    out.writeln('Baseline: ${p.relative(baselinePath, from: absProjectPath)}');
     final known = counts(
       comparison.knownCycles.length,
       comparison.knownViolations.length,
@@ -426,7 +436,7 @@ Future<int> runCli(List<String> args) async {
       comparison.fixedWorkspaceViolationCount,
       comparison.fixedUnusedFileCount,
     );
-    stdout.writeln('  Known (ignored): ${known.join(', ')}');
+    out.writeln('  Known (ignored): ${known.join(', ')}');
     final newColor =
         newCycles.isEmpty &&
             newViolations.isEmpty &&
@@ -436,15 +446,15 @@ Future<int> runCli(List<String> args) async {
             analysis.newUnusedFiles.isEmpty
         ? cGreen
         : cRed;
-    stdout.writeln('  New:             $newColor${added.join(', ')}$cReset');
+    out.writeln('  New:             $newColor${added.join(', ')}$cReset');
     for (final cycle in newCycles) {
       final id = cycle.scc?.id;
-      stdout.writeln(
+      out.writeln(
         '    New cycle${id != null ? ' #$id' : ''}: '
         '${cycle.exampleChain.join(' -> ')}${cycle.platformNote}',
       );
       final reason = comparison.newCycleReasons[cycle];
-      if (reason != null) stdout.writeln('      Why new: $reason');
+      if (reason != null) out.writeln('      Why new: $reason');
     }
     if (comparison.fixedCycleCount > 0 ||
         comparison.fixedViolationCount > 0 ||
@@ -452,17 +462,31 @@ Future<int> runCli(List<String> args) async {
         comparison.fixedMetricViolationCount > 0 ||
         comparison.fixedWorkspaceViolationCount > 0 ||
         comparison.fixedUnusedFileCount > 0) {
-      stdout.writeln(
+      out.writeln(
         '  $cGreen${_andJoin(fixed)} in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
     }
     if (comparison.improvements.isNotEmpty) {
-      stdout.writeln(
+      out.writeln(
         '  $cGreen${_andJoin(comparison.improvements)} since the baseline.$cReset Run with --update-baseline to lock this in.',
       );
     }
-    stdout.writeln();
+    out.writeln();
   }
+
+  String jsonReport() => JsonExporter.export(
+    result: scanResult,
+    cycles: cycles,
+    layerViolations: layerViolations.map((v) => v.toJson()).toList(),
+    packageViolations: packageViolations.map((v) => v.toJson()).toList(),
+    metricViolations: metricViolations.map((v) => v.toJson()).toList(),
+    hotspots: analysis.hotspots.map((m) => m.toJson()).toList(),
+    workspaceViolations: workspaceViolations.map((v) => v.toJson()).toList(),
+    unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
+    since: since,
+    changedFiles: analysis.changedFiles,
+  );
+  if (jsonStdout) stdout.writeln(jsonReport());
 
   final exportAll = formats.contains('all');
 
@@ -482,7 +506,7 @@ Future<int> runCli(List<String> args) async {
         scope: scope,
       );
       File(dotPath).writeAsStringSync(dotContent);
-      stdout.writeln('Exported DOT graph to: $dotPath');
+      out.writeln('Exported DOT graph to: $dotPath');
     }
 
     if (exportAll || formats.contains('html')) {
@@ -494,27 +518,13 @@ Future<int> runCli(List<String> args) async {
         offline: offline,
       );
       File(htmlPath).writeAsStringSync(htmlContent);
-      stdout.writeln('Exported interactive HTML visualizer to: $htmlPath');
+      out.writeln('Exported interactive HTML visualizer to: $htmlPath');
     }
 
     if (exportAll || formats.contains('json')) {
       final jsonPath = p.join(absOutputDir, 'dependency_graph.json');
-      final jsonContent = JsonExporter.export(
-        result: scanResult,
-        cycles: cycles,
-        layerViolations: layerViolations.map((v) => v.toJson()).toList(),
-        packageViolations: packageViolations.map((v) => v.toJson()).toList(),
-        metricViolations: metricViolations.map((v) => v.toJson()).toList(),
-        hotspots: analysis.hotspots.map((m) => m.toJson()).toList(),
-        workspaceViolations: workspaceViolations
-            .map((v) => v.toJson())
-            .toList(),
-        unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
-        since: since,
-        changedFiles: analysis.changedFiles,
-      );
-      File(jsonPath).writeAsStringSync(jsonContent);
-      stdout.writeln('Exported JSON data report to: $jsonPath');
+      File(jsonPath).writeAsStringSync(jsonReport());
+      out.writeln('Exported JSON data report to: $jsonPath');
     }
 
     if (exportAll || formats.contains('mermaid')) {
@@ -525,7 +535,7 @@ Future<int> runCli(List<String> args) async {
         scope: scope,
       );
       File(mermaidPath).writeAsStringSync(mermaidContent);
-      stdout.writeln('Exported Mermaid diagram to: $mermaidPath');
+      out.writeln('Exported Mermaid diagram to: $mermaidPath');
     }
 
     if (exportAll || formats.contains('sarif')) {
@@ -547,7 +557,7 @@ Future<int> runCli(List<String> args) async {
         uriPrefix: _repoRelativePrefix(absProjectPath),
       );
       File(sarifPath).writeAsStringSync(sarifContent);
-      stdout.writeln('Exported SARIF report to: $sarifPath');
+      out.writeln('Exported SARIF report to: $sarifPath');
     }
 
     if (exportAll || formats.contains('markdown')) {
@@ -569,22 +579,22 @@ Future<int> runCli(List<String> args) async {
         failOnUnusedFiles: config.failOnUnusedFiles,
       );
       File(markdownPath).writeAsStringSync(markdownContent);
-      stdout.writeln('Exported Markdown summary to: $markdownPath');
+      out.writeln('Exported Markdown summary to: $markdownPath');
     }
-    stdout.writeln();
+    out.writeln();
   }
 
   if (newOversizedSccs.isNotEmpty) {
-    stdout.writeln(
+    out.writeln(
       '$cRed[!] SCC SIZE LIMIT EXCEEDED (max_scc_size: $maxSccSize):$cReset',
     );
     for (final cycle in newOversizedSccs) {
       final id = cycle.scc?.id;
-      stdout.writeln(
+      out.writeln(
         '  Component${id != null ? ' #$id' : ''} has ${cycle.files.length} files',
       );
     }
-    stdout.writeln();
+    out.writeln();
   }
 
   if (updateBaseline) {
@@ -604,7 +614,7 @@ Future<int> runCli(List<String> args) async {
       workspaceViolations: workspaceViolations,
       unusedFiles: analysis.unusedFiles,
     ).save(baselinePath);
-    stdout.writeln(
+    out.writeln(
       '${cGreen}Baseline written to $baselinePath$cReset '
       '(${captured.join(', ')}). '
       'Commit it; later runs fail only on new problems.',
