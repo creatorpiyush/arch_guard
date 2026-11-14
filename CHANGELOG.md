@@ -1,6 +1,7 @@
 # 1.15.0
 
 - **New: install without Dart.** `curl -fsSL https://creatorpiyush.github.io/arch_guard/install.sh | sh` installs the release binary for Linux (x64, arm64), macOS (Apple Silicon) or Windows (Git Bash) into `~/.local/bin`, after checking it against the release's `SHA256SUMS.txt`. `ARCH_GUARD_VERSION` pins a release and `ARCH_GUARD_INSTALL_DIR` changes the folder. Running it again upgrades. On a platform with no binary it says so and points to `dart pub global activate arch_guard`. The GitHub Action now installs through the same script.
+- **Docs:** the getting-started page and the README offer two install paths, with Dart and without Dart (the `install.sh` binary installer). The Dart SDK requirement now applies only to the first.
 
 # 1.14.1
 
