@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.14.1
+      - uses: creatorpiyush/arch_guard@v1.15.0
         with:
           path: .                  # project to scan
           args: --scan-dir lib     # any extra CLI flags
@@ -45,7 +45,7 @@ The action downloads the release binary (checksum-verified, no Dart SDK needed),
 | :--- | :--- | :--- |
 | `path` | `.` | Project folder to scan, relative to the repository root. |
 | `args` | | Extra CLI flags, e.g. `--scan-dir lib --since origin/main`. |
-| `version` | the action's tag | Release to run, e.g. `v1.14.1`. Without a version tag, the latest release. `source` builds from the action's checkout and needs Dart on the runner. |
+| `version` | the action's tag | Release to run, e.g. `v1.15.0`. Without a version tag, the latest release. `source` builds from the action's checkout and needs Dart on the runner. |
 | `comment` | `true` | Post and update the PR comment. Needs `pull-requests: write`. |
 | `upload-sarif` | `false` | Upload SARIF to GitHub Code Scanning. Needs `security-events: write`. Free for public repositories; private ones need GitHub Advanced Security. |
 | `output-dir` | `arch_guard_output` | Report folder, relative to `path`. |
@@ -63,7 +63,7 @@ Prebuilt binaries cover Linux x64/arm64, macOS arm64 and Windows x64. On other r
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0          # --since needs the merge base
-      - uses: creatorpiyush/arch_guard@v1.14.1
+      - uses: creatorpiyush/arch_guard@v1.15.0
         with:
           args: --since origin/${{ github.base_ref }}
 ```
@@ -146,7 +146,7 @@ With [pre-commit](https://pre-commit.com) 2.15 or later:
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/creatorpiyush/arch_guard
-    rev: v1.14.1
+    rev: v1.15.0
     hooks:
       - id: arch_guard
         # args: [--no-fail-on-cycle]
