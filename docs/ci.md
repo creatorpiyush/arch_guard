@@ -152,6 +152,8 @@ repos:
         # args: [--no-fail-on-cycle]
 ```
 
+The `arch_guard` hook compiles arch_guard from source, so it needs the Dart SDK. Without Dart, install the [standalone binary](cli.md#standalone-binaries) and use `id: arch_guard-system` instead. It runs the `arch_guard` on your `PATH`, so every developer needs it installed.
+
 ## lefthook
 
 ```yaml

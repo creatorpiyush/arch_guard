@@ -1,8 +1,17 @@
-# Hook definition for https://pre-commit.com (needs pre-commit 2.15+ for `language: dart`).
+# Hook definitions for https://pre-commit.com.
+# `arch_guard` compiles from source and needs the Dart SDK (pre-commit 2.15+).
 - id: arch_guard
   name: arch_guard
   description: Check Dart/Flutter layer boundaries and circular dependencies.
   entry: arch_guard
   language: dart
+  pass_filenames: false
+  files: \.dart$
+# `arch_guard-system` runs an `arch_guard` already on PATH, e.g. from install.sh.
+- id: arch_guard-system
+  name: arch_guard
+  description: Check Dart/Flutter layer boundaries and circular dependencies with the installed arch_guard binary.
+  entry: arch_guard
+  language: system
   pass_filenames: false
   files: \.dart$
