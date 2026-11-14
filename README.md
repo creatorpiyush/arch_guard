@@ -64,14 +64,20 @@ DCM is a full linting suite with hundreds of rules; import_lint shows import rul
 
 ## Installation
 
-Requires Dart SDK 3.8 or later (Flutter 3.32 or later).
+With Dart 3.8 or later (Flutter 3.32 or later):
 
 ```bash
 dart pub add --dev arch_guard          # as a dev dependency: dart run arch_guard
 dart pub global activate arch_guard    # or globally: arch_guard
 ```
 
-No Dart SDK? Prebuilt binaries for Linux (x64, arm64), macOS (Apple Silicon) and Windows (x64) are attached to every [GitHub Release](https://github.com/creatorpiyush/arch_guard/releases), with SHA-256 checksums.
+Without Dart, on Linux, macOS (Apple Silicon) or Windows (Git Bash):
+
+```bash
+curl -fsSL https://creatorpiyush.github.io/arch_guard/install.sh | sh
+```
+
+This installs the binary from the latest [GitHub Release](https://github.com/creatorpiyush/arch_guard/releases) after checking its SHA-256 checksum. The library API, `expectArchitecture()` and the IDE plugin need the Dart package.
 
 ## Configuration
 

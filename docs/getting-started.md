@@ -5,15 +5,29 @@ description: Install arch_guard, generate a config, read your first report and k
 
 # Getting started
 
-Five minutes from install to an architecture check that runs on every pull request. You need Dart 3.8 or later (Flutter 3.32 or later).
+Five minutes from install to an architecture check that runs on every pull request.
 
 ## 1. Install
+
+Pick one. Both give you the same checks.
+
+**With Dart** (Dart 3.8 or later, Flutter 3.32 or later):
 
 ```bash
 dart pub add --dev arch_guard
 ```
 
-This makes `dart run arch_guard` available in the project. Prefer a global command? Run `dart pub global activate arch_guard`, then call `arch_guard` directly. Other pages use the short form `arch_guard`.
+This makes `dart run arch_guard` available in the project. Prefer a global command? Run `dart pub global activate arch_guard`, then call `arch_guard` directly.
+
+**Without Dart** (Linux, macOS on Apple Silicon, Windows in Git Bash):
+
+```bash
+curl -fsSL https://creatorpiyush.github.io/arch_guard/install.sh | sh
+```
+
+This installs the release binary as `~/.local/bin/arch_guard`, after checking its SHA-256 checksum. See [Standalone binaries](cli.md#standalone-binaries) for options.
+
+The library API, `expectArchitecture()` in tests and the IDE plugin need the Dart package. Other pages use the short form `arch_guard`.
 
 ## 2. Generate a config
 
