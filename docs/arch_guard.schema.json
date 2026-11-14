@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json",
+  "title": "arch_guard.yaml",
+  "description": "Configuration for arch_guard, the architecture checker for Dart and Flutter. See https://creatorpiyush.github.io/arch_guard/configuration.html",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "globs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "packages": {
+      "type": "array",
+      "description": "Packages (`dio`) or core libraries (`dart:io`). Globs allowed (`firebase_*`).",
+      "items": { "type": "string" }
+    }
+  },
+  "properties": {
+    "ignore": {
+      "$ref": "#/definitions/globs",
+      "description": "Extra files to leave out of the scan. Generated files such as `*.g.dart` and `*.freezed.dart` are always skipped."
+    },
+    "preset": {
+      "type": "string",
+      "description": "A ready-made `layers:` block. See https://creatorpiyush.github.io/arch_guard/presets.html",
+      "enum": ["clean_architecture", "feature_first", "bloc", "riverpod"]
+    },
+    "layers": {
+      "type": "object",
+      "description": "Layer name → `patterns` (globs), `allowed_imports` (layer names) and optional `forbidden_packages`. With a preset, overrides or adds layers. A file belongs to the first layer whose patterns match.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "patterns": {
+            "$ref": "#/definitions/globs",
+            "description": "Globs matched against the file path relative to the project root, e.g. `lib/**/domain/**`."
+          },
+          "allowed_imports": {
+            "type": "array",
+            "description": "Layers files in this layer may import. A layer may always import itself.",
+            "items": { "type": "string" }
+          },
+          "forbidden_packages": {
+            "$ref": "#/definitions/packages",
+            "description": "Packages or core libraries files in this layer may not import."
+          }
+        }
+      }
+    },
+    "max_scc_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`."
+    },
+    "fail_on_layer_violation": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether layer violations make the run exit with `1`."
+    },
+    "forbidden_packages": {
+      "$ref": "#/definitions/packages",
+      "description": "Packages (`dio`) or core libraries (`dart:io`) no scanned file may import. Globs allowed (`firebase_*`)."
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Coupling limits and the hotspot list.",
+      "additionalProperties": false,
+      "properties": {
+        "max_fan_out": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Fail when a file imports more project files than this."
+        },
+        "max_fan_in": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Fail when more project files than this import one file."
+        },
+        "hotspots": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 10,
+          "description": "How many most-coupled files reports list (0 = none)."
+        }
+      }
+    },
+    "workspace_rules": {
+      "type": "object",
+      "description": "In a workspace: member selector (glob on a member's path or name) → `allowed:` members it may import.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["allowed"],
+        "additionalProperties": false,
+        "properties": {
+          "allowed": {
+            "$ref": "#/definitions/globs",
+            "description": "Members (globs on path or name) this member may import. `[]` allows none."
+          }
+        }
+      }
+    },
+    "unused_files": {
+      "description": "Report scanned files that no entry point reaches. `true` turns it on with the defaults.",
+      "oneOf": [
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "entry_points": {
+              "$ref": "#/definitions/globs",
+              "description": "Extra entry-point globs, added to the defaults (`lib/main.dart`, `bin/`, `test/`, ...)."
+            },
+            "fail": {
+              "type": "boolean",
+              "default": false,
+              "description": "Whether unused files make the run fail (exit code 1)."
+            }
+          }
+        }
+      ]
+    }
+  }
+}

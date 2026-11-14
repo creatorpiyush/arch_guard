@@ -3,6 +3,7 @@
 - **New: install without Dart.** `curl -fsSL https://creatorpiyush.github.io/arch_guard/install.sh | sh` installs the release binary for Linux (x64, arm64), macOS (Apple Silicon) or Windows (Git Bash) into `~/.local/bin`, after checking it against the release's `SHA256SUMS.txt`. `ARCH_GUARD_VERSION` pins a release and `ARCH_GUARD_INSTALL_DIR` changes the folder. Running it again upgrades. On a platform with no binary it says so and points to `dart pub global activate arch_guard`. The GitHub Action now installs through the same script.
 - **Docs:** the getting-started page and the README offer two install paths, with Dart and without Dart (the `install.sh` binary installer). The Dart SDK requirement now applies only to the first.
 - **New pre-commit hook `arch_guard-system`.** It runs the `arch_guard` on your `PATH` (`language: system`), so teams that installed the binary don't need the Dart SDK. The existing `arch_guard` hook still compiles from source.
+- **New: JSON Schema for `arch_guard.yaml`.** VS Code (YAML extension) and IntelliJ now complete config keys, list the presets and flag a wrong key or type as you type. `arch_guard init` writes `# yaml-language-server: $schema=https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json` as the first line; add it by hand to an existing file. The schema does not cover the `arch_guard:` section in `pubspec.yaml`. Library: `ArchGuardConfig.schemaUrl`, `metricsKeys`, `unusedFilesKeys`.
 
 # 1.14.1
 

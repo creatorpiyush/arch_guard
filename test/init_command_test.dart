@@ -110,6 +110,22 @@ void main() {
     }
   });
 
+  test('config starts with the schema comment for YAML editors', () {
+    final yaml = buildInitConfig(
+      preset: 'clean_architecture',
+      reason: 'test',
+      rootPath: Directory.systemTemp.path,
+    );
+    expect(
+      yaml,
+      startsWith(
+        '# yaml-language-server: '
+        r'$schema=https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json'
+        '\n',
+      ),
+    );
+  });
+
   test('config header links to the configuration docs', () {
     final yaml = buildInitConfig(
       preset: 'clean_architecture',
