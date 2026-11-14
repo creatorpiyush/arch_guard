@@ -235,10 +235,21 @@ See the [why example](https://github.com/creatorpiyush/arch_guard/tree/main/exam
 
 ## Standalone binaries
 
-No Dart SDK needed. Every [GitHub Release](https://github.com/creatorpiyush/arch_guard/releases) has executables for Linux (x64, arm64), macOS (Apple Silicon) and Windows (x64), with a `SHA256SUMS.txt` to verify them:
+No Dart SDK needed. On Linux (x64, arm64), macOS (Apple Silicon) or Windows in Git Bash:
 
 ```bash
-curl -fsSL -o arch_guard https://github.com/creatorpiyush/arch_guard/releases/latest/download/arch_guard-linux-x64
-chmod +x arch_guard
-./arch_guard . --format mermaid
+curl -fsSL https://creatorpiyush.github.io/arch_guard/install.sh | sh
 ```
+
+The script downloads the binary for your platform from the latest [GitHub Release](https://github.com/creatorpiyush/arch_guard/releases), checks it against the release's `SHA256SUMS.txt` and installs it as `~/.local/bin/arch_guard`. Run it again to upgrade. Two environment variables change the defaults:
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `ARCH_GUARD_VERSION` | latest | Release to install, e.g. `1.15.0`. |
+| `ARCH_GUARD_INSTALL_DIR` | `~/.local/bin` | Folder to install into. |
+
+```bash
+curl -fsSL https://creatorpiyush.github.io/arch_guard/install.sh | ARCH_GUARD_VERSION=1.15.0 sh
+```
+
+There is no binary for Intel macOS; use `dart pub global activate arch_guard` there. On Windows outside Git Bash, download `arch_guard-windows-x64.exe` from the release page by hand and compare it with `SHA256SUMS.txt`.

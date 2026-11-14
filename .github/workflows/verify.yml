@@ -8,12 +8,14 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - '!docs/install.sh'
       - 'launch/**'
   pull_request:
     branches: [ main, master ]
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - '!docs/install.sh'
       - 'launch/**'
   workflow_dispatch:
 
@@ -45,6 +47,9 @@ jobs:
 
       - name: Run static analysis
         run: dart analyze --fatal-infos
+
+      - name: Lint install script
+        run: shellcheck docs/install.sh
 
       - name: Validate pub package (dry-run)
         run: dart pub publish --dry-run
@@ -82,7 +87,7 @@ jobs:
         run: dart test
 
   action:
-    name: GitHub Action self-test (${{ matrix.os }})
+    name: GitHub Action self-test (${{ matrix.os }}, ${{ matrix.version }})
     if: github.event_name != 'push'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
@@ -92,7 +97,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, windows-latest ]
+        # `source` compiles this checkout; `latest` runs docs/install.sh, which
+        # downloads and verifies the latest release binary.
+        include:
+          - { os: ubuntu-latest, version: source }
+          - { os: windows-latest, version: source }
+          - { os: ubuntu-latest, version: latest }
+          - { os: macos-latest, version: latest }
+          - { os: windows-latest, version: latest }
 
     steps:
       - name: Checkout repository
@@ -110,9 +122,9 @@ jobs:
         uses: ./
         with:
           path: example/cases/sample_project
-          version: source
+          version: ${{ matrix.version }}
           args: --no-fail-on-cycle
-          comment: ${{ matrix.os == 'ubuntu-latest' }}
+          comment: ${{ matrix.os == 'ubuntu-latest' && matrix.version == 'source' }}
 
       - name: Check action outputs
         shell: bash
