@@ -83,6 +83,16 @@ layers:
 | `unused_files` | map or `true` | off | Report scanned files that no entry point reaches. `entry_points`: extra globs. `fail: true` makes them fail the run. See [Unused files](#unused-files). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
+## Editor support
+
+A [JSON Schema](https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json) describes `arch_guard.yaml`. With it, VS Code (with the YAML extension) and IntelliJ complete keys, list the presets and underline a wrong key or type while you type. `arch_guard init` writes the line that turns it on; for an existing file, add it at the top:
+
+```yaml
+# yaml-language-server: $schema=https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json
+```
+
+The schema does not apply to an `arch_guard:` section inside `pubspec.yaml`.
+
 ## How layers are matched
 
 - Patterns are [globs](https://pub.dev/packages/glob) matched against the file path relative to the project root, such as `lib/features/auth/domain/user.dart`.

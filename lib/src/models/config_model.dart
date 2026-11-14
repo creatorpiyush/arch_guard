@@ -27,6 +27,17 @@ class ArchGuardConfig {
     'unused_files',
   };
 
+  /// URL of the JSON Schema for `arch_guard.yaml`, which editors use for
+  /// completion and validation.
+  static const schemaUrl =
+      'https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json';
+
+  /// Keys recognised under `metrics:`.
+  static const metricsKeys = {'max_fan_out', 'max_fan_in', 'hotspots'};
+
+  /// Keys recognised under `unused_files:`.
+  static const unusedFilesKeys = {'entry_points', 'fail'};
+
   /// Glob patterns of files left out of the scan.
   final List<String> ignorePatterns;
 
@@ -317,10 +328,10 @@ class ArchGuardConfig {
       }
 
       for (final key in rawMetrics.keys) {
-        if (!const {'max_fan_out', 'max_fan_in', 'hotspots'}.contains('$key')) {
+        if (!metricsKeys.contains('$key')) {
           warnings.add(
             '$source: unknown key `metrics: $key` (expected one of: '
-            'max_fan_out, max_fan_in, hotspots).',
+            '${metricsKeys.join(', ')}).',
           );
         }
       }
@@ -339,10 +350,10 @@ class ArchGuardConfig {
     if (rawUnused is Map) {
       unusedEnabled = true;
       for (final key in rawUnused.keys) {
-        if (!const {'entry_points', 'fail'}.contains('$key')) {
+        if (!unusedFilesKeys.contains('$key')) {
           warnings.add(
             '$source: unknown key `unused_files: $key` (expected one of: '
-            'entry_points, fail).',
+            '${unusedFilesKeys.join(', ')}).',
           );
         }
       }
