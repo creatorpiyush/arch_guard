@@ -4,6 +4,7 @@
 - **Docs:** the getting-started page and the README offer two install paths, with Dart and without Dart (the `install.sh` binary installer). The Dart SDK requirement now applies only to the first.
 - **New pre-commit hook `arch_guard-system`.** It runs the `arch_guard` on your `PATH` (`language: system`), so teams that installed the binary don't need the Dart SDK. The existing `arch_guard` hook still compiles from source.
 - **New: JSON Schema for `arch_guard.yaml`.** VS Code (YAML extension) and IntelliJ now complete config keys, list the presets and flag a wrong key or type as you type. `arch_guard init` writes `# yaml-language-server: $schema=https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json` as the first line; add it by hand to an existing file. The schema does not cover the `arch_guard:` section in `pubspec.yaml`. Library: `ArchGuardConfig.schemaUrl`, `metricsKeys`, `unusedFilesKeys`.
+- **New: `--json`.** `arch_guard --json` prints the JSON report (the same as `-f json`) to stdout and nothing else, so a script or AI agent can read it without knowing the output folder: `arch_guard --json | jq '.layerViolations'`. The usual report and warnings go to stderr, other `-f` formats are still written, and the exit code is unchanged. It cannot be combined with `--watch` or `--explain` (exit `64`).
 
 # 1.14.1
 

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:arch_guard/src/cli/run.dart';
@@ -414,6 +415,60 @@ layers:
         ]);
         expect(r.exitCode, 64);
         expect(r.stderr, contains('--watch cannot be combined with $name'));
+      });
+    }
+  });
+  group('CLI --json', () {
+    Future<ProcessResult> run(List<String> args) => Process.run(
+      Platform.resolvedExecutable,
+      ['bin/arch_guard.dart', ...args],
+    );
+
+    for (final (project, flags) in [
+      ('example/cases/sample_project', <String>[]),
+      ('example/cases/sample_project', ['--no-fail-on-cycle']),
+    ]) {
+      test('stdout is only JSON and the exit code is unchanged '
+          '($project ${flags.join(' ')})', () async {
+        final plain = await run([project, '--no-color', ...flags]);
+        final json = await run([project, '--json', ...flags]);
+        expect(json.exitCode, plain.exitCode);
+        final data = jsonDecode(json.stdout as String) as Map;
+        expect(data['summary'], isA<Map>());
+        expect(data['layerViolations'], isNotEmpty);
+        // The usual report still goes to stderr.
+        expect(json.stderr, contains('LAYER BOUNDARY VIOLATIONS'));
+      });
+    }
+
+    test('clean project: exit 0, warnings on stderr', () async {
+      final dir = Directory.systemTemp.createTempSync('arch_guard_json_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      File(p.join(dir.path, 'lib', 'a.dart'))
+        ..createSync(recursive: true)
+        ..writeAsStringSync("import 'b.dart';\n");
+      File(p.join(dir.path, 'lib', 'b.dart')).writeAsStringSync('');
+      File(p.join(dir.path, 'arch_guard.yaml')).writeAsStringSync('bogus: 1\n');
+
+      final r = await run([dir.path, '--json']);
+      expect(r.exitCode, 0);
+      final data = jsonDecode(r.stdout as String) as Map;
+      expect(data['cycles'], isEmpty);
+      expect(r.stderr, contains('unknown key `bogus`'));
+    });
+
+    for (final (name, extra) in [
+      ('--watch', ['--watch']),
+      ('--explain', ['--explain', 'lib/a.dart']),
+    ]) {
+      test('rejects --json with $name', () async {
+        final r = await run([
+          'example/cases/sample_project',
+          '--json',
+          ...extra,
+        ]);
+        expect(r.exitCode, 64);
+        expect(r.stdout, isEmpty);
       });
     }
   });
