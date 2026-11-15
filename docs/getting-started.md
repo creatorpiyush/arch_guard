@@ -134,7 +134,7 @@ void main() {
 ```yaml
 # analysis_options.yaml
 plugins:
-  arch_guard_lint: ^0.3.1
+  arch_guard_lint: ^0.4.0
 ```
 
 ## Next steps

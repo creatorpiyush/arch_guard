@@ -5,6 +5,7 @@ import 'package:analyzer/file_system/file_system.dart';
 import 'package:arch_guard/arch_guard.dart';
 import 'package:glob/glob.dart';
 import 'package:path/path.dart' as p;
+import 'package:yaml/yaml.dart';
 
 /// arch_guard rules for one project, as the plugin sees them.
 class ProjectRules {
@@ -27,14 +28,24 @@ class ProjectRules {
   final PackageViolation? Function(String file, String uri, {int? line})
   checkPackage;
 
+  /// Checks one import against `modules:`.
+  final ModuleViolation? Function(String from, String to, {int? line})
+  checkModule;
+
+  /// Checks one import against `workspace_rules`.
+  late final WorkspaceViolation? Function(String from, String to, {int? line})
+  checkWorkspace = WorkspaceValidator.checker(config, _memberOf);
+
   final Folder _root;
   final Baseline? _baseline;
   final List<Glob> _ignore;
+  final _members = <String, WorkspacePackage?>{};
 
   ProjectRules._(this._root, this.config, this._baseline)
     : checkLayer = LayerValidator.checker(config),
       layerOf = LayerValidator.layerResolver(config),
       checkPackage = PackageValidator.checker(config),
+      checkModule = ModuleValidator.checker(config),
       // Same files the CLI never scans: generated code plus `ignore:`.
       _ignore = [
         for (final g in [...defaultExcludePatterns, ...config.ignorePatterns])
@@ -62,6 +73,54 @@ class ProjectRules {
   bool isKnownPackageViolation(PackageViolation v) =>
       _baseline?.packageViolations.contains(Baseline.packageViolationKey(v)) ??
       false;
+
+  /// Whether the baseline already lists [v].
+  bool isKnownModuleViolation(ModuleViolation v) =>
+      _baseline?.moduleViolations.contains(Baseline.moduleViolationKey(v)) ??
+      false;
+
+  /// Whether the baseline already lists [v].
+  bool isKnownWorkspaceViolation(WorkspaceViolation v) =>
+      _baseline?.workspaceViolations.contains(
+        Baseline.workspaceViolationKey(v),
+      ) ??
+      false;
+
+  /// The workspace member holding [relativePath]: the nearest folder below
+  /// the config folder with a `pubspec.yaml`, else the root package (`.`).
+  // ponytail: any nested package counts, not only those the root pubspec
+  // lists under `workspace:`; read that list if a non-member ever matters.
+  WorkspacePackage? _memberOf(String relativePath) {
+    final segments = relativePath.split('/')..removeLast();
+    while (segments.isNotEmpty && segments.last != '') {
+      final dir = segments.join('/');
+      final member = _members.putIfAbsent(dir, () => _readMember(dir));
+      if (member != null) return member;
+      segments.removeLast();
+    }
+    return _members.putIfAbsent('.', () => _readMember('.'));
+  }
+
+  WorkspacePackage? _readMember(String dir) {
+    final ctx = _root.provider.pathContext;
+    final folder = dir == '.'
+        ? _root
+        : _root.provider.getFolder(
+            ctx.joinAll([_root.path, ...dir.split('/')]),
+          );
+    final pubspec = _child(folder, 'pubspec.yaml');
+    if (!pubspec.exists) return null;
+    String? name;
+    try {
+      final yaml = loadYaml(pubspec.readAsStringSync());
+      if (yaml is Map) name = yaml['name']?.toString();
+    } catch (_) {}
+    return WorkspacePackage(
+      name: name ?? dir,
+      packagePath: dir,
+      libPath: dir == '.' ? 'lib' : '$dir/lib',
+    );
+  }
 
   // Keyed by provider so in-memory test providers never share entries.
   static final _cache = Expando<Map<String, (String, ProjectRules?)>>();
@@ -121,7 +180,12 @@ class ProjectRules {
       final f = _child(root, name);
       return f.exists ? f.readAsStringSync() : null;
     });
-    if (config.forbiddenPackages.isEmpty && config.layers.isEmpty) return null;
+    if (config.forbiddenPackages.isEmpty &&
+        config.layers.isEmpty &&
+        config.workspaceRules.isEmpty &&
+        config.modules == null) {
+      return null;
+    }
 
     Baseline? baseline;
     if (baselineFile.exists) {

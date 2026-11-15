@@ -8,6 +8,9 @@ class IgnoreComments {
   /// Code that silences a forbidden package import.
   static const forbiddenPackage = 'forbidden_package';
 
+  /// Code that silences a workspace rule violation.
+  static const workspaceViolation = 'workspace_violation';
+
   /// Code that silences a module boundary violation.
   static const moduleViolation = 'module_violation';
 

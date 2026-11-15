@@ -1,5 +1,6 @@
-/// Analyzer plugin that reports arch_guard layer violations, forbidden
-/// package imports and circular dependencies as warnings, with quick fixes.
+/// Analyzer plugin that reports arch_guard layer, module and workspace rule
+/// violations, forbidden package imports and circular dependencies as
+/// warnings, with quick fixes.
 ///
 /// Enable it in `analysis_options.yaml`; see the package README.
 library;
@@ -7,6 +8,7 @@ library;
 import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
+import 'src/boundary_rules.dart';
 import 'src/circular_dependency_rule.dart';
 import 'src/fixes/allow_layer_import.dart';
 import 'src/fixes/remove_directive.dart';
@@ -29,6 +31,8 @@ class ArchGuardPlugin extends Plugin {
     registry.registerWarningRule(LayerViolationRule());
     registry.registerWarningRule(ForbiddenPackageRule());
     registry.registerWarningRule(CircularDependencyRule());
+    registry.registerWarningRule(WorkspaceViolationRule());
+    registry.registerWarningRule(ModuleViolationRule());
     registry.registerFixForRule(LayerViolationRule.code, RemoveDirective.new);
     registry.registerFixForRule(LayerViolationRule.code, AllowLayerImport.new);
     registry.registerFixForRule(ForbiddenPackageRule.code, RemoveDirective.new);
@@ -36,5 +40,10 @@ class ArchGuardPlugin extends Plugin {
       CircularDependencyRule.code,
       RemoveDirective.new,
     );
+    registry.registerFixForRule(
+      WorkspaceViolationRule.code,
+      RemoveDirective.new,
+    );
+    registry.registerFixForRule(ModuleViolationRule.code, RemoveDirective.new);
   }
 }

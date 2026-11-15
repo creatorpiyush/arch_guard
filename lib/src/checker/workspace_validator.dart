@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import '../models/config_model.dart';
 import '../models/scan_result.dart';
 import '../models/workspace_package.dart';
+import '../scanner/ignore_comments.dart';
 
 /// An import between workspace members that `workspace_rules` doesn't allow.
 class WorkspaceViolation {
@@ -79,7 +80,22 @@ class WorkspaceValidator {
     if (config.workspaceRules.isEmpty || result.packages.isEmpty) {
       return const [];
     }
-    final memberOf = _memberResolver(result.packages);
+    final check = checker(config, memberResolver(result.packages));
+    return [
+      for (final edge in result.edges)
+        if (!edge.ignored.contains(IgnoreComments.workspaceViolation))
+          ?check(edge.from, edge.to, line: edge.line),
+    ];
+  }
+
+  /// Returns a function that checks one import of [to] by [from], where
+  /// [memberOf] maps a file path to its workspace member (see
+  /// [memberResolver]).
+  static WorkspaceViolation? Function(String from, String to, {int? line})
+  checker(
+    ArchGuardConfig config,
+    WorkspacePackage? Function(String path) memberOf,
+  ) {
     final rules = [
       for (final MapEntry(:key, :value) in config.workspaceRules.entries)
         (
@@ -89,29 +105,25 @@ class WorkspaceValidator {
           allowedGlobs: value.map(_glob).toList(),
         ),
     ];
-
-    final violations = <WorkspaceViolation>[];
-    for (final edge in result.edges) {
-      final from = memberOf(edge.from);
-      final to = memberOf(edge.to);
-      if (from == null || to == null || from.name == to.name) continue;
+    return (fromFile, toFile, {line}) {
+      if (rules.isEmpty) return null;
+      final from = memberOf(fromFile);
+      final to = memberOf(toFile);
+      if (from == null || to == null || from.name == to.name) return null;
       final rule = rules.where((r) => _matches(r.glob, from)).firstOrNull;
       if (rule == null || rule.allowedGlobs.any((g) => _matches(g, to))) {
-        continue;
+        return null;
       }
-      violations.add(
-        WorkspaceViolation(
-          sourceFile: edge.from,
-          targetFile: edge.to,
-          sourcePackage: from.name,
-          targetPackage: to.name,
-          selector: rule.selector,
-          allowed: rule.allowed,
-          line: edge.line,
-        ),
+      return WorkspaceViolation(
+        sourceFile: fromFile,
+        targetFile: toFile,
+        sourcePackage: from.name,
+        targetPackage: to.name,
+        selector: rule.selector,
+        allowed: rule.allowed,
+        line: line,
       );
-    }
-    return violations;
+    };
   }
 
   /// Selectors and `allowed` entries that match no member (likely typos).
@@ -134,8 +146,10 @@ class WorkspaceValidator {
   static bool _matches(Glob glob, WorkspacePackage m) =>
       glob.matches(m.packagePath) || glob.matches(m.name);
 
-  /// Longest `packagePath/` prefix wins; root (`.`) owns everything else.
-  static WorkspacePackage? Function(String) _memberResolver(
+  /// Maps a file path to the member of [members] that contains it: the
+  /// longest `packagePath/` prefix wins, and the root (`.`) owns every other
+  /// file.
+  static WorkspacePackage? Function(String) memberResolver(
     List<WorkspacePackage> members,
   ) {
     final byLength = [

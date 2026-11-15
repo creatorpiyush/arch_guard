@@ -1,3 +1,11 @@
+## 0.4.0
+
+- **New rule `module_violation`.** Warns on an import that reaches into another module's private files, or into a module that `modules: allowed` doesn't list, as `arch_guard` 1.16+ reports in the CLI. See [Module boundaries](https://creatorpiyush.github.io/arch_guard/configuration.html#module-boundaries).
+- **New rule `workspace_violation`.** Warns on an import between workspace members that `workspace_rules` doesn't allow. The plugin works out a file's member from the nearest `pubspec.yaml` below the folder that holds `arch_guard.yaml`.
+- Both rules respect the baseline, `ignore:` globs and `// ignore: arch_guard_lint/<code>`, and offer *Remove the import*. Turn either off with `diagnostics: {module_violation: false}`.
+- The plugin now loads a config that has only `modules:` or `workspace_rules:` (and no layers or forbidden packages).
+- Requires `arch_guard` ^1.17.0.
+
 ## 0.3.1
 
 - **Ignore comments now count everywhere.** Requires `arch_guard` ^1.11.0, whose CLI, CI and `expectArchitecture()` honour the same `// ignore: arch_guard_lint/<code>` comments the plugin does. An import ignored with `circular_dependency` is left out of cycle detection, so the warning no longer moves onto the other import of the pair.
