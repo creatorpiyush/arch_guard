@@ -33,9 +33,9 @@ CLI exit codes: `0` clean, `1` problems, `2` scan error, `64` bad flags.
 
 ## Architecture
 
-Pipeline (see `ARCHITECTURE.md` for detail): `bin/arch_guard.dart` → `lib/src/cli/run.dart` (`runCli`) → `ArchAnalysis.run` (`lib/src/analysis/arch_analysis.dart`) → exporters/reporters.
+Pipeline (see `ARCHITECTURE.md` for detail): `bin/arch_guard.dart` → `lib/src/cli/run.dart` (`runCli`, parses flags and dispatches subcommands from one table) → `lib/src/cli/analyze_command.dart` (`runAnalyze`, the default command's report) → `ArchAnalysis.run` (`lib/src/analysis/arch_analysis.dart`) → exporters/reporters.
 
-- `ArchAnalysis` is the single source of truth for a run: config load, scan, graph + cycles, layer/package/workspace/metric validators, baseline comparison, and `--since` git filtering. Both the CLI exit code and `expectArchitecture()` in `lib/testing.dart` derive from it, so a test passes exactly when the CLI exits `0`. New rules belong here, not in `run.dart`.
+- `ArchAnalysis` is the single source of truth for a run: config load, scan, graph + cycles, layer/package/workspace/metric validators, baseline comparison, and `--since` git filtering. Both the CLI exit code and `expectArchitecture()` in `lib/testing.dart` derive from it, so a test passes exactly when the CLI exits `0`. New rules belong here, not in the CLI files.
 - Scanning (`lib/src/scanner/`) uses regex directive extraction, not the analyzer AST. It handles conditional imports, `package:` URIs, and Dart workspace / Melos members (`pubspec_reader.dart`). `ProjectScanner.scanSources()` scans in-memory content; the lint plugin uses it for unsaved editor buffers.
 - Config (`lib/src/models/config_model.dart`) is read from `arch_guard.yaml` or `pubspec.yaml` → `arch_guard:`. Legacy `dep_graph.yaml` / `dep_graph_visualizer:` still load with a deprecation warning. Malformed config becomes warnings, not failures. `preset:` expands via `layer_presets.dart`; `arch_guard init` uses `layout_detector.dart` to pick one.
 - Baseline (`lib/src/baseline/baseline.dart`): a cycle is "known" if its files are a subset of a baseline cycle. Layer violations are keyed `source -> target`. Exit codes count only new problems.
