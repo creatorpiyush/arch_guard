@@ -35,6 +35,13 @@ layers:
   presentation:
     allowed_imports: [presentation, application, domain, data, bloc]
 
+# lib/features/ holds feature folders. To also keep features
+# apart, so they import each other only through the files
+# directly in each feature folder (e.g. a barrel), uncomment:
+#
+# modules:
+#   roots: [lib/features/*]
+
 ignore:
   - "**/*.g.dart"
   - "**/*.freezed.dart"

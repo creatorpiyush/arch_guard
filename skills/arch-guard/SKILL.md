@@ -68,12 +68,19 @@ Fix a layer violation in the code. Prefer these, in order:
 2. Move the code into a layer the importer may import.
 
 ```text
+❌ Module Violation: [checkout] lib/features/checkout/ui/page.dart:4 -> [cart] lib/features/cart/data/cart_repo.dart
+   Rule: Other modules may import `cart` only through lib/features/cart/*.dart.
+```
+
+For a module violation, import the other module's public file (its barrel) instead. If what you need isn't public, export it from the barrel or move the shared code out of both modules.
+
+```text
 Suggested fix: remove lib/screens/home.dart:1 -> lib/widgets/nav.dart (breaks the cycle)
 ```
 
 For a cycle, start with the import named on the `Suggested fix:` line. Move the code both files need into a third file, or invert the dependency. Never just delete the import and leave the code broken.
 
-If the user wants to keep one import as it is, and neither a fix nor the baseline fits, add `// ignore: arch_guard_lint/<code>` on the line above it (`layer_violation`, `forbidden_package` or `circular_dependency`). The CLI, CI and the IDE all honour it. Use it last, and ask first.
+If the user wants to keep one import as it is, and neither a fix nor the baseline fits, add `// ignore: arch_guard_lint/<code>` on the line above it (`layer_violation`, `forbidden_package`, `module_violation` or `circular_dependency`). The CLI, CI and the IDE all honour it. Use it last, and ask first.
 
 ```text
 [!] Unused files (1): no entry point imports these, directly or indirectly.
@@ -86,7 +93,7 @@ To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. T
 
 ## Rules
 
-- Do not add a layer to `allowed_imports`, remove a `forbidden_packages` entry, raise `max_fan_in` / `max_fan_out` / `max_scc_size`, set `unused_files: fail: false`, or run `--update-baseline` to make a failure go away. Each weakens the user's rules. Ask first.
+- Do not add a layer to `allowed_imports`, add a module to `modules: allowed`, widen `modules: public`, remove a `forbidden_packages` entry, raise `max_fan_in` / `max_fan_out` / `max_scc_size`, set `unused_files: fail: false`, or run `--update-baseline` to make a failure go away. Each weakens the user's rules. Ask first.
 - When a baseline is in use and the report says known problems are fixed, tell the user. Suggest `--update-baseline` so they cannot return.
 - After a fix, rerun `dart run arch_guard` and confirm exit code `0` before you report the fix as done.
 

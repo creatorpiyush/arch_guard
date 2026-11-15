@@ -35,6 +35,13 @@ void main() {
     expect(keysOf(object), equals(ArchGuardConfig.unusedFilesKeys));
   });
 
+  test('modules properties match ArchGuardConfig.modulesKeys', () {
+    expect(
+      keysOf(props['modules'] as Map<String, dynamic>),
+      equals(ArchGuardConfig.modulesKeys),
+    );
+  });
+
   test('preset enum matches LayerPresets.names', () {
     expect(
       ((props['preset'] as Map)['enum'] as List).toSet(),

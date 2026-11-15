@@ -159,6 +159,23 @@ String buildInitConfig({
           '    allowed_imports: [${[...presentation.allowedImports, 'bloc'].join(', ')}]',
         );
     }
+    final featureRoot = preset == LayerPresets.featureFirst
+        ? null
+        : _featureRoot(rootPath);
+    if (featureRoot != null) {
+      b
+        ..writeln()
+        ..writeln(
+          '# $featureRoot/ holds feature folders. To also keep features',
+        )
+        ..writeln('# apart, so they import each other only through the files')
+        ..writeln(
+          '# directly in each feature folder (e.g. a barrel), uncomment:',
+        )
+        ..writeln('#')
+        ..writeln('# modules:')
+        ..writeln('#   roots: [$featureRoot/*]');
+    }
   } else {
     b
       ..writeln('# No preset matched. Pick one of:')
@@ -193,6 +210,17 @@ String buildInitConfig({
 }
 
 String _quote(String s) => '"$s"';
+
+/// The first of [LayerPresets.featureRoots] that has sub-folders, if any.
+String? _featureRoot(String rootPath) {
+  for (final root in LayerPresets.featureRoots) {
+    final dir = Directory(p.join(rootPath, root));
+    if (dir.existsSync() && dir.listSync().whereType<Directory>().isNotEmpty) {
+      return root;
+    }
+  }
+  return null;
+}
 
 /// [path] relative to the working directory when inside it, else absolute.
 String _display(String path) {

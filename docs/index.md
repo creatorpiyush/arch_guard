@@ -24,6 +24,7 @@ New here? [Getting started](getting-started.md) walks through these three comman
 | Circular dependencies | files import each other in a loop | on by default |
 | Forbidden packages | `domain` imports `flutter`, or any file imports `dart:mirrors` | [`forbidden_packages:`](configuration.md#forbidden-packages) |
 | Workspace rules | `packages/core` imports `apps/mobile` in a monorepo | [`workspace_rules:`](configuration.md#workspace-rules) |
+| Module boundaries | `checkout` imports a private file of `cart` instead of its public barrel | [`modules:`](configuration.md#module-boundaries) |
 | Metric limits | one file imports, or is imported by, too many files | [`metrics:`](configuration.md#metric-limits) |
 | Unused files | nothing reaches a file from `main.dart`, tests or other entry points | [`unused_files:`](configuration.md#unused-files) |
 

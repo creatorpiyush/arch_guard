@@ -38,7 +38,7 @@ Future<void> main() async {
 | :--- | :--- |
 | `scan`, `graph`, `config` | The `ScanResult`, `DependencyGraph` and loaded `ArchGuardConfig`. |
 | `cycles`, `newCycles`, `oversizedCycles` | Circular dependency groups; the new ones; those over `max_scc_size`. |
-| `layerViolations`, `packageViolations`, `workspaceViolations`, `metricViolations` | Rule failures. Each has a `new…` getter too. |
+| `layerViolations`, `packageViolations`, `workspaceViolations`, `moduleViolations`, `metricViolations` | Rule failures. Each has a `new…` getter too. |
 | `unusedFiles`, `newUnusedFiles` | Files no entry point reaches, when `unused_files:` is on. |
 | `fileMetrics`, `hotspots` | Fan-in and fan-out per file; the most coupled first. |
 | `coverage` | Which files fall into which layer, and which into none. |
@@ -121,6 +121,7 @@ To read `arch_guard.yaml` instead of building the config in code, use `ArchGuard
 | `LayerValidator` | Imports against layers (`validate`); layer coverage (`coverage`). | `LayerViolation` |
 | `PackageValidator` | `ScanResult.packageImports` against `forbidden_packages` (`validate`), or one import at a time (`checker`). | `PackageViolation` |
 | `WorkspaceValidator` | Imports between workspace members against `workspace_rules`. | `WorkspaceViolation` |
+| `ModuleValidator` | Imports between modules against `modules:` (public files, `allowed`). `checker()` checks one import. | `ModuleViolation` |
 | `MetricValidator` | `FileMetrics` against `metrics:` limits. | `MetricViolation` |
 | `FileMetrics` | Fan-in, fan-out and instability per file (`compute`), most coupled first. | – |
 | `UnusedFiles` | Files no entry point reaches (`find`). | – |

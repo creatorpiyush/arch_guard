@@ -25,6 +25,7 @@ class ArchGuardConfig {
     'metrics',
     'workspace_rules',
     'unused_files',
+    'modules',
   };
 
   /// URL of the JSON Schema for `arch_guard.yaml`, which editors use for
@@ -34,6 +35,9 @@ class ArchGuardConfig {
 
   /// Keys recognised under `metrics:`.
   static const metricsKeys = {'max_fan_out', 'max_fan_in', 'hotspots'};
+
+  /// Keys recognised under `modules:`.
+  static const modulesKeys = {'roots', 'public', 'allowed'};
 
   /// Keys recognised under `unused_files:`.
   static const unusedFilesKeys = {'entry_points', 'fail'};
@@ -73,6 +77,9 @@ class ArchGuardConfig {
   /// Workspace dependency rules: member selector → members it may import.
   /// Selectors and entries are globs on a member's path or name.
   final Map<String, List<String>> workspaceRules;
+
+  /// Module boundary rules (`modules:`), or `null` when not configured.
+  final ModuleRules? modules;
 
   /// How many most-coupled files reports list (`metrics: hotspots`).
   final int hotspotCount;
@@ -115,6 +122,7 @@ class ArchGuardConfig {
     this.hotspotCount = 10,
     this.metricsConfigured = false,
     this.workspaceRules = const {},
+    this.modules,
     this.unusedFilesEnabled = false,
     this.unusedFileEntryPoints = const [],
     this.failOnUnusedFiles = false,
@@ -424,6 +432,8 @@ class ArchGuardConfig {
       warnings.add('$source: `workspace_rules` must be a map.');
     }
 
+    final modules = _parseModules(raw['modules'], source, warnings);
+
     String? preset;
     final layersMap = <String, LayerDefinition>{};
     final presetOnly = <String>{};
@@ -538,6 +548,7 @@ class ArchGuardConfig {
       hotspotCount: hotspots,
       metricsConfigured: rawMetrics is Map,
       workspaceRules: workspaceRules,
+      modules: modules,
       unusedFilesEnabled: unusedEnabled,
       unusedFileEntryPoints: unusedEntryPoints,
       failOnUnusedFiles: failOnUnused,
@@ -545,6 +556,94 @@ class ArchGuardConfig {
       sourcePath: sourcePath,
     );
   }
+}
+
+/// Module boundary rules from the `modules:` section.
+class ModuleRules {
+  /// Globs of module folders: each matching folder is one module, named
+  /// after the folder.
+  final List<String> roots;
+
+  /// Globs, relative to a module folder, of the files other modules may
+  /// import. Defaults to [defaultPublic]: the files directly in the folder.
+  final List<String> public;
+
+  /// Module name → modules it may import. A module not listed may import any
+  /// module (through its public files).
+  final Map<String, List<String>> allowed;
+
+  /// The default for [public].
+  static const defaultPublic = ['*.dart'];
+
+  /// Creates module rules.
+  const ModuleRules({
+    required this.roots,
+    this.public = defaultPublic,
+    this.allowed = const {},
+  });
+}
+
+ModuleRules? _parseModules(Object? raw, String source, List<String> warnings) {
+  if (raw == null) return null;
+  if (raw is! Map) {
+    warnings.add('$source: `modules` must be a map.');
+    return null;
+  }
+  for (final key in raw.keys) {
+    if (!ArchGuardConfig.modulesKeys.contains('$key')) {
+      warnings.add(
+        '$source: unknown key `modules: $key` (expected one of: '
+        '${ArchGuardConfig.modulesKeys.join(', ')}).',
+      );
+    }
+  }
+  List<String>? globs(String key) {
+    final v = raw[key];
+    if (v == null) return null;
+    if (v is! List) {
+      warnings.add('$source: `modules: $key` must be a list of globs.');
+      return null;
+    }
+    return _validGlobs(
+      v.map((e) => e.toString()),
+      '`modules: $key`',
+      source,
+      warnings,
+    );
+  }
+
+  final roots = globs('roots') ?? const [];
+  if (roots.isEmpty) {
+    warnings.add(
+      '$source: `modules` needs a `roots:` list (e.g. `[lib/features/*]`); '
+      'ignoring it.',
+    );
+    return null;
+  }
+  final public = globs('public');
+  final allowed = <String, List<String>>{};
+  final rawAllowed = raw['allowed'];
+  if (rawAllowed is Map) {
+    rawAllowed.forEach((key, val) {
+      if (val is List) {
+        allowed['$key'] = [for (final e in val) '$e'];
+      } else {
+        warnings.add(
+          '$source: `modules: allowed: $key` must be a list of module names; '
+          'ignoring it.',
+        );
+      }
+    });
+  } else if (rawAllowed != null) {
+    warnings.add('$source: `modules: allowed` must be a map.');
+  }
+  return ModuleRules(
+    roots: roots,
+    public: public == null || public.isEmpty
+        ? ModuleRules.defaultPublic
+        : public,
+    allowed: allowed,
+  );
 }
 
 /// `package:http/http.dart` → `http`; everything else is kept as written.

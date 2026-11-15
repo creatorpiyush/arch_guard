@@ -19,6 +19,7 @@ void main() {
       'forbidden_packages',
       'metrics',
       'workspace_rules',
+      'modules',
       'baseline',
       'scan_options',
       'unused_files',
@@ -93,6 +94,20 @@ void main() {
       ws.workspaceViolations.single.sourceFile,
       'packages/core/lib/core.dart',
     );
+  });
+
+  test('modules: one private import, one module not allowed', () async {
+    final a = await run('modules');
+    const page = 'lib/features/checkout/presentation/checkout_page.dart';
+    expect(
+      a.moduleViolations.map(
+        (v) => '${v.sourceFile}:${v.line} ${v.targetModule} ${v.notAllowed}',
+      ),
+      ['$page:1 auth true', '$page:3 cart false'],
+    );
+    expect(a.layerViolations.map((v) => '${v.sourceFile}:${v.line}'), [
+      '$page:3',
+    ]);
   });
 
   test('scan_options: --exclude passes, --scan-dir bin fails', () async {

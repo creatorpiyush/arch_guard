@@ -1,0 +1,9 @@
+# Layers inside every feature...
+preset: clean_architecture
+
+# ...and features that talk to each other only through a public barrel.
+modules:
+  roots: [lib/features/*]      # each folder is one module: auth, cart, checkout
+  # public: ["*.dart"]         # default: files directly in the module folder
+  allowed:
+    checkout: [cart]           # checkout may use cart, nothing else

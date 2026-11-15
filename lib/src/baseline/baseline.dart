@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
+import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
 import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
@@ -31,6 +32,9 @@ class Baseline {
   /// Known workspace rule violations, keyed by `sourceFile -> targetFile`.
   final Set<String> workspaceViolations;
 
+  /// Known module boundary violations, keyed by `sourceFile -> targetFile`.
+  final Set<String> moduleViolations;
+
   /// Known unused files (`unused_files:`), by path.
   final Set<String> unusedFiles;
 
@@ -42,6 +46,7 @@ class Baseline {
     this.packageViolations = const {},
     this.metricViolations = const {},
     this.workspaceViolations = const {},
+    this.moduleViolations = const {},
     this.unusedFiles = const {},
   });
 
@@ -52,6 +57,7 @@ class Baseline {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<ModuleViolation> moduleViolations = const [],
     List<String> unusedFiles = const [],
   }) => Baseline(
     cycles: cycles.map((c) => c.files.toSet()).toList(),
@@ -59,6 +65,7 @@ class Baseline {
     packageViolations: packageViolations.map(packageViolationKey).toSet(),
     metricViolations: {for (final v in metricViolations) metricKey(v): v.value},
     workspaceViolations: workspaceViolations.map(workspaceViolationKey).toSet(),
+    moduleViolations: moduleViolations.map(moduleViolationKey).toSet(),
     unusedFiles: unusedFiles.toSet(),
   );
 
@@ -106,12 +113,21 @@ class Baseline {
       );
     }
 
+    final modules = <String>{
+      for (final entry in json['moduleViolations'] as List? ?? const [])
+        _key(
+          (entry as Map)['sourceFile'] as String,
+          entry['targetFile'] as String,
+        ),
+    };
+
     return Baseline(
       cycles: cycles,
       layerViolations: violations,
       packageViolations: packages,
       metricViolations: metrics,
       workspaceViolations: workspace,
+      moduleViolations: modules,
       unusedFiles: {
         for (final f in json['unusedFiles'] as List? ?? const []) f as String,
       },
@@ -171,6 +187,15 @@ class Baseline {
             'targetFile': key.split(_separator).last,
           },
       ],
+      // Only when used, so baselines of projects without the rule don't change.
+      if (moduleViolations.isNotEmpty)
+        'moduleViolations': [
+          for (final key in moduleViolations.toList()..sort())
+            {
+              'sourceFile': key.split(_separator).first,
+              'targetFile': key.split(_separator).last,
+            },
+        ],
       // Only when used, so baselines of projects without the check don't change.
       if (unusedFiles.isNotEmpty) 'unusedFiles': unusedFiles.toList()..sort(),
     };
@@ -200,6 +225,7 @@ class Baseline {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<ModuleViolation> moduleViolations = const [],
     List<String>? unusedFiles,
   }) {
     final newCycles = <Cycle>[];
@@ -282,6 +308,19 @@ class Baseline {
       }
     }
 
+    final newModules = <ModuleViolation>[];
+    final knownModules = <ModuleViolation>[];
+    final seenModules = <String>{};
+    for (final violation in moduleViolations) {
+      final key = moduleViolationKey(violation);
+      if (this.moduleViolations.contains(key)) {
+        knownModules.add(violation);
+        seenModules.add(key);
+      } else {
+        newModules.add(violation);
+      }
+    }
+
     final checkedUnused = unusedFiles ?? const <String>[];
     return BaselineComparison(
       newCycles: newCycles,
@@ -310,6 +349,11 @@ class Baseline {
       knownWorkspaceViolations: knownWorkspace,
       fixedWorkspaceViolationCount: this.workspaceViolations
           .difference(seenWorkspace)
+          .length,
+      newModuleViolations: newModules,
+      knownModuleViolations: knownModules,
+      fixedModuleViolationCount: this.moduleViolations
+          .difference(seenModules)
           .length,
       newUnusedFiles: [
         for (final f in checkedUnused)
@@ -357,6 +401,11 @@ class Baseline {
 
   /// Stable identity of a workspace rule violation: importing and imported file.
   static String workspaceViolationKey(WorkspaceViolation v) =>
+      _key(v.sourceFile, v.targetFile);
+
+  /// Stable identity of a module boundary violation: importing and imported
+  /// file.
+  static String moduleViolationKey(ModuleViolation v) =>
       _key(v.sourceFile, v.targetFile);
 
   static const _separator = ' -> ';
@@ -423,6 +472,15 @@ class BaselineComparison {
   /// Baseline workspace rule violations that no longer occur.
   final int fixedWorkspaceViolationCount;
 
+  /// Module boundary violations that are not in the baseline.
+  final List<ModuleViolation> newModuleViolations;
+
+  /// Module boundary violations that the baseline already lists.
+  final List<ModuleViolation> knownModuleViolations;
+
+  /// Baseline module boundary violations that no longer occur.
+  final int fixedModuleViolationCount;
+
   /// Unused files that are not in the baseline.
   final List<String> newUnusedFiles;
 
@@ -452,6 +510,9 @@ class BaselineComparison {
     this.newWorkspaceViolations = const [],
     this.knownWorkspaceViolations = const [],
     this.fixedWorkspaceViolationCount = 0,
+    this.newModuleViolations = const [],
+    this.knownModuleViolations = const [],
+    this.fixedModuleViolationCount = 0,
     this.newUnusedFiles = const [],
     this.knownUnusedFiles = const [],
     this.fixedUnusedFileCount = 0,
@@ -464,6 +525,7 @@ class BaselineComparison {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<ModuleViolation> moduleViolations = const [],
     List<String> unusedFiles = const [],
   }) => BaselineComparison(
     newCycles: cycles,
@@ -473,6 +535,7 @@ class BaselineComparison {
     newPackageViolations: packageViolations,
     newMetricViolations: metricViolations,
     newWorkspaceViolations: workspaceViolations,
+    newModuleViolations: moduleViolations,
     newUnusedFiles: unusedFiles,
   );
 
@@ -501,4 +564,8 @@ class BaselineComparison {
   /// Whether [violation] is new relative to the baseline.
   bool isNewWorkspaceViolation(WorkspaceViolation violation) =>
       newWorkspaceViolations.contains(violation);
+
+  /// Whether [violation] is new relative to the baseline.
+  bool isNewModuleViolation(ModuleViolation violation) =>
+      newModuleViolations.contains(violation);
 }
