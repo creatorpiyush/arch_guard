@@ -28,6 +28,7 @@ arch_guard why <from> <to> [project_path]    # show the import chain from A to B
 | [`init`](#init) | Detects your layout and writes `arch_guard.yaml`. | – |
 | [`affected`](#tests-affected-by-a-branch) | Prints the test files changed code can reach. | – |
 | [`why`](#why-does-a-depend-on-b) | Prints the shortest import chain between two files, folders or packages. | There is no such chain. |
+| [`mcp`](ai.html#mcp-server) | Runs an MCP server on stdin/stdout for AI coding agents. | – |
 
 ## Options
 

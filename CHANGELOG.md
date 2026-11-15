@@ -1,3 +1,7 @@
+# 1.18.0
+
+- **New: `arch_guard mcp`, an MCP server for AI coding agents.** Claude Code, Cursor, Codex and other [Model Context Protocol](https://modelcontextprotocol.io) clients can ask arch_guard before writing code instead of after: `claude mcp add arch_guard -- dart run arch_guard mcp`. Tools: `check` (every rule, like the CLI: failures, report-only problems and warnings, optional `since`), `check_import` (may this file import this URI? each broken layer, module, workspace or forbidden-package rule with its fix; the file need not exist yet), `layer_of` (a file's layer, module, workspace package and what it may import), `why`, `affected` (same data as `affected --json`) and `explain`. Each call scans again, so answers stay correct while the agent edits files. Stdout carries only JSON-RPC; warnings go into the results. Takes `[project_path]`, `--scan-dir`, `--exclude` and `--[no-]workspace`. Setup for each client is on the [AI agents page](https://creatorpiyush.github.io/arch_guard/ai.html).
+
 # 1.17.0
 
 - **`// ignore: arch_guard_lint/workspace_violation`** now hides a workspace rule violation from the CLI, CI and `expectArchitecture()`, as the new `workspace_violation` warning in `arch_guard_lint` 0.4.0 does in the IDE. That plugin release also adds `module_violation`. Library: `WorkspaceValidator.checker`, `WorkspaceValidator.memberResolver`, `IgnoreComments.workspaceViolation`.

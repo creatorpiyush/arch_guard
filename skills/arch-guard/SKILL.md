@@ -91,6 +91,10 @@ For an unused file, check that nothing outside the scan uses it: code generation
 
 To see why one file is in a cycle, run `dart run arch_guard --explain <file>`. To find where a forbidden import or layer violation comes from, run `dart run arch_guard why <from> <to>` (for example `why lib/domain flutter`); it prints the shortest import chain with line numbers, and exits `1` when there is none. On a branch, run `dart run arch_guard --since origin/main` to report only problems in changed files. While refactoring, a human can keep `dart run arch_guard --watch` open; agents should run one-shot checks instead, because `--watch` never exits on its own.
 
+## MCP server
+
+If the `arch_guard` MCP tools are available (`check`, `check_import`, `layer_of`, `why`, `affected`, `explain`), prefer them to running the CLI. Before adding an import across folders, call `check_import` with the file and the URI as you would write it; when it is not allowed, follow its suggestion instead of writing the import. Call `layer_of` before creating a file to learn what it may import. After editing, call `check` and confirm `passed` is `true`. To offer the server to the user: `claude mcp add arch_guard -- dart run arch_guard mcp` (other clients: https://creatorpiyush.github.io/arch_guard/ai.html#mcp-server).
+
 ## Rules
 
 - Do not add a layer to `allowed_imports`, add a module to `modules: allowed`, widen `modules: public`, remove a `forbidden_packages` entry, raise `max_fan_in` / `max_fan_out` / `max_scc_size`, set `unused_files: fail: false`, or run `--update-baseline` to make a failure go away. Each weakens the user's rules. Ask first.

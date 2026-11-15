@@ -33,6 +33,47 @@ curl -fsSL -o .claude/skills/arch-guard/SKILL.md \
 
 For all your projects, use `~/.claude/skills/arch-guard` instead. Other agents that support Agent Skills: put `SKILL.md` in their skills folder, under `arch-guard/`.
 
+## MCP server
+
+`arch_guard mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. With it, an agent asks before it writes an import ("may `lib/domain/user.dart` import `package:http`?") and gets the rule and a fix back, instead of finding out from a failed run.
+
+Claude Code, in the project root:
+
+```bash
+claude mcp add arch_guard -- dart run arch_guard mcp
+```
+
+Cursor (`.cursor/mcp.json`), Claude Code (`.mcp.json`) and most other clients take the same JSON:
+
+```json
+{
+  "mcpServers": {
+    "arch_guard": { "command": "dart", "args": ["run", "arch_guard", "mcp"] }
+  }
+}
+```
+
+Codex (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.arch_guard]
+command = "dart"
+args = ["run", "arch_guard", "mcp"]
+```
+
+With the [standalone binary](getting-started.html) or `dart pub global activate arch_guard`, use `arch_guard mcp` as the command instead. The server checks the project in its working directory; pass a path (`arch_guard mcp packages/app`) for another one. It also takes `--scan-dir`, `--exclude` and `--[no-]workspace`.
+
+| Tool | Arguments | Returns |
+| :--- | :--- | :--- |
+| `check` | `since` (optional git ref) | Every rule, like `arch_guard`: `passed`, the `failures`, `reportOnly` problems the config does not fail on, and config `warnings`. Baseline entries are left out. |
+| `check_import` | `file`, `import` | Whether `file` may import the URI as written (`package:app/data/api.dart`, `../models/user.dart`, `dart:io`), and each layer, module, workspace or forbidden-package rule it would break, with a fix. The file need not exist. |
+| `layer_of` | `file` | The file's layer and its `allowed_imports` and forbidden packages, its module and that module's public files, and its workspace package. |
+| `why` | `from`, `to` | The shortest import chain, as [`arch_guard why`](cli.html#why-does-a-depend-on-b). |
+| `affected` | `since` | Changed files and the tests, files and packages they can affect, as `arch_guard affected --json`. |
+| `explain` | `file` | What the file imports, what imports it, and its cycle, as `arch_guard --explain`. |
+
+Each call scans the project again, so answers follow the agent's edits.
+
 ## Without skills: AGENTS.md
 
 For agents that read `AGENTS.md`, `CLAUDE.md`, `.cursor/rules` or `.github/copilot-instructions.md`, add this:
