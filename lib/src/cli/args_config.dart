@@ -146,6 +146,7 @@ class ArgsConfig {
     parser.addCommand('init', buildInitParser());
     parser.addCommand('affected', buildAffectedParser());
     parser.addCommand('why', buildWhyParser());
+    parser.addCommand('mcp', buildMcpParser());
 
     return parser;
   }
@@ -238,5 +239,25 @@ class ArgsConfig {
         help: 'Enable ANSI colored output in terminal.',
       )
       ..addFlag('help', abbr: 'h', negatable: false, help: 'Print why usage.');
+  }
+
+  /// Parser for `arch_guard mcp [project_path]`.
+  static ArgParser buildMcpParser() {
+    return ArgParser()
+      ..addMultiOption(
+        'scan-dir',
+        defaultsTo: ['lib'],
+        help: 'Subdirectory/subdirectories within project root to scan.',
+      )
+      ..addMultiOption(
+        'exclude',
+        help: 'Custom glob pattern(s) to exclude from scanning.',
+      )
+      ..addFlag(
+        'workspace',
+        defaultsTo: true,
+        help: 'Auto-discover and scan workspace member packages.',
+      )
+      ..addFlag('help', abbr: 'h', negatable: false, help: 'Print mcp usage.');
   }
 }

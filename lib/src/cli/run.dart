@@ -6,6 +6,7 @@ import 'affected_command.dart';
 import 'analyze_command.dart';
 import 'args_config.dart';
 import 'init_command.dart';
+import 'mcp_command.dart';
 import 'why_command.dart';
 
 /// Subcommands: the usage line under `arch_guard --help`, the usage line and
@@ -44,6 +45,14 @@ final _subcommands =
             'folder or package (package:flutter, dart:io). Exits 1 when there '
             'is none.',
         run: runWhy,
+      ),
+      'mcp': (
+        summary: 'mcp [project_path]',
+        usage: 'mcp [project_path] [options]',
+        about:
+            'Starts a Model Context Protocol server on stdin/stdout, so AI '
+            'coding agents can check imports and layers before writing code.',
+        run: runMcp,
       ),
     };
 

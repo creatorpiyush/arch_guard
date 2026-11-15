@@ -41,6 +41,7 @@ dart run arch_guard          # checks the project
 - 🏢 **Workspaces and monorepos.** Dart workspaces and Melos-style `packages/`/`apps/` repos, including cycles across packages.
 - 🧭 **`arch_guard why <from> <to>`.** The shortest import chain from a file or folder to a file or package, with line numbers. Exits `1` when there is none.
 - 🧪 **`arch_guard affected --since origin/main`.** The test files a branch's changes can affect, for running only those.
+- 🤖 **`arch_guard mcp`.** An MCP server, so Claude Code, Cursor or Codex can ask whether an import is allowed before writing it. [Setup](https://creatorpiyush.github.io/arch_guard/ai.html#mcp-server).
 - 🔍 **`--explain <file>`.** Why is this file in a cycle? What does it import and what imports it?
 
 **Examples:** a small, runnable project for each feature, with the command and its real output. See [example/example.md](https://github.com/creatorpiyush/arch_guard/blob/main/example/example.md).
@@ -175,6 +176,7 @@ arch_guard . -f sarif -f markdown -o build/reports         # for CI
 arch_guard . --watch                                       # re-run on every save
 arch_guard why lib/domain flutter                          # which imports lead there
 arch_guard affected --since origin/main                    # tests a branch can affect
+arch_guard mcp                                             # MCP server for AI agents
 ```
 
 | Exit code | Meaning |

@@ -30,15 +30,12 @@ Future<int> runAffected(ArgResults args) async {
   final AffectedResult result;
   final Set<String> changed;
   try {
-    changed = GitChanges.since(since, projectRoot: absProjectPath);
-    final scan = await ProjectScanner(
-      rootPath: absProjectPath,
-      scanDirs: _scanDirs,
-      memberScanDirs: _scanDirs,
+    (changed, result) = await findAffected(
+      absProjectPath,
+      since,
       exclude: args['exclude'] as List<String>,
       enableWorkspace: args['workspace'] as bool,
-    ).scan();
-    result = AffectedFiles.find(result: scan, changed: changed);
+    );
   } on GitException catch (e) {
     stderr.writeln('Error: ${e.message}');
     return 2;
@@ -49,17 +46,9 @@ Future<int> runAffected(ArgResults args) async {
 
   if (args['json'] as bool) {
     stdout.writeln(
-      const JsonEncoder.withIndent('  ').convert({
-        'since': since,
-        'changedFiles': changed.toList()..sort(),
-        'files': result.files,
-        'tests': result.tests,
-        'packages': [
-          for (final pkg in result.packages)
-            {'name': pkg.name, 'path': pkg.packagePath},
-        ],
-        'ignoredChanges': result.ignoredChanges,
-      }),
+      const JsonEncoder.withIndent(
+        '  ',
+      ).convert(affectedJson(since, changed, result)),
     );
     return 0;
   }
@@ -84,3 +73,40 @@ Future<int> runAffected(ArgResults args) async {
   }
   return 0;
 }
+
+/// The files changed since [since] and what they can affect, scanning
+/// `lib/`, `test/` and `integration_test/` of [absProjectPath]. Throws
+/// [GitException] when git fails.
+Future<(Set<String>, AffectedResult)> findAffected(
+  String absProjectPath,
+  String since, {
+  List<String> exclude = const [],
+  bool enableWorkspace = true,
+}) async {
+  final changed = GitChanges.since(since, projectRoot: absProjectPath);
+  final scan = await ProjectScanner(
+    rootPath: absProjectPath,
+    scanDirs: _scanDirs,
+    memberScanDirs: _scanDirs,
+    exclude: exclude,
+    enableWorkspace: enableWorkspace,
+  ).scan();
+  return (changed, AffectedFiles.find(result: scan, changed: changed));
+}
+
+/// The `arch_guard affected --json` report.
+Map<String, Object?> affectedJson(
+  String since,
+  Set<String> changed,
+  AffectedResult result,
+) => {
+  'since': since,
+  'changedFiles': changed.toList()..sort(),
+  'files': result.files,
+  'tests': result.tests,
+  'packages': [
+    for (final pkg in result.packages)
+      {'name': pkg.name, 'path': pkg.packagePath},
+  ],
+  'ignoredChanges': result.ignoredChanges,
+};
