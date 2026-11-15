@@ -3,7 +3,6 @@
 import 'dart:convert';
 
 import 'package:analyzer_testing/analysis_rule/analysis_rule.dart';
-import 'package:analyzer_testing/package_config_file_builder.dart';
 import 'package:arch_guard_lint/src/boundary_rules.dart';
 import 'package:test_reflective_loader/test_reflective_loader.dart';
 
@@ -121,10 +120,19 @@ class WorkspaceViolationRuleTest extends AnalysisRuleTest {
     newFile('$workspaceRootPath/core/pubspec.yaml', 'name: core\n');
     newFile('$workspaceRootPath/core/lib/core.dart', 'class Core {}\n');
     super.setUp();
-    writeTestPackageConfig2(
-      config: PackageConfigFileBuilder()
-        ..add(name: 'core', rootFolder: getFolder('$workspaceRootPath/core')),
-    );
+    // Map `package:core` to /home/core. Editing the written file, rather
+    // than calling the builder API, works with every analyzer_testing
+    // version the plugin supports.
+    final configPath = '$testPackageRootPath/.dart_tool/package_config.json';
+    final config =
+        jsonDecode(getFile(configPath).readAsStringSync())
+            as Map<String, dynamic>;
+    (config['packages'] as List).add({
+      'name': 'core',
+      'rootUri': toUriStr('$workspaceRootPath/core'),
+      'packageUri': 'lib/',
+    });
+    newFile(configPath, jsonEncode(config));
   }
 
   String get _appPath => '$testPackageLibPath/app.dart';
