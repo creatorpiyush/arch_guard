@@ -25,6 +25,7 @@ dart run arch_guard          # checks the project
 
 - 🛡️ **Layer rules.** Say which layers may import which (`domain` must not import `data`); every violation shows the import line and the rule it breaks.
 - 🚫 **Forbidden packages.** Keep `flutter`, `dart:io` or any package out of a layer (or the whole project), with globs like `firebase_*`.
+- 🧩 **Module boundaries.** `modules:` keeps feature folders apart: other features may import only a feature's public files (its barrel), on top of the layer rules inside each feature.
 - 🏢 **Workspace rules.** In a monorepo, say which packages may depend on which: `apps/*` may use `packages/*`, never the reverse.
 - 🧹 **Unused files.** `unused_files:` lists files no entry point imports, directly or indirectly, and can fail the run on them.
 - 📏 **Metric limits and hotspots.** `max_fan_out` / `max_fan_in` stop files from becoming hubs; reports list the most coupled files.
@@ -49,7 +50,7 @@ dart run arch_guard          # checks the project
 | | arch_guard | [DCM](https://dcm.dev) | [import_lint](https://pub.dev/packages/import_lint) | [lakos](https://pub.dev/packages/lakos) |
 | :--- | :---: | :---: | :---: | :---: |
 | Price | Free, MIT | Free tier (1 seat, up to 50k LOC); paid plans | Free, MIT | Free, MIT |
-| Import / layer rules | ✅ layers with `allowed_imports`, plus package-level `workspace_rules` | ✅ `avoid-banned-imports` rule | ✅ `target` / `from` rules | – |
+| Import / layer rules | ✅ layers with `allowed_imports`, module boundaries, plus package-level `workspace_rules` | ✅ `avoid-banned-imports` rule | ✅ `target` / `from` rules | – |
 | Ready-made architecture presets + `init` | ✅ | – | – | – |
 | Circular dependency detection | ✅ with metrics | – | – | ✅ |
 | Baseline for legacy code | ✅ | ✅ | – | – |

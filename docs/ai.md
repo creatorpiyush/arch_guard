@@ -45,7 +45,7 @@ This project's architecture rules are enforced by arch_guard (config: `arch_guar
 - After changing imports, run `dart run arch_guard`. Exit code 0 means clean.
 - Fix a layer violation by inverting the dependency (interface in the importing layer)
   or moving the code. For a cycle, start with the import on the `Suggested fix:` line.
-- Do not edit `allowed_imports`, `forbidden_packages` or the metric limits, and do not
+- Do not edit `allowed_imports`, `forbidden_packages`, `modules` or the metric limits, and do not
   run `--update-baseline`, without asking first.
 - `dart run arch_guard --explain <file>` shows why a file is in a cycle.
 - `dart run arch_guard why <from> <to>` (e.g. `why lib/domain package:flutter`) prints the

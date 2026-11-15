@@ -201,6 +201,8 @@ Future<int> runCli(List<String> args) async {
   final newMetricViolations = analysis.newMetricViolations;
   final workspaceViolations = analysis.workspaceViolations;
   final newWorkspaceViolations = analysis.newWorkspaceViolations;
+  final moduleViolations = analysis.moduleViolations;
+  final newModuleViolations = analysis.newModuleViolations;
 
   // Mention metric/workspace counts only for projects that use them, so the
   // output of projects without those rules stays as it was.
@@ -212,6 +214,10 @@ Future<int> runCli(List<String> args) async {
       config.workspaceRules.isNotEmpty ||
       workspaceViolations.isNotEmpty ||
       (comparison?.fixedWorkspaceViolationCount ?? 0) > 0;
+  final showModules =
+      config.modules != null ||
+      moduleViolations.isNotEmpty ||
+      (comparison?.fixedModuleViolationCount ?? 0) > 0;
   final showUnused =
       config.unusedFilesEnabled || (comparison?.fixedUnusedFileCount ?? 0) > 0;
   List<String> counts(
@@ -220,6 +226,7 @@ Future<int> runCli(List<String> args) async {
     int pkg,
     int metric,
     int ws,
+    int mod,
     int unused,
   ) => [
     '$cycles cycle group(s)',
@@ -227,6 +234,7 @@ Future<int> runCli(List<String> args) async {
     '$pkg forbidden package import(s)',
     if (showMetrics) '$metric metric limit violation(s)',
     if (showWorkspace) '$ws workspace rule violation(s)',
+    if (showModules) '$mod module boundary violation(s)',
     if (showUnused) '$unused unused file(s)',
   ];
 
@@ -355,6 +363,26 @@ Future<int> runCli(List<String> args) async {
     out.writeln();
   }
 
+  if (newModuleViolations.isNotEmpty) {
+    final label = comparison == null ? '' : 'NEW ';
+    final cDim = useColor ? '\x1B[2m' : '';
+    out.writeln(
+      '$cRed[!] ${label}MODULE BOUNDARY VIOLATIONS '
+      '(${newModuleViolations.length}):$cReset',
+    );
+    for (final v in newModuleViolations) {
+      out.writeln('  $v');
+      out.writeln('     ${cDim}Rule: ${v.rule}$cReset');
+    }
+    out.writeln();
+    // One hint per kind: a private file and a module not allowed differ.
+    final hints = {for (final v in newModuleViolations) v.notAllowed: v};
+    for (final v in hints.values) {
+      out.writeln('  How to fix: ${v.suggestion}');
+    }
+    out.writeln();
+  }
+
   if (newMetricViolations.isNotEmpty) {
     final label = comparison == null ? '' : 'NEW ';
     final cDim = useColor ? '\x1B[2m' : '';
@@ -418,6 +446,7 @@ Future<int> runCli(List<String> args) async {
       comparison.knownPackageViolations.length,
       comparison.knownMetricViolations.length,
       comparison.knownWorkspaceViolations.length,
+      comparison.knownModuleViolations.length,
       comparison.knownUnusedFiles.length,
     );
     final added = counts(
@@ -426,6 +455,7 @@ Future<int> runCli(List<String> args) async {
       newPackageViolations.length,
       newMetricViolations.length,
       newWorkspaceViolations.length,
+      newModuleViolations.length,
       analysis.newUnusedFiles.length,
     );
     final fixed = counts(
@@ -434,6 +464,7 @@ Future<int> runCli(List<String> args) async {
       comparison.fixedPackageViolationCount,
       comparison.fixedMetricViolationCount,
       comparison.fixedWorkspaceViolationCount,
+      comparison.fixedModuleViolationCount,
       comparison.fixedUnusedFileCount,
     );
     out.writeln('  Known (ignored): ${known.join(', ')}');
@@ -443,6 +474,7 @@ Future<int> runCli(List<String> args) async {
             newPackageViolations.isEmpty &&
             newMetricViolations.isEmpty &&
             newWorkspaceViolations.isEmpty &&
+            newModuleViolations.isEmpty &&
             analysis.newUnusedFiles.isEmpty
         ? cGreen
         : cRed;
@@ -461,6 +493,7 @@ Future<int> runCli(List<String> args) async {
         comparison.fixedPackageViolationCount > 0 ||
         comparison.fixedMetricViolationCount > 0 ||
         comparison.fixedWorkspaceViolationCount > 0 ||
+        comparison.fixedModuleViolationCount > 0 ||
         comparison.fixedUnusedFileCount > 0) {
       out.writeln(
         '  $cGreen${_andJoin(fixed)} in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
@@ -482,6 +515,9 @@ Future<int> runCli(List<String> args) async {
     metricViolations: metricViolations.map((v) => v.toJson()).toList(),
     hotspots: analysis.hotspots.map((m) => m.toJson()).toList(),
     workspaceViolations: workspaceViolations.map((v) => v.toJson()).toList(),
+    moduleViolations: config.modules == null
+        ? null
+        : moduleViolations.map((v) => v.toJson()).toList(),
     unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
     since: since,
     changedFiles: analysis.changedFiles,
@@ -547,6 +583,7 @@ Future<int> runCli(List<String> args) async {
         packageViolations: packageViolations,
         metricViolations: metricViolations,
         workspaceViolations: workspaceViolations,
+        moduleViolations: moduleViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -570,6 +607,7 @@ Future<int> runCli(List<String> args) async {
         metricViolations: metricViolations,
         hotspots: analysis.hotspots,
         workspaceViolations: workspaceViolations,
+        moduleViolations: moduleViolations,
         baseline: comparison,
         oversizedCycles: oversizedSccs,
         maxSccSize: maxSccSize,
@@ -604,6 +642,7 @@ Future<int> runCli(List<String> args) async {
       packageViolations.length,
       metricViolations.length,
       workspaceViolations.length,
+      moduleViolations.length,
       analysis.unusedFiles.length,
     );
     Baseline.capture(
@@ -612,6 +651,7 @@ Future<int> runCli(List<String> args) async {
       packageViolations: packageViolations,
       metricViolations: metricViolations,
       workspaceViolations: workspaceViolations,
+      moduleViolations: moduleViolations,
       unusedFiles: analysis.unusedFiles,
     ).save(baselinePath);
     out.writeln(
@@ -624,7 +664,8 @@ Future<int> runCli(List<String> args) async {
 
   if (newPackageViolations.isNotEmpty ||
       newMetricViolations.isNotEmpty ||
-      newWorkspaceViolations.isNotEmpty) {
+      newWorkspaceViolations.isNotEmpty ||
+      newModuleViolations.isNotEmpty) {
     return 1;
   }
 

@@ -191,6 +191,63 @@ void main() {
     });
   });
 
+  group('module boundaries in reports', () {
+    const mv = ModuleViolation(
+      sourceFile: 'lib/features/a/a.dart',
+      targetFile: 'lib/features/b/src/b.dart',
+      sourceModule: 'a',
+      targetModule: 'b',
+      targetModuleDir: 'lib/features/b',
+      publicPatterns: ['*.dart'],
+      line: 2,
+    );
+
+    test('SARIF', () {
+      final log = jsonDecode(
+        SarifExporter.export(
+          result: result,
+          cycles: const [],
+          moduleViolations: [mv],
+        ),
+      );
+      final hit = log['runs'][0]['results'][0];
+      expect(hit['ruleId'], 'module-violation');
+      expect(hit['locations'][0]['physicalLocation']['region']['startLine'], 2);
+      expect(
+        hit['partialFingerprints']['archGuard/v1'],
+        'module-violation:lib/features/a/a.dart -> lib/features/b/src/b.dart',
+      );
+    });
+
+    test('Markdown', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        moduleViolations: [mv],
+      );
+      expect(md, contains('### New module boundary violations'));
+      expect(md, contains('| Module boundary violations | 1 | 1 |'));
+    });
+
+    test('JSON', () {
+      final json = jsonDecode(
+        JsonExporter.export(
+          result: result,
+          cycles: const [],
+          moduleViolations: [mv.toJson()],
+        ),
+      );
+      expect(json['moduleViolations'][0], {
+        'sourceFile': 'lib/features/a/a.dart',
+        'targetFile': 'lib/features/b/src/b.dart',
+        'sourceModule': 'a',
+        'targetModule': 'b',
+        'line': 2,
+        'reason': 'private',
+      });
+    });
+  });
+
   group('metric limits in reports', () {
     const mv = MetricViolation(
       file: 'lib/a.dart',
@@ -506,6 +563,8 @@ void main() {
       SarifExporter.metricLimitRule: '${docs}configuration.html#metric-limits',
       SarifExporter.workspaceDependencyRule:
           '${docs}configuration.html#workspace-rules',
+      SarifExporter.moduleViolationRule:
+          '${docs}configuration.html#module-boundaries',
       SarifExporter.circularDependencyRule: '${docs}cli.html#fix-a-cycle',
       SarifExporter.unusedFileRule: '${docs}configuration.html#unused-files',
       SarifExporter.sccSizeLimitRule: '${docs}configuration.html#keys',

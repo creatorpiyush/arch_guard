@@ -101,6 +101,31 @@
         }
       }
     },
+    "modules": {
+      "type": "object",
+      "description": "Module boundaries: each folder matching `roots` is a module that other modules may import only through its public files.",
+      "required": ["roots"],
+      "additionalProperties": false,
+      "properties": {
+        "roots": {
+          "$ref": "#/definitions/globs",
+          "description": "Globs of module folders, e.g. `lib/features/*`. Each matching folder is one module, named after the folder."
+        },
+        "public": {
+          "$ref": "#/definitions/globs",
+          "default": ["*.dart"],
+          "description": "Globs, relative to a module folder, of the files other modules may import. Default: the files directly in the folder."
+        },
+        "allowed": {
+          "type": "object",
+          "description": "Module name → modules it may import. A module not listed may import any module.",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      }
+    },
     "unused_files": {
       "description": "Report scanned files that no entry point reaches. `true` turns it on with the defaults.",
       "oneOf": [

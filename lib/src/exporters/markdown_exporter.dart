@@ -1,6 +1,7 @@
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
+import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
 import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
@@ -34,6 +35,7 @@ class MarkdownExporter {
     List<MetricViolation> metricViolations = const [],
     List<FileMetrics> hotspots = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<ModuleViolation> moduleViolations = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -50,6 +52,7 @@ class MarkdownExporter {
           packageViolations: packageViolations,
           metricViolations: metricViolations,
           workspaceViolations: workspaceViolations,
+          moduleViolations: moduleViolations,
           unusedFiles: unusedFiles ?? const [],
         );
     final newUnused = comparison.newUnusedFiles;
@@ -58,6 +61,7 @@ class MarkdownExporter {
     final newPackages = comparison.newPackageViolations;
     final newMetrics = comparison.newMetricViolations;
     final newWorkspace = comparison.newWorkspaceViolations;
+    final newModules = comparison.newModuleViolations;
     final newOversized = oversizedCycles.where(comparison.isNewCycle).toList();
     final hasNew =
         newCycles.isNotEmpty ||
@@ -65,6 +69,7 @@ class MarkdownExporter {
         newPackages.isNotEmpty ||
         newMetrics.isNotEmpty ||
         newWorkspace.isNotEmpty ||
+        newModules.isNotEmpty ||
         newOversized.isNotEmpty ||
         (failOnUnusedFiles && newUnused.isNotEmpty);
 
@@ -83,7 +88,8 @@ class MarkdownExporter {
         layerViolations.isEmpty &&
         packageViolations.isEmpty &&
         metricViolations.isEmpty &&
-        workspaceViolations.isEmpty) {
+        workspaceViolations.isEmpty &&
+        moduleViolations.isEmpty) {
       b.writeln('✅ **No circular dependencies or layer violations.**');
     } else {
       b.writeln(
@@ -130,6 +136,13 @@ class MarkdownExporter {
         '${newWorkspace.length} |',
       );
     }
+    if (moduleViolations.isNotEmpty ||
+        (baseline?.fixedModuleViolationCount ?? 0) > 0) {
+      b.writeln(
+        '| Module boundary violations | ${moduleViolations.length} | '
+        '${newModules.length} |',
+      );
+    }
     // null: the check is off, so the row is left out.
     if (unusedFiles != null) {
       b.writeln(
@@ -174,6 +187,17 @@ class MarkdownExporter {
         final at = v.line != null ? ':${v.line}' : '';
         return '- `${v.sourceFile}$at` (**${v.sourcePackage}**) imports '
             '`${v.targetFile}` (**${v.targetPackage}**). ${v.rule}';
+      });
+      b.writeln();
+    }
+
+    if (newModules.isNotEmpty) {
+      b.writeln('### New module boundary violations');
+      b.writeln();
+      _writeCapped(b, newModules, (v) {
+        final at = v.line != null ? ':${v.line}' : '';
+        return '- `${v.sourceFile}$at` (**${v.sourceModule}**) imports '
+            '`${v.targetFile}` (**${v.targetModule}**). ${v.rule}';
       });
       b.writeln();
     }
@@ -272,6 +296,7 @@ class MarkdownExporter {
             baseline.fixedPackageViolationCount > 0 ||
             baseline.fixedMetricViolationCount > 0 ||
             baseline.fixedWorkspaceViolationCount > 0 ||
+            baseline.fixedModuleViolationCount > 0 ||
             baseline.fixedUnusedFileCount > 0)) {
       final fixed = _andJoin([
         '${baseline.fixedCycleCount} cycle group(s)',
@@ -281,6 +306,9 @@ class MarkdownExporter {
           '${baseline.fixedMetricViolationCount} metric limit violation(s)',
         if (baseline.fixedWorkspaceViolationCount > 0)
           '${baseline.fixedWorkspaceViolationCount} workspace rule '
+              'violation(s)',
+        if (baseline.fixedModuleViolationCount > 0)
+          '${baseline.fixedModuleViolationCount} module boundary '
               'violation(s)',
         if (baseline.fixedUnusedFileCount > 0)
           '${baseline.fixedUnusedFileCount} unused file(s)',

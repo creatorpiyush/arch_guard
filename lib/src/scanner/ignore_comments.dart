@@ -8,6 +8,9 @@ class IgnoreComments {
   /// Code that silences a forbidden package import.
   static const forbiddenPackage = 'forbidden_package';
 
+  /// Code that silences a module boundary violation.
+  static const moduleViolation = 'module_violation';
+
   /// Code that leaves an import out of cycle detection.
   static const circularDependency = 'circular_dependency';
 

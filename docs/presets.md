@@ -19,6 +19,8 @@ arch_guard init --dry-run            # print the config instead of writing it
 arch_guard init --force              # overwrite an existing arch_guard.yaml
 ```
 
+With a layer preset and feature folders in `lib/features` (or `lib/modules`), `init` also writes a commented-out [`modules:`](configuration.md#module-boundaries) block you can turn on to keep features apart.
+
 After writing the file, `init` scans the project and prints how many files fall into each layer, how many violations and cycles exist, and what to do next.
 
 If it picks `riverpod` or `clean_architecture` and also finds `bloc/` or `cubit/` folders (a Riverpod app with Bloc leftovers, say), it adds them as a `bloc` layer that may import what `presentation` may, and lets `presentation` import it:
@@ -152,6 +154,8 @@ Typical violation: one feature reaches into another.
 ```
 
 Fix: move what both features need into `lib/shared`, or let the features talk through an interface in `shared`.
+
+**Feature-first or `modules:`?** `feature_first` turns each feature into a layer, so it can't also check layers *inside* a feature, and a feature can't expose a public file to the others. If you want Clean Architecture layers inside each feature *and* features that talk only through a small public surface, use a layer preset plus [`modules:`](configuration.md#module-boundaries) instead. `feature_first` stays the simplest choice when features should never import each other at all.
 
 The feature list is read from disk when arch_guard runs, so new feature folders are covered without editing the config. Feature folders inside workspace packages are not discovered yet; list them under `layers:` yourself.
 

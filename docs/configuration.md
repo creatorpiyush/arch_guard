@@ -79,6 +79,7 @@ layers:
 | `forbidden_packages` | list | none | Packages (`dio`) or core libraries (`dart:io`) no scanned file may import. Globs allowed (`firebase_*`). Also valid inside a layer, where it applies only to that layer's files. |
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
 | `workspace_rules` | map | none | In a workspace: member selector → `allowed:` members it may import. See [Workspace rules](#workspace-rules). |
+| `modules` | map | none | Module boundaries: `roots` (globs of module folders), optional `public` (files other modules may import) and `allowed` (which modules each may import). See [Module boundaries](#module-boundaries). |
 | `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
 | `unused_files` | map or `true` | off | Report scanned files that no entry point reaches. `entry_points`: extra globs. `fail: true` makes them fail the run. See [Unused files](#unused-files). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
@@ -123,7 +124,7 @@ The line shows the importing file and line, both layers, and the rule that was b
 
 ## Ignoring one import
 
-To accept a single import without changing the rules, put `// ignore: arch_guard_lint/layer_violation` (or `forbidden_package`, `circular_dependency`) on the line above it. The CLI, CI, `expectArchitecture()` and the IDE plugin all honour it. See [IDE warnings](ide.md).
+To accept a single import without changing the rules, put `// ignore: arch_guard_lint/layer_violation` (or `forbidden_package`, `module_violation`, `circular_dependency`) on the line above it. The CLI, CI, `expectArchitecture()` and the IDE plugin all honour it. See [IDE warnings](ide.md).
 
 ## Forbidden packages
 
@@ -150,6 +151,37 @@ layers:
 ```
 
 Forbidden imports always fail the run (exit code `1`); `fail_on_layer_violation` does not apply to them. To adopt the rule on existing code, run `arch_guard --update-baseline` once.
+
+## Module boundaries
+
+A file belongs to one layer, so layers alone can't say both "presentation may not import data" and "`checkout` may not reach into `cart`'s internals". `modules:` is a second, independent rule set for feature-first apps that also use layers:
+
+```yaml
+preset: clean_architecture       # layers inside every feature
+
+modules:
+  roots: [lib/features/*]        # each matching folder is one module
+  public: ["*.dart"]             # default: the files directly in the module folder
+  allowed:                       # optional
+    checkout: [cart, auth]       # checkout may import only these modules
+```
+
+- Each folder a `roots` glob matches is a module, named after the folder (`lib/features/cart` is `cart`). In a workspace, roots also match from each member's `lib/`, as layer patterns do.
+- A module may import another only through its **public** files. `public` globs are relative to the module folder, so the default `*.dart` makes `lib/features/cart/cart.dart` public and everything in sub-folders private.
+- A public barrel may re-export private files of its own module: that is the intended way in. (Layer rules look *through* barrels; module rules don't.)
+- With `allowed`, a listed module may import only the modules named there. Modules not listed may import any module.
+- Imports inside one module are never module violations. Files outside every module (`lib/main.dart`, `lib/core/`) may import and be imported by any module.
+- One import can break a layer rule, a module rule, both or neither; each is reported in its own section.
+- Each offending import fails the run (exit code `1`), regardless of `fail_on_layer_violation`. Adopt on existing code with `--update-baseline`.
+
+```text
+❌ Module Violation: [checkout] lib/features/checkout/ui/page.dart:4 -> [cart] lib/features/cart/data/cart_repo.dart
+   Rule: Other modules may import `cart` only through lib/features/cart/*.dart.
+```
+
+To fix it, import a public file instead (add a barrel to the module that exports what others need), or move the shared code out of the module. You get a warning for a root that matches no folder and for an `allowed` name that is not a module.
+
+When to use `modules:` and when [`preset: feature_first`](presets.md#feature-first): see the note there.
 
 ## Metric limits
 
@@ -243,6 +275,7 @@ Configuration problems are reported on stderr instead of being silently ignored:
 - unparseable YAML, unknown keys, wrongly typed values,
 - layers whose patterns match no files (often a typo),
 - `allowed_imports` that name unknown layers,
+- `modules` roots that match no folder and `allowed` names that are not modules,
 - files that belong to no layer and so are never checked.
 
 The legacy `dep_graph.yaml` file and `dep_graph_visualizer:` pubspec key are still read, with a deprecation warning.

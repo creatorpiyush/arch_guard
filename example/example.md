@@ -23,6 +23,7 @@ In your own project, `dart pub add --dev arch_guard`, then `dart run arch_guard`
 | Keep `dart:io`, `flutter` or any package out of some code | [forbidden_packages](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/forbidden_packages) | `forbidden_packages` (project and per layer) |
 | Stop files from becoming hubs | [metrics](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/metrics) | `metrics: max_fan_in / max_fan_out / hotspots` |
 | Find files nothing imports any more | [unused_files](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/unused_files) | `unused_files: entry_points / fail` |
+| Keep feature folders apart, with layers inside each feature | [modules](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/modules) | `modules: roots / public / allowed`, with `preset: clean_architecture` |
 | Control which packages of a monorepo depend on which | [workspace_rules](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/workspace_rules) | `workspace_rules` |
 | Adopt on a codebase that already has problems | [baseline](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/baseline) | `--update-baseline`, `--baseline` |
 | Check only what a branch changed | [since](https://github.com/creatorpiyush/arch_guard/tree/main/example/cases/since) | `--since origin/main` |

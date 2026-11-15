@@ -110,6 +110,26 @@ void main() {
     }
   });
 
+  test('proposes a commented modules block next to layer presets', () {
+    Directory(
+      p.join(root.path, 'lib', 'features', 'auth'),
+    ).createSync(recursive: true);
+    String build(String preset) =>
+        buildInitConfig(preset: preset, reason: 'test', rootPath: root.path);
+
+    final yaml = build('clean_architecture');
+    expect(yaml, contains('# modules:\n#   roots: [lib/features/*]\n'));
+    final uncommented = yaml
+        .replaceFirst('# modules:', 'modules:')
+        .replaceFirst('#   roots:', '  roots:');
+    final parsed = ArchGuardConfig.parse(uncommented, rootPath: root.path);
+    expect(parsed.warnings, isEmpty);
+    expect(parsed.modules!.roots, ['lib/features/*']);
+
+    // feature_first already keeps features apart.
+    expect(build('feature_first'), isNot(contains('modules:')));
+  });
+
   test('config starts with the schema comment for YAML editors', () {
     final yaml = buildInitConfig(
       preset: 'clean_architecture',

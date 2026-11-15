@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../baseline/baseline.dart';
 import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
+import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
 import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
@@ -27,6 +28,9 @@ class SarifExporter {
   /// SARIF rule id for imports between workspace members that the rules forbid.
   static const workspaceDependencyRule = 'workspace-dependency';
 
+  /// SARIF rule id for imports that cross a module boundary (`modules:`).
+  static const moduleViolationRule = 'module-violation';
+
   /// SARIF rule id for circular dependency groups.
   static const circularDependencyRule = 'circular-dependency';
 
@@ -49,6 +53,7 @@ class SarifExporter {
     List<PackageViolation> packageViolations = const [],
     List<MetricViolation> metricViolations = const [],
     List<WorkspaceViolation> workspaceViolations = const [],
+    List<ModuleViolation> moduleViolations = const [],
     BaselineComparison? baseline,
     List<Cycle> oversizedCycles = const [],
     int? maxSccSize,
@@ -146,6 +151,25 @@ class SarifExporter {
               '$workspaceDependencyRule:${Baseline.workspaceViolationKey(v)}',
         },
         'baselineState': ?state(baseline?.isNewWorkspaceViolation(v) ?? true),
+      });
+    }
+
+    for (final v in moduleViolations) {
+      results.add({
+        'ruleId': moduleViolationRule,
+        'level': 'error',
+        'message': {
+          'text':
+              '`${v.sourceFile}` (module `${v.sourceModule}`) imports '
+              '`${v.targetFile}` (module `${v.targetModule}`). ${v.rule} '
+              '${v.suggestion}',
+        },
+        'locations': [location(v.sourceFile, line: v.line)],
+        'partialFingerprints': {
+          'archGuard/v1':
+              '$moduleViolationRule:${Baseline.moduleViolationKey(v)}',
+        },
+        'baselineState': ?state(baseline?.isNewModuleViolation(v) ?? true),
       });
     }
 
@@ -307,6 +331,24 @@ class SarifExporter {
             'that `workspace_rules` in arch_guard.yaml does not allow.',
       },
       'helpUri': '$_docsUri/configuration.html#workspace-rules',
+      'defaultConfiguration': {'level': 'error'},
+      'properties': {
+        'tags': ['architecture', 'maintainability'],
+      },
+    },
+    {
+      'id': moduleViolationRule,
+      'name': 'ModuleViolation',
+      'shortDescription': {
+        'text': 'Import reaches into another module\'s private files',
+      },
+      'fullDescription': {
+        'text':
+            'A file in one module imports a file of another module that is '
+            'not public, or a module that `modules: allowed` in '
+            'arch_guard.yaml does not list.',
+      },
+      'helpUri': '$_docsUri/configuration.html#module-boundaries',
       'defaultConfiguration': {'level': 'error'},
       'properties': {
         'tags': ['architecture', 'maintainability'],
