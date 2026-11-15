@@ -1,3 +1,7 @@
+## 0.4.1
+
+- Shorter package description, within pub.dev's 180-character limit (0.4.0 lost 10 pub points for it). No code changes.
+
 ## 0.4.0
 
 - **New rule `module_violation`.** Warns on an import that reaches into another module's private files, or into a module that `modules: allowed` doesn't list, as `arch_guard` 1.16+ reports in the CLI. See [Module boundaries](https://creatorpiyush.github.io/arch_guard/configuration.html#module-boundaries).
