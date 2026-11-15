@@ -1,5 +1,6 @@
 import 'dart:convert';
 import '../assets/vis_network_asset.dart';
+import '../graph/grouped_graph.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 
@@ -12,11 +13,15 @@ class HtmlExporter {
   }
 
   /// Generates the single self-contained interactive HTML document.
+  ///
+  /// With [grouped], the report opens on that graph (one node per group) and
+  /// a button switches between it and the file graph.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
     String scope = 'cycles',
     bool offline = false,
+    GroupedGraph? grouped,
   }) {
     final cyclicFiles = cycles.expand((c) => c.files).toSet();
 
@@ -112,6 +117,7 @@ class HtmlExporter {
       'nodes': nodesJsonList,
       'edges': edgesJsonList,
       'cycles': cyclesJsonList,
+      'grouped': ?grouped?.toJson(),
     };
 
     // Escape markup characters so file paths can never close the surrounding
@@ -393,6 +399,7 @@ class HtmlExporter {
     <div class="toolbar">
       <button class="btn" id="reset-btn">Reset View</button>
       <button class="btn" id="filter-cycles-btn">Focus Cycles Only</button>
+      <button class="btn" id="view-btn" style="display: none;">File view</button>
     </div>
 
     <div id="details-panel">
@@ -411,6 +418,10 @@ class HtmlExporter {
       <div class="panel-section">
         <div class="panel-section-title">Imported By</div>
         <div class="panel-list" id="panel-importers"></div>
+      </div>
+      <div class="panel-section" id="panel-files-section" style="display: none;">
+        <div class="panel-section-title">Files</div>
+        <div class="panel-list" id="panel-files"></div>
       </div>
     </div>
   </main>
@@ -434,6 +445,9 @@ class HtmlExporter {
     const panelImports = document.getElementById('panel-imports');
     const panelImporters = document.getElementById('panel-importers');
     const panelClose = document.getElementById('panel-close');
+    const panelFilesSection = document.getElementById('panel-files-section');
+    const panelFiles = document.getElementById('panel-files');
+    const viewBtn = document.getElementById('view-btn');
 
     // File paths are user data: escape before inserting into innerHTML.
     function escapeHtml(value) {
@@ -449,7 +463,7 @@ class HtmlExporter {
     let showOnlyCycles = false;
 
     // Convert nodes for vis-network
-    const nodes = new vis.DataSet(graphData.nodes.map(n => {
+    const fileNodes = new vis.DataSet(graphData.nodes.map(n => {
       const isCycle = n.group === 'cycle';
       return {
         id: n.id,
@@ -471,7 +485,7 @@ class HtmlExporter {
     }));
 
     // Convert edges for vis-network
-    const edges = new vis.DataSet(graphData.edges.map(e => ({
+    const fileEdges = new vis.DataSet(graphData.edges.map(e => ({
       id: `\${e.from}->\${e.to}`,
       from: e.from,
       to: e.to,
@@ -480,6 +494,40 @@ class HtmlExporter {
       width: e.isCycle ? 2 : 1,
       dashes: e.type === 'export' ? true : (e.type === 'part' ? [2, 4] : false)
     })));
+
+    // One node per layer, module, package or folder (--group-by).
+    const grouped = graphData.grouped;
+    const groupNodes = new vis.DataSet((grouped ? grouped.groups : []).map(g => ({
+      id: g.id,
+      label: `\${g.id}\n\${g.files.length} file\${g.files.length === 1 ? '' : 's'}`,
+      title: g.id,
+      shape: 'box',
+      margin: 10,
+      color: {
+        background: '#1e3a5f',
+        border: '#38bdf8',
+        highlight: { background: '#24507f', border: '#7dd3fc' }
+      },
+      font: { color: '#f8fafc', size: 14, multi: false }
+    })));
+    const groupEdges = new vis.DataSet((grouped ? grouped.edges : []).map(e => ({
+      id: `\${e.from}->\${e.to}`,
+      from: e.from,
+      to: e.to,
+      arrows: 'to',
+      label: e.violations > 0
+        ? `\${e.count}, \${e.violations} violation\${e.violations === 1 ? '' : 's'}`
+        : String(e.count),
+      font: { color: e.violations > 0 ? '#f87171' : '#94a3b8', strokeWidth: 0, size: 12 },
+      color: e.violations > 0 ? { color: '#ef4444', highlight: '#f87171' } : { color: '#475569', highlight: '#94a3b8' },
+      width: Math.min(1 + Math.log2(Math.max(e.count, 1)), 6),
+      // Curved one way, so A -> B and B -> A don't overlap.
+      smooth: { type: 'curvedCW', roundness: 0.2 }
+    })));
+
+    let groupView = !!grouped;
+    let nodes = groupView ? groupNodes : fileNodes;
+    let edges = groupView ? groupEdges : fileEdges;
 
     const options = {
       nodes: {
@@ -521,6 +569,27 @@ class HtmlExporter {
       network.setOptions({ physics: false });
     });
 
+    function setView(toGroups) {
+      if (toGroups === groupView) return;
+      groupView = toGroups;
+      nodes = groupView ? groupNodes : fileNodes;
+      edges = groupView ? groupEdges : fileEdges;
+      viewBtn.textContent = groupView ? 'File view' : `\${grouped.groupBy} view`;
+      detailsPanel.style.display = 'none';
+      searchInput.value = '';
+      nodes.forEach(n => nodes.update({ id: n.id, hidden: false }));
+      network.setOptions({ physics: { enabled: true } });
+      network.setData({ nodes, edges });
+      network.once('stabilizationIterationsDone', () => {
+        network.setOptions({ physics: false });
+      });
+    }
+
+    if (grouped) {
+      viewBtn.style.display = '';
+      viewBtn.addEventListener('click', () => setView(!groupView));
+    }
+
     // Render sidebar cycles
     function renderCyclesSidebar() {
       if (graphData.cycles.length === 0) {
@@ -557,6 +626,7 @@ class HtmlExporter {
     renderCyclesSidebar();
 
     function focusCycle(cycleIdx) {
+      setView(false);
       selectedCycleIndex = cycleIdx;
 
       document.querySelectorAll('.cycle-card').forEach(card => {
@@ -606,6 +676,7 @@ class HtmlExporter {
     });
 
     filterCyclesBtn.addEventListener('click', () => {
+      setView(false);
       showOnlyCycles = !showOnlyCycles;
       filterCyclesBtn.classList.toggle('active', showOnlyCycles);
 
@@ -635,7 +706,29 @@ class HtmlExporter {
       detailsPanel.style.display = 'none';
     });
 
+    function showGroupDetails(groupId) {
+      const group = grouped.groups.find(g => g.id === groupId);
+      if (!group) return;
+      panelFilename.textContent = groupId;
+      panelStatus.textContent = `\${grouped.groupBy}, \${group.files.length} file\${group.files.length === 1 ? '' : 's'}`;
+      const edgeLine = (name, e) => {
+        const bad = e.violations > 0
+          ? ` <span style="color: #f87171;">(\${e.violations} violation\${e.violations === 1 ? '' : 's'})</span>`
+          : '';
+        return `<div>\${escapeHtml(name)}: \${e.count}\${bad}</div>`;
+      };
+      const out = grouped.edges.filter(e => e.from === groupId);
+      const inc = grouped.edges.filter(e => e.to === groupId);
+      panelImports.innerHTML = out.length > 0 ? out.map(e => edgeLine(e.to, e)).join('') : '<div>None</div>';
+      panelImporters.innerHTML = inc.length > 0 ? inc.map(e => edgeLine(e.from, e)).join('') : '<div>None</div>';
+      panelFiles.innerHTML = group.files.map(f => `<div>\${escapeHtml(f)}</div>`).join('');
+      panelFilesSection.style.display = 'block';
+      detailsPanel.style.display = 'block';
+    }
+
     function showNodeDetails(nodeId) {
+      if (groupView) return showGroupDetails(nodeId);
+      panelFilesSection.style.display = 'none';
       const nodeData = graphData.nodes.find(n => n.id === nodeId);
       if (!nodeData) return;
 

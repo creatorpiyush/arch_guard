@@ -1,5 +1,6 @@
 import 'package:args/args.dart';
 
+import '../graph/grouped_graph.dart';
 import '../models/layer_presets.dart';
 
 /// Configures the command line argument parser for arch_guard.
@@ -56,6 +57,15 @@ class ArgsConfig {
       defaultsTo: 'cycles',
       help:
           'Export graph scope: cycles (SCCs only + 1-hop context) or all (entire graph).',
+    );
+
+    parser.addOption(
+      'group-by',
+      allowed: groupByValues,
+      help:
+          'Draw one node per layer, module, workspace package or folder in '
+          'the dot, html and mermaid exports, with import counts on edges and '
+          'rule violations in red. Implies --scope all unless --scope is given.',
     );
 
     parser.addOption(

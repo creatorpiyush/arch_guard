@@ -59,6 +59,7 @@ Flags for the main check. Repeatable flags can be given more than once (`--scan-
 | `-o`, `--output` | `arch_guard_output` | Folder for report files. |
 | `--json` | off | Print the JSON report (the same as `-f json`) to stdout and nothing else, for scripts and AI agents. The usual report and warnings go to stderr. The exit code is unchanged. |
 | `--scope` | `cycles` | What graphs show: `cycles` (each cycle plus the files one import away) or `all` (the full graph). |
+| `--group-by` | – | `layer`, `module`, `package` or `folder`: graphs show one node per group, with import counts on edges and rule violations in red. Implies `--scope all` unless `--scope` is given. See [Output formats](#output-formats). |
 | `--offline` | off | Inline the scripts in the HTML report, for machines without internet. |
 | `--[no-]color` | on | ANSI colours in the terminal. |
 
@@ -145,6 +146,27 @@ arch_guard -f html --offline -o build/reports    # same, works without internet
 arch_guard -f sarif -f markdown -o build/reports # for CI
 arch_guard -f all -o build/reports               # everything
 ```
+
+### One node per layer
+
+`--group-by layer` (or `module`, `package`, `folder`) turns the `mermaid`, `dot` and `html` graphs into the diagram teams draw by hand: one node per layer with its file count, and one edge per pair of layers with the number of imports. An edge that breaks a layer, module or workspace rule is red and says how many violations it holds. Files in no layer go under `(none)`.
+
+```bash
+arch_guard -f mermaid --group-by layer -o build/reports
+```
+
+```mermaid
+flowchart LR
+    g0["data<br/>2 files"]
+    g1["domain<br/>2 files"]
+    g2["ui<br/>2 files"]
+    g0 -->|"2"| g1
+    g2 -->|"1, 1 violation"| g0
+    g2 -->|"1"| g1
+    linkStyle 1 stroke:#ef4444,stroke-width:2px,color:#ef4444;
+```
+
+The HTML report opens on the grouped graph. **File view** switches to the file graph; clicking a group lists its files and its imports in and out. `folder` groups by the first folder under `lib/` (`lib/features`). `--group-by` draws the whole project; add `--scope cycles` to group only the files in cycles.
 
 ### Unused files in each format
 

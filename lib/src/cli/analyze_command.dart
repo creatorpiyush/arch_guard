@@ -11,6 +11,7 @@ import '../exporters/markdown_exporter.dart';
 import '../exporters/mermaid_exporter.dart';
 import '../exporters/sarif_exporter.dart';
 import '../graph/dependency_explainer.dart';
+import '../graph/grouped_graph.dart';
 import '../reporters/text_reporter.dart';
 import '../scanner/git_changes.dart';
 import 'watch_command.dart';
@@ -33,7 +34,12 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
 
   final formats = (argResults['format'] as List<String>).toSet();
   final outputDir = argResults['output'] as String;
-  final scope = argResults['scope'] as String;
+  final groupBy = argResults['group-by'] as String?;
+  // A grouped graph shows the whole architecture unless --scope says
+  // otherwise.
+  final scope = groupBy != null && !argResults.wasParsed('scope')
+      ? 'all'
+      : argResults['scope'] as String;
   final explainTarget = argResults['explain'] as String?;
   final scanDirs = argResults['scan-dir'] as List<String>;
   final excludes = argResults['exclude'] as List<String>;
@@ -179,6 +185,27 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       'not checked for layer violations: $preview$more',
       useColor,
     );
+  }
+
+  if (groupBy != null) {
+    if (!{'all', 'dot', 'html', 'mermaid'}.any(formats.contains)) {
+      printWarning(
+        '--group-by applies to -f dot, html and mermaid; none was requested.',
+        useColor,
+      );
+    } else if (groupBy == 'layer' && config.layers.isEmpty) {
+      printWarning(
+        '--group-by layer: no layers are configured, so every file is in '
+        '`${GroupedGraph.none}`.',
+        useColor,
+      );
+    } else if (groupBy == 'module' && config.modules == null) {
+      printWarning(
+        '--group-by module: no `modules:` are configured, so every file is '
+        'in `${GroupedGraph.none}`.',
+        useColor,
+      );
+    }
   }
 
   // If explain target is specified, print explanation and exit
@@ -451,13 +478,25 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       outDir.createSync(recursive: true);
     }
 
+    final grouped = groupBy == null
+        ? null
+        : GroupedGraph.build(
+            analysis,
+            groupBy: groupBy,
+            files: scope == 'cycles'
+                ? {for (final c in cycles) ...c.files}
+                : null,
+          );
+
     if (exportAll || formats.contains('dot')) {
       final dotPath = p.join(absOutputDir, 'dependency_graph.dot');
-      final dotContent = DotExporter.export(
-        result: scanResult,
-        cycles: cycles,
-        scope: scope,
-      );
+      final dotContent = grouped != null
+          ? DotExporter.exportGrouped(grouped)
+          : DotExporter.export(
+              result: scanResult,
+              cycles: cycles,
+              scope: scope,
+            );
       File(dotPath).writeAsStringSync(dotContent);
       out.writeln('Exported DOT graph to: $dotPath');
     }
@@ -469,6 +508,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         cycles: cycles,
         scope: scope,
         offline: offline,
+        grouped: grouped,
       );
       File(htmlPath).writeAsStringSync(htmlContent);
       out.writeln('Exported interactive HTML visualizer to: $htmlPath');
@@ -482,11 +522,13 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
 
     if (exportAll || formats.contains('mermaid')) {
       final mermaidPath = p.join(absOutputDir, 'dependency_graph.mmd');
-      final mermaidContent = MermaidExporter.export(
-        result: scanResult,
-        cycles: cycles,
-        scope: scope,
-      );
+      final mermaidContent = grouped != null
+          ? MermaidExporter.exportGrouped(grouped)
+          : MermaidExporter.export(
+              result: scanResult,
+              cycles: cycles,
+              scope: scope,
+            );
       File(mermaidPath).writeAsStringSync(mermaidContent);
       out.writeln('Exported Mermaid diagram to: $mermaidPath');
     }

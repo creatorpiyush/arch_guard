@@ -1,3 +1,4 @@
+import '../graph/grouped_graph.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 
@@ -84,6 +85,44 @@ class MermaidExporter {
       );
     }
 
+    buffer.writeln('```');
+    return buffer.toString();
+  }
+
+  /// Generates a Mermaid flowchart of [graph]: one node per group with its
+  /// file count, edges labelled with the number of imports, and edges that
+  /// break a rule in red.
+  static String exportGrouped(GroupedGraph graph) {
+    final buffer = StringBuffer()
+      ..writeln('```mermaid')
+      ..writeln('flowchart LR');
+    if (graph.groups.isEmpty) {
+      buffer
+        ..writeln('    %% No files')
+        ..writeln('```');
+      return buffer.toString();
+    }
+    final ids = <String, String>{};
+    for (final (i, MapEntry(:key, :value)) in graph.groups.entries.indexed) {
+      ids[key] = 'g$i';
+      final label = key.replaceAll('"', '#quot;');
+      buffer.writeln(
+        '    g$i["$label<br/>${value.length} file${value.length == 1 ? '' : 's'}"]',
+      );
+    }
+    final red = <int>[];
+    for (final (i, e) in graph.edges.indexed) {
+      final label = e.violations == 0
+          ? '${e.count}'
+          : '${e.count}, ${e.violations} violation${e.violations == 1 ? '' : 's'}';
+      buffer.writeln('    ${ids[e.from]} -->|"$label"| ${ids[e.to]}');
+      if (e.violations > 0) red.add(i);
+    }
+    if (red.isNotEmpty) {
+      buffer.writeln(
+        '    linkStyle ${red.join(',')} stroke:#ef4444,stroke-width:2px,color:#ef4444;',
+      );
+    }
     buffer.writeln('```');
     return buffer.toString();
   }
