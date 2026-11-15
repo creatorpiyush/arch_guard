@@ -23,7 +23,7 @@ The system is designed with strict separation of concerns, decoupling static fil
 ```mermaid
 flowchart TD
     subgraph CLI Engine
-        A[CLI Args Parser\nargs_config.dart] --> B[Runner Entry Point\nrun.dart]
+        A[CLI Args Parser\nargs_config.dart] --> B[Runner Entry Point\nrun.dart + analyze_command.dart]
         C[Config Loader\nconfig_model.dart] --> B
     end
 
@@ -104,7 +104,7 @@ flowchart TD
 ```mermaid
 sequenceDiagram
     autonumber
-    participant CLI as runCli (run.dart)
+    participant CLI as runAnalyze (analyze_command.dart)
     participant Config as ArchGuardConfig
     participant Scanner as ProjectScanner
     participant Reader as ImportReader

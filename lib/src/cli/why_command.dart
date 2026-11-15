@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import '../analysis/arch_analysis.dart';
 import '../graph/import_path.dart';
 import '../scanner/git_changes.dart';
-import 'run.dart' show printWarning;
+import 'analyze_command.dart' show printWarning;
 
 /// Runs `arch_guard why <from> <to> [project_path]`: prints the shortest
 /// import path from a file or folder to a file, folder or package. Exits 1
