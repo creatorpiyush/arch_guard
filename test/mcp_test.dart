@@ -248,13 +248,14 @@ void main() {
       final text = await call(server, 'explain', {
         'file': 'lib/models/user.dart',
       });
+      // utf8: the default (system code page) mangles `•` on Windows.
       final cli = Process.runSync(Platform.resolvedExecutable, [
         'bin/arch_guard.dart',
         _sample,
         '--no-color',
         '--explain',
         'lib/models/user.dart',
-      ]);
+      ], stdoutEncoding: utf8);
       expect(cli.stdout, text);
     });
   });
