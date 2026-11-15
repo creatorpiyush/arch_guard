@@ -124,7 +124,7 @@ The line shows the importing file and line, both layers, and the rule that was b
 
 ## Ignoring one import
 
-To accept a single import without changing the rules, put `// ignore: arch_guard_lint/layer_violation` (or `forbidden_package`, `module_violation`, `circular_dependency`) on the line above it. The CLI, CI, `expectArchitecture()` and the IDE plugin all honour it. See [IDE warnings](ide.md).
+To accept a single import without changing the rules, put `// ignore: arch_guard_lint/layer_violation` (or `forbidden_package`, `module_violation`, `workspace_violation`, `circular_dependency`) on the line above it. The CLI, CI, `expectArchitecture()` and the IDE plugin all honour it. See [IDE warnings](ide.md).
 
 ## Forbidden packages
 

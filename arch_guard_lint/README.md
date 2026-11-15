@@ -7,6 +7,8 @@ Shows [arch_guard](https://pub.dev/packages/arch_guard) rules as warnings on the
 | `layer_violation` | An import crosses a layer boundary that `allowed_imports` does not allow. | Remove the import · Allow the import in the config |
 | `forbidden_package` | An import uses a package or core library listed under `forbidden_packages`. | Remove the import |
 | `circular_dependency` | This import closes a cycle among files in `lib/`. It is the one import whose removal breaks the cycle, or shrinks it the most. | Remove the import |
+| `module_violation` | An import reaches into another module's private files, or into a module `modules: allowed` doesn't list. See [Module boundaries](https://creatorpiyush.github.io/arch_guard/configuration.html#module-boundaries). | Remove the import |
+| `workspace_violation` | An import between workspace members that `workspace_rules` doesn't allow. See [Workspace rules](https://creatorpiyush.github.io/arch_guard/configuration.html#workspace-rules). | Remove the import |
 
 ## Install
 
@@ -15,7 +17,7 @@ Requires Dart 3.10 / Flutter 3.38 or later.
 ```yaml
 # analysis_options.yaml
 plugins:
-  arch_guard_lint: ^0.3.1
+  arch_guard_lint: ^0.4.0
 ```
 
 Restart the Dart analysis server afterwards (in VS Code: *Dart: Restart Analysis Server*).
@@ -68,7 +70,7 @@ Suppress a single warning:
 import '../data/repo.dart';
 ```
 
-The CLI, CI and `expectArchitecture()` honour the same comment, so a silenced import does not fail the build either. The codes are `layer_violation`, `forbidden_package` and `circular_dependency`. To silence a code for a whole file:
+The CLI, CI and `expectArchitecture()` honour the same comment, so a silenced import does not fail the build either. The codes are `layer_violation`, `forbidden_package`, `module_violation`, `workspace_violation` and `circular_dependency`. To silence a code for a whole file:
 
 ```dart
 // ignore_for_file: arch_guard_lint/circular_dependency

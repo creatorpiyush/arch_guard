@@ -120,7 +120,7 @@ To read `arch_guard.yaml` instead of building the config in code, use `ArchGuard
 | :--- | :--- | :--- |
 | `LayerValidator` | Imports against layers (`validate`); layer coverage (`coverage`). | `LayerViolation` |
 | `PackageValidator` | `ScanResult.packageImports` against `forbidden_packages` (`validate`), or one import at a time (`checker`). | `PackageViolation` |
-| `WorkspaceValidator` | Imports between workspace members against `workspace_rules`. | `WorkspaceViolation` |
+| `WorkspaceValidator` | Imports between workspace members against `workspace_rules` (`validate`), or one import at a time (`checker`, with `memberResolver` or your own file → member function). | `WorkspaceViolation` |
 | `ModuleValidator` | Imports between modules against `modules:` (public files, `allowed`). `checker()` checks one import. | `ModuleViolation` |
 | `MetricValidator` | `FileMetrics` against `metrics:` limits. | `MetricViolation` |
 | `FileMetrics` | Fan-in, fan-out and instability per file (`compute`), most coupled first. | – |

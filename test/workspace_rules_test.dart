@@ -184,6 +184,52 @@ workspace_rules:
     },
   );
 
+  test('an ignore comment hides the violation from the CLI', () async {
+    write('arch_guard.yaml', '''
+workspace_rules:
+  "apps/*":
+    allowed: ["packages/core"]
+''');
+    expect(await runCli([dir.path]), 1);
+    write(
+      'apps/mobile/lib/main.dart',
+      '// ignore: arch_guard_lint/workspace_violation\n'
+          "import 'package:ui/ui.dart';\n",
+    );
+    expect(await runCli([dir.path]), 0);
+  });
+
+  test('checker checks one import with any member resolver', () {
+    final config = ArchGuardConfig.parse('''
+workspace_rules:
+  "apps/*":
+    allowed: ["packages/core"]
+''', rootPath: dir.path);
+    const members = [
+      WorkspacePackage(
+        name: 'mobile',
+        packagePath: 'apps/mobile',
+        libPath: 'apps/mobile/lib',
+      ),
+      WorkspacePackage(
+        name: 'ui',
+        packagePath: 'packages/ui',
+        libPath: 'packages/ui/lib',
+      ),
+    ];
+    final check = WorkspaceValidator.checker(
+      config,
+      WorkspaceValidator.memberResolver(members),
+    );
+    final v = check(
+      'apps/mobile/lib/a.dart',
+      'packages/ui/lib/ui.dart',
+      line: 2,
+    );
+    expect('${v!.sourcePackage}>${v.targetPackage}:${v.line}', 'mobile>ui:2');
+    expect(check('apps/mobile/lib/a.dart', 'apps/mobile/lib/b.dart'), isNull);
+  });
+
   test('workspace_rules in a single package only warns', () async {
     final single = Directory.systemTemp.createTempSync('arch_guard_single_');
     addTearDown(() => single.deleteSync(recursive: true));
