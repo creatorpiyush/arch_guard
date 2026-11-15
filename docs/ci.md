@@ -101,6 +101,22 @@ A full run, scan included, takes about 0.07 s per 1,000 files. Most of it is rea
 
 Differences of a few percent between runs are noise. `dart run arch_guard` adds about a second of Dart startup; the [GitHub Action](#github-action) and the [standalone binaries](cli.md#standalone-binaries) don't.
 
+### Architecture diagram in the README
+
+GitHub renders Mermaid in any Markdown file. Generate the layer diagram into a file you link from the README, and fail CI when it is out of date:
+
+```yaml
+      - run: |
+          dart run arch_guard -f mermaid --group-by layer --no-fail-on-cycle -o build/arch
+          cp build/arch/dependency_graph.mmd docs/architecture.md
+          git diff --exit-code docs/architecture.md || {
+            echo "::error::docs/architecture.md is out of date: run the two commands above and commit it."
+            exit 1
+          }
+```
+
+Run the same two commands locally to refresh it. Use `--group-by module` or `--group-by package` for feature folders or a workspace.
+
 ## Adopting on an existing codebase (baseline)
 
 Large projects rarely start clean. Record the problems you have today, commit the file, and from then on only *new* problems fail the run:

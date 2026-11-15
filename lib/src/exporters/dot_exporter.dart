@@ -1,3 +1,4 @@
+import '../graph/grouped_graph.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
 
@@ -80,6 +81,36 @@ class DotExporter {
       );
     }
 
+    buffer.writeln('}');
+    return buffer.toString();
+  }
+
+  /// Generates DOT for [graph]: one node per group with its file count,
+  /// edges labelled with the number of imports, and edges that break a rule
+  /// in red.
+  static String exportGrouped(GroupedGraph graph) {
+    final buffer = StringBuffer()
+      ..writeln('digraph "Dependency Graph" {')
+      ..writeln('  rankdir=LR;')
+      ..writeln(
+        '  node [shape=box, style="filled,rounded", fontname="Helvetica", '
+        'fillcolor="#f3f4f6", color="#9ca3af"];',
+      )
+      ..writeln('  edge [fontname="Helvetica", color="#6b7280"];')
+      ..writeln();
+    for (final MapEntry(:key, :value) in graph.groups.entries) {
+      final files = '${value.length} file${value.length == 1 ? '' : 's'}';
+      buffer.writeln('  "${_escape(key)}" [label="${_escape(key)}\\n$files"];');
+    }
+    buffer.writeln();
+    for (final e in graph.edges) {
+      final attrs = e.violations == 0
+          ? 'label="${e.count}"'
+          : 'label="${e.count}, ${e.violations} violation'
+                '${e.violations == 1 ? '' : 's'}", color="#ef4444", '
+                'fontcolor="#ef4444", penwidth=2.0';
+      buffer.writeln('  "${_escape(e.from)}" -> "${_escape(e.to)}" [$attrs];');
+    }
     buffer.writeln('}');
     return buffer.toString();
   }

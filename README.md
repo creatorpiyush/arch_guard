@@ -171,6 +171,7 @@ The action downloads a checksum-verified binary, posts one PR comment it keeps u
 ```bash
 arch_guard [path] [options]
 arch_guard . -f html -o build/reports                      # interactive graph
+arch_guard . -f mermaid --group-by layer -o build/reports  # one node per layer
 arch_guard . --explain lib/services/auth_service.dart      # one file's dependencies
 arch_guard . -f sarif -f markdown -o build/reports         # for CI
 arch_guard . --watch                                       # re-run on every save

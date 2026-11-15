@@ -128,4 +128,4 @@ To read `arch_guard.yaml` instead of building the config in code, use `ArchGuard
 
 **Reports**
 
-`TextReporter`, `HtmlExporter`, `MermaidExporter`, `DotExporter`, `JsonExporter`, `SarifExporter` and `MarkdownExporter` render the results in each [output format](cli.md#output-formats).
+`TextReporter`, `HtmlExporter`, `MermaidExporter`, `DotExporter`, `JsonExporter`, `SarifExporter` and `MarkdownExporter` render the results in each [output format](cli.md#output-formats). `GroupedGraph.build(analysis, groupBy: 'layer')` groups an `ArchAnalysis` by layer, module, package or folder (each `GroupEdge` has an import count and a violation count); `MermaidExporter.exportGrouped`, `DotExporter.exportGrouped` and `HtmlExporter.export(grouped: ...)` draw it.
