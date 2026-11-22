@@ -21,10 +21,7 @@ class GitChanges {
   /// [ref] and HEAD, plus uncommitted and untracked files. Files outside
   /// [projectRoot] are left out. Throws [GitException] when git fails.
   static Set<String> since(String ref, {required String projectRoot}) {
-    // git would read `-…` as an option (e.g. `--output=<file>`).
-    if (ref.isEmpty || ref.startsWith('-')) {
-      throw GitException('--since: "$ref" is not a git ref.');
-    }
+    _checkRef(ref);
     // Resolve symlinks on both sides: git prints the real path (macOS
     // temp dirs live under /private/var, reached via /var).
     final root = _real(projectRoot);
@@ -61,12 +58,95 @@ class GitChanges {
         ], root),
       ),
     ];
-    return {
-      for (final repoPath in repoPaths)
-        if (p.isWithin(root, p.join(top, repoPath)))
-          p.relative(p.join(top, repoPath), from: root).replaceAll(r'\', '/'),
-    };
+    return _projectPaths(repoPaths, root: root, top: top);
   }
+
+  /// The full sha of the merge base of [ref] and HEAD. Throws [GitException]
+  /// when git fails.
+  static String mergeBase(String ref, {required String projectRoot}) {
+    _checkRef(ref);
+    return _git(
+      ['merge-base', ref, 'HEAD'],
+      _real(projectRoot),
+      ref: ref,
+    ).trim();
+  }
+
+  /// Project-relative, `/`-separated paths of the files git knows under
+  /// [projectRoot]: tracked, plus untracked files that are not ignored.
+  /// Throws [GitException] when git fails.
+  static Set<String> knownFiles({required String projectRoot}) {
+    final root = _real(projectRoot);
+    final top = _real(_git(['rev-parse', '--show-toplevel'], root).trim());
+    return _projectPaths(
+      _nulSplit(
+        _git([
+          'ls-files',
+          '--cached',
+          '--others',
+          '--exclude-standard',
+          '--full-name',
+          '-z',
+        ], root),
+      ),
+      root: root,
+      top: top,
+    );
+  }
+
+  /// Checks out commit [sha] in a temporary git worktree, calls [body] with
+  /// the path of [projectRoot] inside it, and removes the worktree
+  /// afterwards, also when [body] throws. Throws [GitException] when the
+  /// checkout fails.
+  static Future<T> withBaseCheckout<T>(
+    String sha, {
+    required String projectRoot,
+    required Future<T> Function(String baseProjectRoot) body,
+  }) async {
+    final root = _real(projectRoot);
+    final top = _real(_git(['rev-parse', '--show-toplevel'], root).trim());
+    final tmp = Directory.systemTemp.createTempSync('arch_guard_base_');
+    final checkout = p.join(tmp.path, 'base');
+    try {
+      _git(['worktree', 'add', '--detach', '--quiet', checkout, sha], root);
+      return await body(p.join(checkout, p.relative(root, from: top)));
+    } finally {
+      try {
+        _git(['worktree', 'remove', '--force', checkout], root);
+      } on GitException {
+        // Deleting the folder below leaves a stale entry; prune drops it.
+      }
+      try {
+        tmp.deleteSync(recursive: true);
+      } on FileSystemException {
+        // A temp folder left behind must not hide the real result.
+      }
+      try {
+        _git(['worktree', 'prune'], root);
+      } on GitException {
+        // Same: cleanup never masks the result.
+      }
+    }
+  }
+
+  static void _checkRef(String ref) {
+    // git would read `-…` as an option (e.g. `--output=<file>`).
+    if (ref.isEmpty || ref.startsWith('-')) {
+      throw GitException('--since: "$ref" is not a git ref.');
+    }
+  }
+
+  /// [repoPaths] (relative to the repository [top]) that lie inside [root],
+  /// made relative to [root] with `/` separators.
+  static Set<String> _projectPaths(
+    List<String> repoPaths, {
+    required String root,
+    required String top,
+  }) => {
+    for (final repoPath in repoPaths)
+      if (p.isWithin(root, p.join(top, repoPath)))
+        p.relative(p.join(top, repoPath), from: root).replaceAll(r'\', '/'),
+  };
 
   static String _real(String path) {
     try {
