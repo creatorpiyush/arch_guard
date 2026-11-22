@@ -83,6 +83,11 @@
           "minimum": 0,
           "default": 10,
           "description": "How many most-coupled files reports list (0 = none)."
+        },
+        "churn_since": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Git date such as \"6 months ago\": rank hotspots by commits since then times coupling. Needs git."
         }
       }
     },

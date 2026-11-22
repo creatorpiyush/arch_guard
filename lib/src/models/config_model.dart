@@ -34,7 +34,12 @@ class ArchGuardConfig {
       'https://creatorpiyush.github.io/arch_guard/arch_guard.schema.json';
 
   /// Keys recognised under `metrics:`.
-  static const metricsKeys = {'max_fan_out', 'max_fan_in', 'hotspots'};
+  static const metricsKeys = {
+    'max_fan_out',
+    'max_fan_in',
+    'hotspots',
+    'churn_since',
+  };
 
   /// Keys recognised under `modules:`.
   static const modulesKeys = {'roots', 'public', 'allowed'};
@@ -84,6 +89,10 @@ class ArchGuardConfig {
   /// How many most-coupled files reports list (`metrics: hotspots`).
   final int hotspotCount;
 
+  /// Git date (`metrics: churn_since`, e.g. `6 months ago`) from which
+  /// commits are counted to rank hotspots by churn, or `null` when unset.
+  final String? churnSince;
+
   /// Whether the config has a `metrics:` section (limits or just `hotspots`).
   final bool metricsConfigured;
 
@@ -120,6 +129,7 @@ class ArchGuardConfig {
     this.maxFanOut,
     this.maxFanIn,
     this.hotspotCount = 10,
+    this.churnSince,
     this.metricsConfigured = false,
     this.workspaceRules = const {},
     this.modules,
@@ -322,6 +332,7 @@ class ArchGuardConfig {
     int? maxFanOut;
     int? maxFanIn;
     var hotspots = 10;
+    String? churnSince;
     final rawMetrics = raw['metrics'];
     if (rawMetrics is Map) {
       int? positive(String key, {bool allowZero = false}) {
@@ -346,6 +357,15 @@ class ArchGuardConfig {
       maxFanOut = positive('max_fan_out');
       maxFanIn = positive('max_fan_in');
       hotspots = positive('hotspots', allowZero: true) ?? 10;
+      final churn = rawMetrics['churn_since'];
+      if (churn is String && churn.trim().isNotEmpty) {
+        churnSince = churn.trim();
+      } else if (churn != null) {
+        warnings.add(
+          '$source: `metrics: churn_since` must be a git date such as '
+          '"6 months ago".',
+        );
+      }
     } else if (rawMetrics != null) {
       warnings.add('$source: `metrics` must be a map.');
     }
@@ -546,6 +566,7 @@ class ArchGuardConfig {
       maxFanOut: maxFanOut,
       maxFanIn: maxFanIn,
       hotspotCount: hotspots,
+      churnSince: churnSince,
       metricsConfigured: rawMetrics is Map,
       workspaceRules: workspaceRules,
       modules: modules,

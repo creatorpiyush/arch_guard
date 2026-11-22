@@ -248,4 +248,33 @@ layers:
       );
     });
   });
+
+  group('metrics: churn_since', () {
+    ArchGuardConfig parse(String yaml) =>
+        ArchGuardConfig.parse(yaml, rootPath: Directory.systemTemp.path);
+
+    test('parses a git date', () {
+      final config = parse('metrics:\n  churn_since: "6 months ago"\n');
+      expect(config.churnSince, '6 months ago');
+      expect(config.warnings, isEmpty);
+    });
+
+    test('is null by default', () {
+      expect(parse('metrics:\n  hotspots: 5\n').churnSince, isNull);
+    });
+
+    for (final bad in ['3', '""']) {
+      test('warns on churn_since: $bad', () {
+        final config = parse('metrics:\n  churn_since: $bad\n');
+        expect(config.churnSince, isNull);
+        expect(
+          config.warnings.single,
+          contains(
+            '`metrics: churn_since` must be a git date such as '
+            '"6 months ago".',
+          ),
+        );
+      });
+    }
+  });
 }
