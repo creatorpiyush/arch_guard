@@ -113,7 +113,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.20.0
+      - uses: creatorpiyush/arch_guard@v1.21.0
 ```
 
 **In your tests.** `test/architecture_test.dart` fails `dart test` / `flutter test` exactly when the CLI would exit `1`.
