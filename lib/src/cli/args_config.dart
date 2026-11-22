@@ -95,6 +95,14 @@ class ArgsConfig {
     );
 
     parser.addFlag(
+      'graph-diff',
+      defaultsTo: true,
+      help:
+          'With --since and Markdown or JSON output, also list what the '
+          'change adds compared with the merge base (advice only).',
+    );
+
+    parser.addFlag(
       'watch',
       negatable: false,
       help:

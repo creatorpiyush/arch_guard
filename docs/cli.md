@@ -57,6 +57,7 @@ Flags for the main check. Repeatable flags can be given more than once (`--scan-
 | :--- | :--- | :--- |
 | `-f`, `--format` | `text` | `text`, `html`, `mermaid`, `dot`, `json`, `sarif`, `markdown` or `all`. Repeatable. See [Output formats](#output-formats). |
 | `-o`, `--output` | `arch_guard_output` | Folder for report files. |
+| `--no-graph-diff` | | With `--since`, skip the [What this change adds](#what-this-change-adds) comparison (and its checkout of the merge base). `--watch` re-runs always skip it. |
 | `--json` | off | Print the JSON report (the same as `-f json`) to stdout and nothing else, for scripts and AI agents. The usual report and warnings go to stderr. The exit code is unchanged. |
 | `--scope` | `cycles` | What graphs show: `cycles` (each cycle plus the files one import away) or `all` (the full graph). |
 | `--group-by` | – | `layer`, `module`, `package` or `folder`: graphs show one node per group, with import counts on edges and rule violations in red. Implies `--scope all` unless `--scope` is given. See [Output formats](#output-formats). |

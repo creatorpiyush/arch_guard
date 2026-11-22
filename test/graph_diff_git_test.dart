@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:arch_guard/arch_guard.dart';
+import 'package:arch_guard/src/cli/analyze_command.dart';
 import 'package:arch_guard/src/cli/run.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
@@ -147,6 +148,31 @@ layers:
       ]);
       final data = jsonDecode(r.stdout as String) as Map;
       expect((data['diff'] as Map)['groupEdges'], hasLength(1));
+    });
+
+    test('CLI: --no-graph-diff leaves the section out', () async {
+      write('lib/ui/a.dart', importB);
+      git(['commit', '-qam', 'import']);
+      final out = p.join(repo.path, 'out');
+      await runCli([
+        repo.path,
+        '--since',
+        'main',
+        '-f',
+        'markdown',
+        '-o',
+        out,
+        '--no-graph-diff',
+      ]);
+      final md = File(p.join(out, 'arch_guard_report.md')).readAsStringSync();
+      expect(md, isNot(contains('What this change adds')));
+    });
+
+    test('watch re-runs skip the graph diff', () {
+      expect(
+        watchRunArgs(['.', '--watch', '--since', 'main', '-f', 'markdown']),
+        ['.', '--since', 'main', '-f', 'markdown', '--no-graph-diff'],
+      );
     });
 
     test('no worktree left', () async {
