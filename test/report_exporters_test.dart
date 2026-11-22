@@ -653,4 +653,48 @@ void main() {
       );
     });
   });
+
+  group('churn', () {
+    const hot = [FileMetrics(file: 'lib/a.dart', fanIn: 3, fanOut: 1)];
+
+    test('Markdown shows commits and the window', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        hotspots: hot,
+        churn: const {'lib/a.dart': 4},
+        churnSince: '6 months ago',
+      );
+      expect(md, contains('changed most since `6 months ago`'));
+      expect(
+        md,
+        contains('| File | Commits | Fan-in | Fan-out | Instability |'),
+      );
+      expect(md, contains('| `lib/a.dart` | 4 | 3 | 1 |'));
+    });
+
+    test('Markdown without churn is unchanged', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        hotspots: hot,
+      );
+      expect(md, contains('<summary>Most coupled files</summary>'));
+      expect(md, contains('| File | Fan-in | Fan-out | Instability |'));
+    });
+
+    test('JSON churnSince key', () {
+      Map json([String? since]) =>
+          jsonDecode(
+                JsonExporter.export(
+                  result: result,
+                  cycles: const [],
+                  churnSince: since,
+                ),
+              )
+              as Map;
+      expect(json('6 months ago')['churnSince'], '6 months ago');
+      expect(json().containsKey('churnSince'), isFalse);
+    });
+  });
 }

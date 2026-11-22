@@ -80,7 +80,7 @@ layers:
 | `fail_on_layer_violation` | bool | `true` | Whether layer violations make the run exit with `1`. |
 | `workspace_rules` | map | none | In a workspace: member selector → `allowed:` members it may import. See [Workspace rules](#workspace-rules). |
 | `modules` | map | none | Module boundaries: `roots` (globs of module folders), optional `public` (files other modules may import) and `allowed` (which modules each may import). See [Module boundaries](#module-boundaries). |
-| `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). See [Metric limits](#metric-limits). |
+| `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). `churn_since`: a git date such as `"6 months ago"`; ranks hotspots by commits since then × coupling. See [Metric limits](#metric-limits). |
 | `unused_files` | map or `true` | off | Report scanned files that no entry point reaches. `entry_points`: extra globs. `fail: true` makes them fail the run. See [Unused files](#unused-files). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
@@ -192,6 +192,7 @@ metrics:
   max_fan_out: 20   # a file may import at most 20 project files
   max_fan_in: 40    # at most 40 project files may import it
   hotspots: 10      # most-coupled files to list in reports (0 = none)
+  churn_since: "6 months ago"   # rank hotspots by commits × coupling (needs git)
 ```
 
 - Only files inside the scanned project count; `package:` imports of other packages don't.
@@ -204,7 +205,8 @@ metrics:
   ```
 
 - With a baseline, a known file passes while its number stays the same or drops, and **fails again if it grows**. That makes the limit a ratchet for legacy hubs.
-- Markdown and JSON reports always list the most coupled files (fan-in + fan-out). The terminal lists the top five when `metrics:` limits are set.
+- Markdown and JSON reports always list the most coupled files (fan-in + fan-out). The terminal lists the top five when `metrics:` is set.
+- With `churn_since`, hotspots are ranked by commits in that window × coupling instead: a coupled file that nobody touches costs little, and one that changes every week is where a refactor pays off. Files with no commits in the window drop out. The value is passed to `git log --since` as is (`"6 months ago"`, `"2026-01-01"`). Renamed files keep their history; merge commits don't count. Reports show the commit count next to each file. Without git, outside a repository, or with no commits in the window, a warning says so and the ranking falls back to coupling.
 
 ## Unused files
 

@@ -40,7 +40,8 @@ Future<void> main() async {
 | `cycles`, `newCycles`, `oversizedCycles` | Circular dependency groups; the new ones; those over `max_scc_size`. |
 | `layerViolations`, `packageViolations`, `workspaceViolations`, `moduleViolations`, `metricViolations` | Rule failures. Each has a `new…` getter too. |
 | `unusedFiles`, `newUnusedFiles` | Files no entry point reaches, when `unused_files:` is on. |
-| `fileMetrics`, `hotspots` | Fan-in and fan-out per file; the most coupled first. |
+| `fileMetrics`, `hotspots` | Fan-in and fan-out per file; the most coupled first (by commits × coupling with `churn_since`). |
+| `churn` | Commits per file since `metrics: churn_since`, or `null`. |
 | `coverage` | Which files fall into which layer, and which into none. |
 | `baseline` | The comparison with the baseline file, or `null` without one. |
 | `warnings` | Configuration warnings, as the CLI prints on stderr. |

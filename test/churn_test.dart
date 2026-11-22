@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:arch_guard/arch_guard.dart';
@@ -106,5 +107,35 @@ void main() {
     final withChurn = (await analyse()).failures();
     write('arch_guard.yaml', 'metrics:\n  max_fan_in: 2\n');
     expect(withChurn, (await analyse()).failures());
+  });
+
+  test('CLI: --json hotspots carry commits', () async {
+    project('  churn_since: "10 years ago"\n');
+    initGit();
+    touchC(1);
+    final r = await Process.run(Platform.resolvedExecutable, [
+      'bin/arch_guard.dart',
+      dir.path,
+      '--json',
+    ]);
+    final data = jsonDecode(r.stdout as String) as Map;
+    expect(data['churnSince'], '10 years ago');
+    final hot = {
+      for (final h in data['hotspots'] as List) h['file']: h['commits'],
+    };
+    expect(hot['lib/hub.dart'], 1);
+    expect(hot['lib/c.dart'], 2);
+  });
+
+  test('CLI: terminal hotspot lines carry commits', () async {
+    project('  churn_since: "10 years ago"\n');
+    initGit();
+    touchC(1);
+    final r = await Process.run(Platform.resolvedExecutable, [
+      'bin/arch_guard.dart',
+      dir.path,
+      '--no-color',
+    ]);
+    expect(r.stdout, contains('lib/c.dart  in 0  out 1  commits 2'));
   });
 }

@@ -361,8 +361,12 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
 
   if (config.metricsConfigured && analysis.hotspots.isNotEmpty) {
     out.writeln('Most coupled files:');
+    final churn = analysis.churn;
     for (final m in analysis.hotspots.take(5)) {
-      out.writeln('  ${m.file}  in ${m.fanIn}  out ${m.fanOut}');
+      out.writeln(
+        '  ${m.file}  in ${m.fanIn}  out ${m.fanOut}'
+        '${churn == null ? '' : '  commits ${churn[m.file] ?? 0}'}',
+      );
     }
     out.writeln();
   }
@@ -470,7 +474,14 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     layerViolations: layerViolations.map((v) => v.toJson()).toList(),
     packageViolations: packageViolations.map((v) => v.toJson()).toList(),
     metricViolations: metricViolations.map((v) => v.toJson()).toList(),
-    hotspots: analysis.hotspots.map((m) => m.toJson()).toList(),
+    hotspots: [
+      for (final m in analysis.hotspots)
+        {
+          ...m.toJson(),
+          if (analysis.churn case final churn?) 'commits': churn[m.file] ?? 0,
+        },
+    ],
+    churnSince: analysis.churn == null ? null : config.churnSince,
     workspaceViolations: workspaceViolations.map((v) => v.toJson()).toList(),
     moduleViolations: config.modules == null
         ? null
@@ -590,6 +601,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
         failOnUnusedFiles: config.failOnUnusedFiles,
         graphDiff: analysis.graphDiff,
+        churn: analysis.churn,
+        churnSince: config.churnSince,
       );
       File(markdownPath).writeAsStringSync(markdownContent);
       out.writeln('Exported Markdown summary to: $markdownPath');

@@ -7,7 +7,8 @@ class JsonExporter {
   /// Serializes scan details, nodes, edges, and detected SCC cycles to a formatted JSON string.
   ///
   /// With [graphDiffRequested], writes [graphDiff] (`null` when the base scan
-  /// failed) under `diff`.
+  /// failed) under `diff`. [churnSince] is the `metrics: churn_since` window
+  /// when hotspots carry `commits`.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
@@ -20,6 +21,7 @@ class JsonExporter {
     List<String>? unusedFiles,
     String? since,
     Set<String>? changedFiles,
+    String? churnSince,
     bool graphDiffRequested = false,
     Map<String, Object>? graphDiff,
   }) {
@@ -57,6 +59,7 @@ class JsonExporter {
       'unusedFiles': ?unusedFiles,
       'since': ?since,
       'changedFiles': ?(changedFiles?.toList()?..sort()),
+      'churnSince': ?churnSince,
       // Left out when not requested; null when the base scan failed.
       if (graphDiffRequested) 'diff': graphDiff,
     };
