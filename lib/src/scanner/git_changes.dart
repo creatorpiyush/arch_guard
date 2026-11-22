@@ -145,6 +145,77 @@ class GitChanges {
     }
   }
 
+  /// Commits per file since [since] (a git date such as `6 months ago`),
+  /// for project files under [projectRoot], keyed by project-relative `/`
+  /// path. Merge commits are skipped. A renamed file's earlier commits count
+  /// toward its current name. Throws [GitException] when git fails.
+  static Map<String, int> commitCounts({
+    required String since,
+    required String projectRoot,
+  }) {
+    if (since.isEmpty || since.startsWith('-')) {
+      throw GitException('metrics: churn_since: "$since" is not a git date.');
+    }
+    final root = _real(projectRoot);
+    final top = _real(_git(['rev-parse', '--show-toplevel'], root).trim());
+    final out = _git([
+      'log',
+      '--no-merges',
+      '--no-ext-diff',
+      '--no-color',
+      '--name-status',
+      '-M',
+      '-z',
+      '--format=%x01',
+      '--since=$since',
+      '--',
+    ], root);
+    // Newest first. Per commit: `\x01`, then status tokens (with a leading
+    // newline) each followed by one path, or two (old, new) for R/C.
+    final counts = <String, int>{};
+    final renamedTo = <String, String>{};
+    final touched = <String>{};
+    void flush() {
+      for (final f in touched) {
+        counts[f] = (counts[f] ?? 0) + 1;
+      }
+      touched.clear();
+    }
+
+    final tokens = out.split('\u0000');
+    for (var i = 0; i < tokens.length; i++) {
+      final token = tokens[i].trim();
+      if (token.isEmpty) continue;
+      if (token == '\u0001') {
+        flush();
+        continue;
+      }
+      final status = token[0];
+      if ((status == 'R' || status == 'C') && i + 2 < tokens.length) {
+        final old = tokens[i + 1];
+        final current = renamedTo[tokens[i + 2]] ?? tokens[i + 2];
+        touched.add(current);
+        if (status == 'R') renamedTo[old] = current;
+        i += 2;
+      } else if (i + 1 < tokens.length) {
+        final path = tokens[i + 1];
+        touched.add(renamedTo[path] ?? path);
+        i += 1;
+      }
+    }
+    flush();
+    return {
+      for (final MapEntry(:key, :value) in counts.entries)
+        ?_projectPath(key, root: root, top: top): value,
+    };
+  }
+
+  static String? _projectPath(
+    String repoPath, {
+    required String root,
+    required String top,
+  }) => _projectPaths([repoPath], root: root, top: top).firstOrNull;
+
   static void _checkRef(String ref) {
     // git would read `-…` as an option (e.g. `--output=<file>`).
     if (ref.isEmpty || ref.startsWith('-')) {
