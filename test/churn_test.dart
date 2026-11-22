@@ -56,7 +56,15 @@ void main() {
 
   tearDown(() => dir.deleteSync(recursive: true));
 
-  Future<ArchAnalysis> analyse() => ArchAnalysis.run(projectPath: dir.path);
+  Future<ArchAnalysis> analyse() =>
+      ArchAnalysis.run(projectPath: dir.path, churn: true);
+
+  test('off unless requested: no git call, no warning', () async {
+    project('  churn_since: "6 months ago"\n');
+    final a = await ArchAnalysis.run(projectPath: dir.path);
+    expect(a.churn, isNull);
+    expect(a.warnings.where((w) => w.contains('churn_since')), isEmpty);
+  });
 
   test('ranks by commits times coupling', () async {
     project('  churn_since: "10 years ago"\n  hotspots: 2\n');

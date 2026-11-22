@@ -160,6 +160,10 @@ class GitChanges {
     final top = _real(_git(['rev-parse', '--show-toplevel'], root).trim());
     final out = _git([
       'log',
+      // Ignore user config that changes the output (log.showSignature
+      // prints to stdout; diff.relative makes paths cwd-relative).
+      '--no-show-signature',
+      '--no-relative',
       '--no-merges',
       '--no-ext-diff',
       '--no-color',

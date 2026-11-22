@@ -147,7 +147,7 @@ arch_guard --explain lib/services/auth_service.dart
 | `html` | `dependency_graph.html` | Exploring the graph: search, click a cycle to focus it, see each file's imports. |
 | `mermaid` | `.mmd` | Diagrams in GitHub or GitLab Markdown. |
 | `dot` | `.dot` | Graphviz (`dot -Tsvg`), clustered by package. |
-| `json` | `.json` | Dashboards and scripts: nodes, edges, cycles, violations, hotspots. |
+| `json` | `.json` | Dashboards and scripts: nodes, edges, cycles, violations, hotspots (with `commits` and `churnSince` when `metrics: churn_since` is set). |
 | `sarif` | `.sarif` | GitHub Code Scanning and SARIF viewers. Results point at the import line. |
 | `markdown` | `arch_guard_report.md` | PR comments and CI job summaries. |
 

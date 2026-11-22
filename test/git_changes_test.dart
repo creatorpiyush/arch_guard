@@ -324,6 +324,15 @@ void main() {
       });
     });
 
+    test('ignores user config that changes the log output', () {
+      git(['config', 'diff.relative', 'true']);
+      git(['config', 'log.showSignature', 'true']);
+      expect(
+        GitChanges.commitCounts(since: '10 years ago', projectRoot: app()),
+        {'lib/a.dart': 2, 'lib/b.dart': 1},
+      );
+    });
+
     test('rejects option-like since', () {
       expect(
         () => GitChanges.commitCounts(since: '--output=x', projectRoot: app()),

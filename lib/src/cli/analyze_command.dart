@@ -111,6 +111,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       useBaseline: !updateBaseline && (explainTarget?.isEmpty ?? true),
       since: since,
       graphDiff: diffWanted,
+      churn: true,
     );
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');

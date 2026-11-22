@@ -211,6 +211,9 @@ class ArchAnalysis {
   /// temporary git worktree and compared with this run in [ArchAnalysis.graphDiff].
   /// Files git ignores are left out of that comparison. If the base scan
   /// fails, a warning is added and the run goes on.
+  ///
+  /// With [churn] and `metrics: churn_since`, commits per file are counted
+  /// with git to rank [hotspots]; see [ArchAnalysis.churn].
   static Future<ArchAnalysis> run({
     String projectPath = '.',
     List<String> scanDirs = const ['lib'],
@@ -220,6 +223,7 @@ class ArchAnalysis {
     bool useBaseline = true,
     String? since,
     bool graphDiff = false,
+    bool churn = false,
   }) async {
     final root = p.canonicalize(projectPath);
     // Ask git first: a bad ref should fail before the (slow) scan.
@@ -284,19 +288,19 @@ class ArchAnalysis {
           'workspace_rules: `$pattern` matches no workspace member.',
       ...ModuleValidator.warnings(result: scan, config: config),
     ];
-    Map<String, int>? churn;
-    if (config.churnSince case final churnSince?) {
+    Map<String, int>? commits;
+    if (config.churnSince case final churnSince? when churn) {
       try {
         final counts = GitChanges.commitCounts(
           since: churnSince,
           projectRoot: root,
         );
-        churn = {
+        commits = {
           for (final MapEntry(:key, :value) in counts.entries)
             if (scan.files.containsKey(key)) key: value,
         };
-        if (churn.isEmpty) {
-          churn = null;
+        if (commits.isEmpty) {
+          commits = null;
           warnings.add(
             'metrics: churn_since: no commits since "$churnSince". Hotspots '
             'are ranked by coupling only.',
@@ -405,7 +409,7 @@ class ArchAnalysis {
       since: since,
       changedFiles: changed?.where(scan.files.containsKey).toSet(),
       graphDiff: diff,
-      churn: churn,
+      churn: commits,
       baseline: comparison == null
           ? null
           : BaselineComparison(
