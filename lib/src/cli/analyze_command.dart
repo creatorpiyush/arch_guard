@@ -86,6 +86,11 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     );
   }
 
+  // The base checkout costs a full scan, so only when a report shows it.
+  final diffWanted =
+      since != null &&
+      !watch &&
+      (jsonStdout || {'all', 'markdown', 'json'}.any(formats.contains));
   ArchAnalysis analysis;
   try {
     analysis = await ArchAnalysis.run(
@@ -98,6 +103,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       // work even when the existing file is broken.
       useBaseline: !updateBaseline && (explainTarget?.isEmpty ?? true),
       since: since,
+      graphDiff: diffWanted,
     );
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');
@@ -465,6 +471,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
     since: since,
     changedFiles: analysis.changedFiles,
+    graphDiffRequested: diffWanted,
+    graphDiff: analysis.graphDiff?.toJson(),
   );
   if (jsonStdout) stdout.writeln(jsonReport());
 
@@ -574,6 +582,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         changedFileCount: analysis.changedFiles?.length,
         unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
         failOnUnusedFiles: config.failOnUnusedFiles,
+        graphDiff: analysis.graphDiff,
       );
       File(markdownPath).writeAsStringSync(markdownContent);
       out.writeln('Exported Markdown summary to: $markdownPath');

@@ -5,6 +5,9 @@ import '../models/scan_result.dart';
 /// Exports scan results and detected circular dependency SCCs to machine-readable JSON format.
 class JsonExporter {
   /// Serializes scan details, nodes, edges, and detected SCC cycles to a formatted JSON string.
+  ///
+  /// With [graphDiffRequested], writes [graphDiff] (`null` when the base scan
+  /// failed) under `diff`.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
@@ -17,6 +20,8 @@ class JsonExporter {
     List<String>? unusedFiles,
     String? since,
     Set<String>? changedFiles,
+    bool graphDiffRequested = false,
+    Map<String, Object>? graphDiff,
   }) {
     final payload = {
       'packageName': result.packageName,
@@ -52,6 +57,8 @@ class JsonExporter {
       'unusedFiles': ?unusedFiles,
       'since': ?since,
       'changedFiles': ?(changedFiles?.toList()?..sort()),
+      // Left out when not requested; null when the base scan failed.
+      if (graphDiffRequested) 'diff': graphDiff,
     };
 
     return const JsonEncoder.withIndent('  ').convert(payload);

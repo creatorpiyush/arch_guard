@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:arch_guard/arch_guard.dart';
+import 'package:arch_guard/src/cli/run.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -101,6 +103,50 @@ layers:
     test('failures are unchanged', () async {
       write('lib/ui/a.dart', importB);
       expect((await run()).failures(), (await run(diff: false)).failures());
+    });
+
+    test('CLI: Markdown has the section, exit code unchanged', () async {
+      write('lib/ui/a.dart', importB);
+      git(['commit', '-qam', 'import']);
+      final out = p.join(repo.path, 'out');
+      final code = await runCli([
+        repo.path,
+        '--since',
+        'main',
+        '-f',
+        'markdown',
+        '-o',
+        out,
+        '--no-color',
+      ]);
+      final md = File(p.join(out, 'arch_guard_report.md')).readAsStringSync();
+      expect(md, contains('### What this change adds'));
+      expect(md, contains('- `presentation` → `data` (1 import)'));
+      expect(
+        code,
+        await runCli([
+          repo.path,
+          '--since',
+          'main',
+          '-f',
+          'text',
+          '--no-color',
+        ]),
+      );
+    });
+
+    test('CLI: --json stdout has the diff', () async {
+      write('lib/ui/a.dart', importB);
+      git(['commit', '-qam', 'import']);
+      final r = await Process.run(Platform.resolvedExecutable, [
+        'bin/arch_guard.dart',
+        repo.path,
+        '--since',
+        'main',
+        '--json',
+      ]);
+      final data = jsonDecode(r.stdout as String) as Map;
+      expect((data['diff'] as Map)['groupEdges'], hasLength(1));
     });
 
     test('no worktree left', () async {

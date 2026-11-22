@@ -4,6 +4,7 @@ import '../checker/metric_validator.dart';
 import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
 import '../checker/workspace_validator.dart';
+import '../graph/graph_diff.dart';
 import '../models/cycle.dart';
 import '../models/file_metrics.dart';
 import '../models/scan_result.dart';
@@ -26,7 +27,8 @@ class MarkdownExporter {
   /// Renders the report as Markdown, listing problems not in [baseline] first.
   ///
   /// [since] and [changedFileCount] add a note that the lists only hold
-  /// problems touching files changed since that git ref.
+  /// problems touching files changed since that git ref. A non-empty
+  /// [graphDiff] adds the advisory "What this change adds" section.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
@@ -43,6 +45,7 @@ class MarkdownExporter {
     int? changedFileCount,
     List<String>? unusedFiles,
     bool failOnUnusedFiles = false,
+    GraphDiff? graphDiff,
   }) {
     final comparison =
         baseline ??
@@ -250,6 +253,8 @@ class MarkdownExporter {
       b.writeln();
     }
 
+    if (graphDiff != null && !graphDiff.isEmpty) _writeDiff(b, graphDiff);
+
     if (hotspots.isNotEmpty) {
       b
         ..writeln('<details><summary>Most coupled files</summary>')
@@ -330,6 +335,63 @@ class MarkdownExporter {
     }
 
     return b.toString();
+  }
+
+  /// Most imports listed under one new group edge.
+  static const maxImportsPerEdge = 5;
+
+  static void _writeDiff(StringBuffer b, GraphDiff diff) {
+    b
+      ..writeln('### What this change adds')
+      ..writeln()
+      ..writeln('_Advice only: this does not affect the result._')
+      ..writeln();
+    const edgeTitles = {
+      'layer': 'New layer dependencies',
+      'module': 'New module dependencies',
+      'member': 'New workspace member dependencies',
+    };
+    for (final MapEntry(key: kind, value: title) in edgeTitles.entries) {
+      final edges = diff.groupEdges.where((e) => e.kind == kind).toList();
+      if (edges.isEmpty) continue;
+      b
+        ..writeln('**$title**')
+        ..writeln();
+      _writeCapped(b, edges, (e) {
+        final n = e.imports.length;
+        final lines = [
+          '- `${e.from}` → `${e.to}` ($n import${n == 1 ? '' : 's'})',
+          for (final i in e.imports.take(maxImportsPerEdge))
+            '  - `${i.from}${i.line == null ? '' : ':${i.line}'}` → `${i.to}`',
+          if (n > maxImportsPerEdge) '  - … and ${n - maxImportsPerEdge} more',
+        ];
+        return lines.join('\n');
+      });
+      b.writeln();
+    }
+    if (diff.packages.isNotEmpty) {
+      const suffix = {'module': ' (module)', 'member': ' (workspace member)'};
+      b
+        ..writeln('**New packages**')
+        ..writeln();
+      _writeCapped(
+        b,
+        diff.packages,
+        (p) => '- `${p.group}`${suffix[p.kind] ?? ''}: `${p.package}`',
+      );
+      b.writeln();
+    }
+    if (diff.coupling.isNotEmpty) {
+      b
+        ..writeln('**Coupling growth**')
+        ..writeln();
+      for (final c in diff.coupling) {
+        b.writeln(
+          '- `${c.file}`: ${[if (c.fanInAfter != c.fanInBefore) 'fan-in ${c.fanInBefore} → ${c.fanInAfter}', if (c.fanOutAfter != c.fanOutBefore) 'fan-out ${c.fanOutBefore} → ${c.fanOutAfter}'].join(', ')}',
+        );
+      }
+      b.writeln();
+    }
   }
 
   static String _andJoin(List<String> parts) =>
