@@ -49,18 +49,20 @@ dart run arch_guard          # checks the project
 ## Why arch_guard?
 
 | | arch_guard | [DCM](https://dcm.dev) | [import_lint](https://pub.dev/packages/import_lint) | [lakos](https://pub.dev/packages/lakos) |
-| :--- | :---: | :---: | :---: | :---: |
-| Price | Free, MIT | Free tier (1 seat, up to 50k LOC); paid plans | Free, MIT | Free, MIT |
-| Import / layer rules | ✅ layers with `allowed_imports`, module boundaries, plus package-level `workspace_rules` | ✅ `avoid-banned-imports` rule | ✅ `target` / `from` rules | – |
-| Ready-made architecture presets + `init` | ✅ | – | – | – |
-| Circular dependency detection | ✅ with metrics | – | – | ✅ |
+| :--- | :--- | :--- | :--- | :--- |
+| Price | Free, MIT | Free tier, paid plans | Free, MIT | Free, MIT |
+| Import / layer rules | ✅ | ✅ | ✅ | – |
+| Architecture presets + `init` | ✅ | – | – | – |
+| Circular dependencies | ✅ | – | – | ✅ |
 | Baseline for legacy code | ✅ | ✅ | – | – |
-| Unused file detection | ✅ reachability from entry points (dead cycles too), with baseline and `--since` | ✅ `check-unused-files` | – | – |
-| Dependency graph output | HTML, Mermaid, DOT, JSON | DOT (`analyze-structure`) | – | DOT, JSON |
-| PR comment / SARIF / GitHub Action | ✅ | CI integrations on paid plans | – | – |
-| Warnings in the IDE | ✅ (`arch_guard_lint` analyzer plugin) | ✅ | ✅ (analyzer plugin) | – |
+| Unused files | ✅ | ✅ | – | – |
+| Graph output | HTML, Mermaid, DOT, JSON | DOT | – | DOT, JSON |
+| PR comment, SARIF, Action | ✅ | Paid plans | – | – |
+| Warnings in the IDE | ✅ | ✅ | ✅ | – |
 
-DCM is a full linting suite with hundreds of rules; import_lint shows import rules right in your editor; lakos focuses on graph metrics. arch_guard is built for one job: making architecture rules easy to adopt, including on a large existing codebase, and enforced on every pull request. *Comparison based on each tool's public documentation in October 2026; corrections welcome.*
+arch_guard's import rules cover layers (`allowed_imports`), module boundaries and workspace members (`workspace_rules`). Cycles come with size metrics, unused files are found by reachability from entry points (dead cycles too), and both work with the baseline and `--since`. IDE warnings come from the [`arch_guard_lint`](https://pub.dev/packages/arch_guard_lint) analyzer plugin.
+
+DCM is a full linting suite with hundreds of rules (its free tier covers one seat and up to 50k lines; import bans use `avoid-banned-imports`, unused files `check-unused-files`, the graph `analyze-structure`). import_lint shows `target` / `from` import rules right in your editor; lakos focuses on graph metrics. arch_guard is built for one job: making architecture rules easy to adopt, including on a large existing codebase, and enforced on every pull request. *Comparison based on each tool's public documentation in October 2026; corrections welcome.*
 
 ---
 
@@ -161,7 +163,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: creatorpiyush/arch_guard@v1.20.0
+      - uses: creatorpiyush/arch_guard@v1.21.0
 ```
 
 The action downloads a checksum-verified binary, posts one PR comment it keeps up to date, and can upload SARIF to GitHub Code Scanning. GitLab CI, pre-commit, lefthook and plain git hooks are covered in the [CI & hooks guide](https://creatorpiyush.github.io/arch_guard/ci.html).
