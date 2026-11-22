@@ -8,6 +8,7 @@ import '../checker/package_validator.dart';
 import '../checker/unused_files.dart';
 import '../checker/workspace_validator.dart';
 import '../graph/dependency_graph.dart';
+import '../graph/graph_diff.dart';
 import '../models/config_model.dart';
 import '../models/cycle.dart';
 import '../models/file_metrics.dart';
@@ -77,6 +78,11 @@ class ArchAnalysis {
   /// every problem list holds only problems touching one of these files.
   final Set<String>? changedFiles;
 
+  /// What the change adds compared with the merge base of [since], or
+  /// `null` when not requested (see [run]) or when the base scan failed.
+  /// Advice only: [failures] never looks at it.
+  final GraphDiff? graphDiff;
+
   /// Creates an analysis from already computed parts; usually built by [run].
   const ArchAnalysis({
     required this.scan,
@@ -97,6 +103,7 @@ class ArchAnalysis {
     this.baseline,
     this.since,
     this.changedFiles,
+    this.graphDiff,
   });
 
   /// Cycles not in the baseline (all of them without a baseline).
@@ -183,6 +190,11 @@ class ArchAnalysis {
   /// still analysed, but only problems touching files changed since the merge
   /// base with [since] are kept; the baseline's fixed counts still come from
   /// the full run. Throws [GitException] when git fails.
+  ///
+  /// With [graphDiff] and [since], the merge base is also scanned in a
+  /// temporary git worktree and compared with this run in [ArchAnalysis.graphDiff].
+  /// Files git ignores are left out of that comparison. If the base scan
+  /// fails, a warning is added and the run goes on.
   static Future<ArchAnalysis> run({
     String projectPath = '.',
     List<String> scanDirs = const ['lib'],
@@ -191,6 +203,7 @@ class ArchAnalysis {
     String baselinePath = defaultBaselineFileName,
     bool useBaseline = true,
     String? since,
+    bool graphDiff = false,
   }) async {
     final root = p.canonicalize(projectPath);
     // Ask git first: a bad ref should fail before the (slow) scan.
@@ -255,6 +268,33 @@ class ArchAnalysis {
           'workspace_rules: `$pattern` matches no workspace member.',
       ...ModuleValidator.warnings(result: scan, config: config),
     ];
+    GraphDiff? diff;
+    if (since != null && graphDiff) {
+      try {
+        final sha = GitChanges.mergeBase(since, projectRoot: root);
+        final before = await GitChanges.withBaseCheckout(
+          sha,
+          projectRoot: root,
+          body: (baseRoot) => ProjectScanner(
+            rootPath: baseRoot,
+            scanDirs: scanDirs,
+            exclude: [...exclude, ...config.ignorePatterns],
+            enableWorkspace: enableWorkspace,
+          ).scan(),
+        );
+        diff = GraphDiff.compute(
+          base: sha,
+          before: before,
+          after: GraphDiff.restrictTo(
+            scan,
+            GitChanges.knownFiles(projectRoot: root),
+          ),
+          config: config,
+        );
+      } catch (e) {
+        warnings.add('Graph diff skipped: $e.');
+      }
+    }
     final maxScc = config.maxSccSize;
     final absBaseline = p.isAbsolute(baselinePath)
         ? baselinePath
@@ -323,6 +363,7 @@ class ArchAnalysis {
       baselinePath: absBaseline,
       since: since,
       changedFiles: changed?.where(scan.files.containsKey).toSet(),
+      graphDiff: diff,
       baseline: comparison == null
           ? null
           : BaselineComparison(
