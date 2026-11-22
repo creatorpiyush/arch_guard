@@ -263,4 +263,81 @@ void main() {
       expect(worktrees(), 1);
     });
   });
+
+  group('commit counts', () {
+    // setUp: lib/a.dart and lib/b.dart in the base commit, lib/a.dart again
+    // in "change"; lib/b.dart has an uncommitted edit, plus an untracked file.
+    String app() => p.join(repo.path, 'app');
+
+    void commitAt(String date, String message) {
+      final r = Process.runSync(
+        'git',
+        ['commit', '-qm', message],
+        workingDirectory: repo.path,
+        environment: {'GIT_AUTHOR_DATE': date, 'GIT_COMMITTER_DATE': date},
+      );
+      if (r.exitCode != 0) fail('git commit: ${r.stderr}');
+    }
+
+    test('counts commits per file in the project', () {
+      expect(
+        GitChanges.commitCounts(since: '10 years ago', projectRoot: app()),
+        {'lib/a.dart': 2, 'lib/b.dart': 1},
+      );
+    });
+
+    test('follows renames', () {
+      git(['mv', 'app/lib/a.dart', 'app/lib/renamed.dart']);
+      git(['commit', '-qm', 'rename']);
+      write('app/lib/renamed.dart', '// after rename');
+      git(['commit', '-qam', 'edit']);
+      final counts = GitChanges.commitCounts(
+        since: '10 years ago',
+        projectRoot: app(),
+      );
+      expect(counts['lib/renamed.dart'], 4);
+      expect(counts, isNot(contains('lib/a.dart')));
+    });
+
+    test('paths with spaces and unicode', () {
+      git(['add', '.']);
+      git(['commit', '-qm', 'add unicode']);
+      expect(
+        GitChanges.commitCounts(
+          since: '10 years ago',
+          projectRoot: app(),
+        )['lib/new file é.dart'],
+        1,
+      );
+    });
+
+    test('window excludes old commits', () {
+      // git stops walking at the first commit older than --since, as in a
+      // real history where dates grow: only the newer commit counts.
+      write('app/lib/old.dart', '');
+      git(['add', 'app/lib/old.dart']);
+      commitAt('2000-01-01T00:00:00', 'old');
+      write('app/lib/b.dart', '// newer');
+      git(['commit', '-qam', 'newer']);
+      expect(GitChanges.commitCounts(since: '2020-01-01', projectRoot: app()), {
+        'lib/b.dart': 1,
+      });
+    });
+
+    test('ignores user config that changes the log output', () {
+      git(['config', 'diff.relative', 'true']);
+      git(['config', 'log.showSignature', 'true']);
+      expect(
+        GitChanges.commitCounts(since: '10 years ago', projectRoot: app()),
+        {'lib/a.dart': 2, 'lib/b.dart': 1},
+      );
+    });
+
+    test('rejects option-like since', () {
+      expect(
+        () => GitChanges.commitCounts(since: '--output=x', projectRoot: app()),
+        throwsA(isA<GitException>()),
+      );
+    });
+  });
 }

@@ -28,7 +28,9 @@ class MarkdownExporter {
   ///
   /// [since] and [changedFileCount] add a note that the lists only hold
   /// problems touching files changed since that git ref. A non-empty
-  /// [graphDiff] adds the advisory "What this change adds" section.
+  /// [graphDiff] adds the advisory "What this change adds" section. With
+  /// [churn] (commits per file since [churnSince]), the hotspot table gets a
+  /// Commits column.
   static String export({
     required ScanResult result,
     required List<Cycle> cycles,
@@ -46,6 +48,8 @@ class MarkdownExporter {
     List<String>? unusedFiles,
     bool failOnUnusedFiles = false,
     GraphDiff? graphDiff,
+    Map<String, int>? churn,
+    String? churnSince,
   }) {
     final comparison =
         baseline ??
@@ -256,14 +260,27 @@ class MarkdownExporter {
     if (graphDiff != null && !graphDiff.isEmpty) _writeDiff(b, graphDiff);
 
     if (hotspots.isNotEmpty) {
-      b
-        ..writeln('<details><summary>Most coupled files</summary>')
-        ..writeln()
-        ..writeln('| File | Fan-in | Fan-out | Instability |')
-        ..writeln('| :--- | ---: | ---: | ---: |');
+      if (churn == null) {
+        b
+          ..writeln('<details><summary>Most coupled files</summary>')
+          ..writeln()
+          ..writeln('| File | Fan-in | Fan-out | Instability |')
+          ..writeln('| :--- | ---: | ---: | ---: |');
+      } else {
+        b
+          ..writeln(
+            '<details><summary>Most coupled files, changed most since '
+            '`$churnSince`</summary>',
+          )
+          ..writeln()
+          ..writeln('| File | Commits | Fan-in | Fan-out | Instability |')
+          ..writeln('| :--- | ---: | ---: | ---: | ---: |');
+      }
       for (final m in hotspots) {
+        final commits = churn == null ? '' : ' ${churn[m.file] ?? 0} |';
         b.writeln(
-          '| `${m.file}` | ${m.fanIn} | ${m.fanOut} | ${m.instability} |',
+          '| `${m.file}` |$commits ${m.fanIn} | ${m.fanOut} | '
+          '${m.instability} |',
         );
       }
       b

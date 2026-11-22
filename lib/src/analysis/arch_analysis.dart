@@ -78,6 +78,10 @@ class ArchAnalysis {
   /// every problem list holds only problems touching one of these files.
   final Set<String>? changedFiles;
 
+  /// Commits per scanned file since `metrics: churn_since`, or `null` when
+  /// that is unset, git failed, or no file had commits in the window.
+  final Map<String, int>? churn;
+
   /// What the change adds compared with the merge base of [since], or
   /// `null` when not requested (see [run]) or when the base scan failed.
   /// Advice only: [failures] never looks at it.
@@ -104,6 +108,7 @@ class ArchAnalysis {
     this.since,
     this.changedFiles,
     this.graphDiff,
+    this.churn,
   });
 
   /// Cycles not in the baseline (all of them without a baseline).
@@ -121,11 +126,22 @@ class ArchAnalysis {
   List<MetricViolation> get newMetricViolations =>
       baseline?.newMetricViolations ?? metricViolations;
 
-  /// The `metrics: hotspots` most coupled files (files with no edges skipped).
-  List<FileMetrics> get hotspots => fileMetrics
-      .where((m) => m.coupling > 0)
-      .take(config.hotspotCount)
-      .toList();
+  /// The `metrics: hotspots` most coupled files (files with no edges
+  /// skipped). With [churn], ranked by commits times coupling instead, and
+  /// files with no commits in the window are left out.
+  List<FileMetrics> get hotspots {
+    final churn = this.churn;
+    final coupled = fileMetrics.where((m) => m.coupling > 0);
+    if (churn == null) return coupled.take(config.hotspotCount).toList();
+    int score(FileMetrics m) => (churn[m.file] ?? 0) * m.coupling;
+    return (coupled.where((m) => score(m) > 0).toList()..sort((a, b) {
+          var c = score(b).compareTo(score(a));
+          if (c == 0) c = b.coupling.compareTo(a.coupling);
+          return c != 0 ? c : a.file.compareTo(b.file);
+        }))
+        .take(config.hotspotCount)
+        .toList();
+  }
 
   /// Unused files not in the baseline.
   List<String> get newUnusedFiles => baseline?.newUnusedFiles ?? unusedFiles;
@@ -195,6 +211,9 @@ class ArchAnalysis {
   /// temporary git worktree and compared with this run in [ArchAnalysis.graphDiff].
   /// Files git ignores are left out of that comparison. If the base scan
   /// fails, a warning is added and the run goes on.
+  ///
+  /// With [churn] and `metrics: churn_since`, commits per file are counted
+  /// with git to rank [hotspots]; see [ArchAnalysis.churn].
   static Future<ArchAnalysis> run({
     String projectPath = '.',
     List<String> scanDirs = const ['lib'],
@@ -204,6 +223,7 @@ class ArchAnalysis {
     bool useBaseline = true,
     String? since,
     bool graphDiff = false,
+    bool churn = false,
   }) async {
     final root = p.canonicalize(projectPath);
     // Ask git first: a bad ref should fail before the (slow) scan.
@@ -268,6 +288,31 @@ class ArchAnalysis {
           'workspace_rules: `$pattern` matches no workspace member.',
       ...ModuleValidator.warnings(result: scan, config: config),
     ];
+    Map<String, int>? commits;
+    if (config.churnSince case final churnSince? when churn) {
+      try {
+        final counts = GitChanges.commitCounts(
+          since: churnSince,
+          projectRoot: root,
+        );
+        commits = {
+          for (final MapEntry(:key, :value) in counts.entries)
+            if (scan.files.containsKey(key)) key: value,
+        };
+        if (commits.isEmpty) {
+          commits = null;
+          warnings.add(
+            'metrics: churn_since: no commits since "$churnSince". Hotspots '
+            'are ranked by coupling only.',
+          );
+        }
+      } on GitException catch (e) {
+        warnings.add(
+          'metrics: churn_since ignored: ${e.message}. Hotspots are ranked '
+          'by coupling only.',
+        );
+      }
+    }
     GraphDiff? diff;
     if (since != null && graphDiff) {
       try {
@@ -364,6 +409,7 @@ class ArchAnalysis {
       since: since,
       changedFiles: changed?.where(scan.files.containsKey).toSet(),
       graphDiff: diff,
+      churn: commits,
       baseline: comparison == null
           ? null
           : BaselineComparison(
