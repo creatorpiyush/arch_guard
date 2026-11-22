@@ -68,6 +68,30 @@ Prebuilt binaries cover Linux x64/arm64, macOS arm64 and Windows x64. On other r
           args: --since origin/${{ github.base_ref }}
 ```
 
+With `--since`, the PR comment also shows **What this change adds**: the new layer, module and workspace member dependencies, new packages per layer, and the files whose coupling grew. It is advice for the reviewer and never fails the check:
+
+```markdown
+### What this change adds
+
+_Advice only: this does not affect the result._
+
+**New layer dependencies**
+
+- `presentation` → `data` (2 imports)
+  - `lib/ui/cart_page.dart:4` → `lib/data/cart_repo.dart`
+  - `lib/ui/checkout_page.dart:7` → `lib/data/cart_repo.dart`
+
+**New packages**
+
+- `domain`: `http`
+
+**Coupling growth**
+
+- `lib/core/service_locator.dart`: fan-in 3 → 9
+```
+
+See [What this change adds](cli.md#what-this-change-adds).
+
 ### Run only the tests a PR can affect
 
 `arch_guard affected` lists the test files that the branch's changes can reach through imports, so a large repository can skip unrelated tests:

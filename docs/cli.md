@@ -57,6 +57,7 @@ Flags for the main check. Repeatable flags can be given more than once (`--scan-
 | :--- | :--- | :--- |
 | `-f`, `--format` | `text` | `text`, `html`, `mermaid`, `dot`, `json`, `sarif`, `markdown` or `all`. Repeatable. See [Output formats](#output-formats). |
 | `-o`, `--output` | `arch_guard_output` | Folder for report files. |
+| `--no-graph-diff` | | With `--since`, skip the [What this change adds](#what-this-change-adds) comparison (and its checkout of the merge base). `--watch` re-runs always skip it. |
 | `--json` | off | Print the JSON report (the same as `-f json`) to stdout and nothing else, for scripts and AI agents. The usual report and warnings go to stderr. The exit code is unchanged. |
 | `--scope` | `cycles` | What graphs show: `cycles` (each cycle plus the files one import away) or `all` (the full graph). |
 | `--group-by` | – | `layer`, `module`, `package` or `folder`: graphs show one node per group, with import counts on edges and rule violations in red. Implies `--scope all` unless `--scope` is given. See [Output formats](#output-formats). |
@@ -105,6 +106,16 @@ The report ends with `Only problems touching 7 file(s) changed since origin/main
 - A `max_fan_in` violation counts when a changed file imports the over-limit file.
 - In CI, check out with full history (`fetch-depth: 0`). See [CI](ci.md#large-repositories-only-changed-files).
 - When git fails, for example on an unknown ref, the run exits `2`.
+
+### What this change adds
+
+With `-f markdown`, `-f json`, `-f all` or `--json`, `--since` also compares the dependency graph with the merge base. Nothing here fails the run. The Markdown report gets a **What this change adds** section, and the JSON report a `diff` key, listing:
+
+- new dependencies between layers, modules and workspace members, with the imports that create them;
+- packages a layer, module or member starts to import (`dart:` libraries are left out);
+- the files whose fan-in or fan-out grew most (files on both sides only).
+
+The merge base is checked out in a temporary git worktree and scanned with your current `arch_guard.yaml`, so a layer means the same files on both sides. Files git ignores, such as generated `*.config.dart` files, are left out of the comparison. A PR that adds nothing gets no section. In JSON, `diff` is absent without `--since` and `null` when the base could not be scanned (a warning says why).
 
 ## Watch mode
 

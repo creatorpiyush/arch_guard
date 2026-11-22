@@ -151,4 +151,116 @@ void main() {
       contains('fetch-depth: 0'),
     );
   });
+
+  group('base checkout', () {
+    String app() => p.join(repo.path, 'app');
+    int worktrees() {
+      final r = Process.runSync('git', [
+        'worktree',
+        'list',
+        '--porcelain',
+      ], workingDirectory: repo.path);
+      return (r.stdout as String)
+          .split('\n')
+          .where((l) => l.startsWith('worktree '))
+          .length;
+    }
+
+    test('mergeBase returns the main commit', () {
+      final main = Process.runSync('git', [
+        'rev-parse',
+        'main',
+      ], workingDirectory: repo.path);
+      expect(
+        GitChanges.mergeBase('main', projectRoot: app()),
+        (main.stdout as String).trim(),
+      );
+    });
+
+    test('mergeBase rejects refs that git would read as options', () {
+      expect(
+        () => GitChanges.mergeBase('--foo', projectRoot: app()),
+        throwsA(isA<GitException>()),
+      );
+    });
+
+    test('knownFiles skips ignored files', () {
+      write('.gitignore', '*.config.dart\n');
+      write('app/lib/di.config.dart', '');
+      write('app/lib/new.dart', '');
+      final known = GitChanges.knownFiles(projectRoot: app());
+      expect(known, containsAll(['lib/new.dart', 'lib/a.dart']));
+      expect(known, isNot(contains('lib/di.config.dart')));
+      expect(known.where((f) => f.contains('x.dart')), isEmpty);
+    });
+
+    test(
+      'withBaseCheckout sees base content in a sub-folder project',
+      () async {
+        final content = await GitChanges.withBaseCheckout(
+          GitChanges.mergeBase('main', projectRoot: app()),
+          projectRoot: app(),
+          body: (baseRoot) async {
+            expect(p.basename(baseRoot), 'app');
+            return File(p.join(baseRoot, 'lib', 'a.dart')).readAsStringSync();
+          },
+        );
+        expect(content, '');
+      },
+    );
+
+    test('withBaseCheckout cleans up', () async {
+      late String baseRoot;
+      await GitChanges.withBaseCheckout(
+        GitChanges.mergeBase('main', projectRoot: app()),
+        projectRoot: app(),
+        body: (root) async => baseRoot = root,
+      );
+      expect(Directory(baseRoot).existsSync(), isFalse);
+      expect(worktrees(), 1);
+    });
+
+    test('withBaseCheckout cleans up when body throws', () async {
+      late String baseRoot;
+      await expectLater(
+        GitChanges.withBaseCheckout(
+          GitChanges.mergeBase('main', projectRoot: app()),
+          projectRoot: app(),
+          body: (root) async {
+            baseRoot = root;
+            throw StateError('boom');
+          },
+        ),
+        throwsStateError,
+      );
+      expect(Directory(baseRoot).existsSync(), isFalse);
+      expect(worktrees(), 1);
+    });
+
+    test('withBaseCheckout does not run git hooks', () async {
+      final hook = p.join(repo.path, '.git', 'hooks', 'post-checkout');
+      write('.git/hooks/post-checkout', '#!/bin/sh\nexit 1\n');
+      if (!Platform.isWindows) Process.runSync('chmod', ['+x', hook]);
+      final content = await GitChanges.withBaseCheckout(
+        GitChanges.mergeBase('main', projectRoot: app()),
+        projectRoot: app(),
+        body: (baseRoot) async =>
+            File(p.join(baseRoot, 'lib', 'a.dart')).readAsStringSync(),
+      );
+      expect(content, '');
+      expect(worktrees(), 1);
+    });
+
+    test('withBaseCheckout rejects an unknown sha', () async {
+      await expectLater(
+        GitChanges.withBaseCheckout(
+          '0' * 40,
+          projectRoot: app(),
+          body: (_) async => null,
+        ),
+        throwsA(isA<GitException>()),
+      );
+      expect(worktrees(), 1);
+    });
+  });
 }

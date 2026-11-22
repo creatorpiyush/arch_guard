@@ -570,4 +570,87 @@ void main() {
       SarifExporter.sccSizeLimitRule: '${docs}configuration.html#keys',
     });
   });
+
+  group('graph diff', () {
+    final diff = GraphDiff(
+      base: 'abc',
+      groupEdges: [
+        NewGroupEdge('layer', 'presentation', 'data', [
+          for (var i = 1; i <= 7; i++)
+            GraphEdge(
+              from: 'lib/ui/p$i.dart',
+              to: 'lib/data/repo.dart',
+              type: 'import',
+              line: i,
+            ),
+        ]),
+      ],
+      packages: const [NewGroupPackage('layer', 'domain', 'http')],
+      coupling: const [
+        CouplingGrowth(
+          file: 'lib/core/locator.dart',
+          fanInBefore: 3,
+          fanInAfter: 9,
+          fanOutBefore: 2,
+          fanOutAfter: 2,
+        ),
+      ],
+    );
+
+    test('Markdown section lists what the change adds', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: [cycle],
+        graphDiff: diff,
+      );
+      expect(md, contains('### What this change adds'));
+      expect(md, contains('_Advice only: this does not affect the result._'));
+      expect(md, contains('**New layer dependencies**'));
+      expect(md, contains('- `presentation` → `data` (7 imports)'));
+      expect(
+        RegExp(
+          r'^  - `lib/ui/p\d\.dart:\d` → ',
+          multiLine: true,
+        ).allMatches(md),
+        hasLength(5),
+      );
+      expect(md, contains('  - … and 2 more'));
+      expect(md, contains('- `domain`: `http`'));
+      expect(md, contains('- `lib/core/locator.dart`: fan-in 3 → 9'));
+      expect(
+        md.indexOf('What this change adds'),
+        lessThan(md.indexOf('```mermaid')),
+      );
+    });
+
+    test('Markdown leaves the section out when there is nothing', () {
+      for (final d in [null, const GraphDiff(base: 'abc')]) {
+        final md = MarkdownExporter.export(
+          result: result,
+          cycles: const [],
+          graphDiff: d,
+        );
+        expect(md, isNot(contains('What this change adds')));
+      }
+    });
+
+    test('JSON diff key: left out, null, or the diff', () {
+      Map json({bool requested = false, Map<String, Object>? d}) =>
+          jsonDecode(
+                JsonExporter.export(
+                  result: result,
+                  cycles: const [],
+                  graphDiffRequested: requested,
+                  graphDiff: d,
+                ),
+              )
+              as Map;
+      expect(json().containsKey('diff'), isFalse);
+      expect(json(requested: true), containsPair('diff', null));
+      expect(
+        (json(requested: true, d: diff.toJson())['diff'] as Map)['base'],
+        'abc',
+      );
+    });
+  });
 }

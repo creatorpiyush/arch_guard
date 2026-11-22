@@ -16,6 +16,13 @@ import '../reporters/text_reporter.dart';
 import '../scanner/git_changes.dart';
 import 'watch_command.dart';
 
+/// The arguments of each `--watch` re-run: [args] without `--watch`, and
+/// without the graph diff, which would check out the merge base on every save.
+List<String> watchRunArgs(List<String> args) => [
+  ...args.where((a) => a != '--watch'),
+  '--no-graph-diff',
+];
+
 /// Runs the default command, `arch_guard [project_path] [options]`: analyses
 /// the project, prints the report, writes the requested exports and returns
 /// the exit code. [args] are the raw arguments, passed on to `--watch` runs.
@@ -80,12 +87,17 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       from: absProjectPath,
     );
     return runWatch(
-      args: args.where((a) => a != '--watch').toList(),
+      args: watchRunArgs(args),
       projectRoot: absProjectPath,
       baselineRelativePath: p.split(baseline).join('/'),
     );
   }
 
+  // The base checkout costs a full scan, so only when a report shows it.
+  final diffWanted =
+      since != null &&
+      argResults['graph-diff'] as bool &&
+      (jsonStdout || {'all', 'markdown', 'json'}.any(formats.contains));
   ArchAnalysis analysis;
   try {
     analysis = await ArchAnalysis.run(
@@ -98,6 +110,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       // work even when the existing file is broken.
       useBaseline: !updateBaseline && (explainTarget?.isEmpty ?? true),
       since: since,
+      graphDiff: diffWanted,
     );
   } on FormatException catch (e) {
     stderr.writeln('Error: ${e.message}');
@@ -465,6 +478,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
     since: since,
     changedFiles: analysis.changedFiles,
+    graphDiffRequested: diffWanted,
+    graphDiff: analysis.graphDiff?.toJson(),
   );
   if (jsonStdout) stdout.writeln(jsonReport());
 
@@ -574,6 +589,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         changedFileCount: analysis.changedFiles?.length,
         unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
         failOnUnusedFiles: config.failOnUnusedFiles,
+        graphDiff: analysis.graphDiff,
       );
       File(markdownPath).writeAsStringSync(markdownContent);
       out.writeln('Exported Markdown summary to: $markdownPath');
