@@ -32,7 +32,7 @@ dart run arch_guard          # checks the project
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
 - 📌 **Baselines for existing code.** Record today's problems once; CI then fails only on *new* ones.
-- 🎯 **`--since origin/main`.** Report only problems touching files changed on the branch.
+- 🎯 **`--since origin/main`.** Report only problems touching files changed on the branch, and show in the PR comment which new layer, module and package dependencies the branch adds.
 - 🩹 **Cycle-breaking hints.** Each cycle names the one import to remove to break it.
 - 🧪 **Architecture tests.** `await expectArchitecture();` in `dart test` / `flutter test` runs the same checks. See [Testing](https://creatorpiyush.github.io/arch_guard/testing.html).
 - 💡 **IDE warnings and quick fixes.** The `arch_guard_lint` analyzer plugin underlines layer violations, forbidden imports and the import that closes each cycle as you type, with one-click fixes. See [IDE](https://creatorpiyush.github.io/arch_guard/ide.html).

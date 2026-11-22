@@ -106,6 +106,16 @@ The report ends with `Only problems touching 7 file(s) changed since origin/main
 - In CI, check out with full history (`fetch-depth: 0`). See [CI](ci.md#large-repositories-only-changed-files).
 - When git fails, for example on an unknown ref, the run exits `2`.
 
+### What this change adds
+
+With `-f markdown`, `-f json`, `-f all` or `--json`, `--since` also compares the dependency graph with the merge base. Nothing here fails the run. The Markdown report gets a **What this change adds** section, and the JSON report a `diff` key, listing:
+
+- new dependencies between layers, modules and workspace members, with the imports that create them;
+- packages a layer, module or member starts to import (`dart:` libraries are left out);
+- the files whose fan-in or fan-out grew most (files on both sides only).
+
+The merge base is checked out in a temporary git worktree and scanned with your current `arch_guard.yaml`, so a layer means the same files on both sides. Files git ignores, such as generated `*.config.dart` files, are left out of the comparison. A PR that adds nothing gets no section. In JSON, `diff` is absent without `--since` and `null` when the base could not be scanned (a warning says why).
+
 ## Watch mode
 
 Keep a terminal open while you refactor; the check re-runs on every save:
