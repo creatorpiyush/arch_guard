@@ -108,7 +108,23 @@ class GitChanges {
     final tmp = Directory.systemTemp.createTempSync('arch_guard_base_');
     final checkout = p.join(tmp.path, 'base');
     try {
-      _git(['worktree', 'add', '--detach', '--quiet', checkout, sha], root);
+      _git(
+        [
+          // Not the repo's hooks: a post-checkout `pub get` would run (or
+          // fail) on every report. The folder does not exist.
+          '-c',
+          'core.hooksPath=${p.join(tmp.path, 'no-hooks')}',
+          'worktree',
+          'add',
+          '--detach',
+          '--quiet',
+          checkout,
+          sha,
+        ],
+        root,
+        // Only Dart sources are read: skip Git LFS downloads.
+        environment: const {'GIT_LFS_SKIP_SMUDGE': '1'},
+      );
       return await body(p.join(checkout, p.relative(root, from: top)));
     } finally {
       try {
@@ -159,7 +175,12 @@ class GitChanges {
   static List<String> _nulSplit(String s) =>
       s.split('\u0000').where((x) => x.isNotEmpty).toList();
 
-  static String _git(List<String> args, String cwd, {String? ref}) {
+  static String _git(
+    List<String> args,
+    String cwd, {
+    String? ref,
+    Map<String, String>? environment,
+  }) {
     final ProcessResult r;
     try {
       // git prints paths as UTF-8; the default (systemEncoding) is the ANSI
@@ -168,6 +189,7 @@ class GitChanges {
         'git',
         args,
         workingDirectory: cwd,
+        environment: environment,
         stdoutEncoding: utf8,
         stderrEncoding: utf8,
       );
@@ -181,7 +203,12 @@ class GitChanges {
         .first
         .trim()
         .replaceFirst(RegExp(r'\.$'), '');
-    throw GitException(errorMessage(err, command: args.first, ref: ref));
+    // Skip `-c key=value` to name the git command in the message.
+    final command = args.firstWhere(
+      (a) => !a.startsWith('-') && !a.contains('='),
+      orElse: () => args.first,
+    );
+    throw GitException(errorMessage(err, command: command, ref: ref));
   }
 
   /// The message for a failed `git <command>`, from git's first stderr line

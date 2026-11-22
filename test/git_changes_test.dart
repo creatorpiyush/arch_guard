@@ -237,6 +237,20 @@ void main() {
       expect(worktrees(), 1);
     });
 
+    test('withBaseCheckout does not run git hooks', () async {
+      final hook = p.join(repo.path, '.git', 'hooks', 'post-checkout');
+      write('.git/hooks/post-checkout', '#!/bin/sh\nexit 1\n');
+      if (!Platform.isWindows) Process.runSync('chmod', ['+x', hook]);
+      final content = await GitChanges.withBaseCheckout(
+        GitChanges.mergeBase('main', projectRoot: app()),
+        projectRoot: app(),
+        body: (baseRoot) async =>
+            File(p.join(baseRoot, 'lib', 'a.dart')).readAsStringSync(),
+      );
+      expect(content, '');
+      expect(worktrees(), 1);
+    });
+
     test('withBaseCheckout rejects an unknown sha', () async {
       await expectLater(
         GitChanges.withBaseCheckout(
