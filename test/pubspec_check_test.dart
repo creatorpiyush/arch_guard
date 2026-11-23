@@ -177,6 +177,60 @@ dependencies:
     );
   });
 
+  test('federated plugin platform packages count as used', () async {
+    write('pubspec.yaml', '''
+name: foo
+dependencies:
+  foo_android: any
+  foo_ios: any
+flutter:
+  plugin:
+    platforms:
+      android:
+        default_package: foo_android
+      ios:
+        default_package: foo_ios
+''');
+    write('lib/foo.dart', '');
+    expect(keys(await check()), isEmpty);
+  });
+
+  test('intl counts as used with flutter: generate: true', () async {
+    write(
+      'pubspec.yaml',
+      'name: app\ndependencies:\n  intl: any\nflutter:\n  generate: true\n',
+    );
+    write('lib/main.dart', '');
+    expect(keys(await check()), isEmpty);
+  });
+
+  test('imports from web/ count as runtime use', () async {
+    write('pubspec.yaml', 'name: app\ndependencies:\n  web: any\n');
+    write('web/main.dart', "import 'package:web/web.dart';\n");
+    expect(keys(await check()), isEmpty);
+  });
+
+  test('packages used through assets or fonts count as used', () async {
+    write(
+      '''pubspec.yaml''',
+      '''
+name: app
+dependencies:
+  icon_pack: any
+  font_pack: any
+flutter:
+  assets:
+    - packages/icon_pack/icons/star.png
+  fonts:
+    - family: Brand
+      fonts:
+        - asset: packages/font_pack/fonts/Brand.ttf
+''',
+    );
+    write('lib/main.dart', '');
+    expect(keys(await check()), isEmpty);
+  });
+
   test('toJson', () async {
     write('pubspec.yaml', 'name: app\ndependencies:\n  dio: any\n');
     final x = (await check()).problems.single;

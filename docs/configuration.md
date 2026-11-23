@@ -290,10 +290,10 @@ pubspec_check:
 ```
 
 - **Unused:** no Dart file of the package imports or exports it.
-- **Misplaced:** only `test/`, `tool/`, `integration_test/`, `test_driver/`, `benchmark/` or `example/` import it, never `lib/`, `bin/` or `hook/`. Move it to `dev_dependencies:`.
+- **Misplaced:** only `test/`, `tool/`, `integration_test/`, `test_driver/`, `benchmark/` or `example/` import it, never `lib/`, `bin/`, `hook/` or `web/`. Move it to `dev_dependencies:`.
 - Every package is checked: the root, each workspace member, and members with only `bin/`. A folder with its own `pubspec.yaml` inside a package (a plugin's `example/` app) is a separate package; its imports don't count for the parent.
 - All Dart files count, including generated files, `stub/` folders and anything under `ignore:` or `--exclude`.
-- A package named in an `analysis_options.yaml` `include:` counts as used.
+- Also used: a package named in an `analysis_options.yaml` `include:`; a federated plugin's `default_package` entries under `flutter: plugin: platforms:`; `intl` with `flutter: generate: true`; and packages referenced as `packages/<name>/...` in `flutter: assets:` or `fonts:`.
 - Never reported: `dev_dependencies`, entries with `sdk:` (`flutter`, `flutter_localizations`), `cupertino_icons`, and the `ignore:` list. An `ignore:` name that no pubspec declares gives a warning.
 - Imports of packages that aren't declared are not reported here: the `depend_on_referenced_packages` lint (in `package:lints` core) already reports them in your editor.
 - With a baseline, known problems pass, and `--since` keeps a problem when its `pubspec.yaml` or any file of its package changed. Each problem appears in the terminal, JSON (`dependencyProblems`), SARIF (rule `dependency-problem`, at the pubspec line) and Markdown.

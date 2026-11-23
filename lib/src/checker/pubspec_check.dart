@@ -71,7 +71,7 @@ class PubspecCheckResult {
 /// `dev_dependencies` are never checked.
 class PubspecCheck {
   /// Folders whose imports count as real use.
-  static const runtimeDirs = ['lib', 'bin', 'hook'];
+  static const runtimeDirs = ['lib', 'bin', 'hook', 'web'];
 
   /// Folders whose imports count as test-only use.
   static const testDirs = [
@@ -145,7 +145,11 @@ class PubspecCheck {
 
       final runtime = await _imports(pkgRoot, runtimeDirs);
       final tests = await _imports(pkgRoot, testDirs);
-      final includes = {...rootIncludes, ..._includes(pkgRoot)};
+      final includes = {
+        ...rootIncludes,
+        ..._includes(pkgRoot),
+        ..._usedByFlutterSection(pubspec),
+      };
       for (final dep in declared.keys.toList()..sort()) {
         if (runtime.contains(dep) || includes.contains(dep)) continue;
         problems.add(
@@ -202,6 +206,37 @@ class PubspecCheck {
     return {
       for (final i in scan.packageImports)
         if (!inNestedPackage(i.file)) i.package,
+    };
+  }
+
+  /// Packages the `flutter:` section uses without a Dart import: federated
+  /// plugin `default_package`s, `intl` with `generate: true` (gen-l10n), and
+  /// `packages/<name>/` paths in `assets:` and `fonts:`.
+  static Set<String> _usedByFlutterSection(YamlMap pubspec) {
+    final flutter = pubspec['flutter'];
+    if (flutter is! Map) return const {};
+    String? packageOf(Object? path) =>
+        path is String && path.startsWith('packages/')
+        ? path.split('/')[1]
+        : null;
+    final platforms = (flutter['plugin'] is Map)
+        ? (flutter['plugin'] as Map)['platforms']
+        : null;
+    final fonts = flutter['fonts'];
+    final assets = flutter['assets'];
+    return {
+      if (flutter['generate'] == true) 'intl',
+      if (platforms is Map)
+        for (final platform in platforms.values)
+          if (platform is Map && platform['default_package'] is String)
+            platform['default_package'] as String,
+      if (assets is List)
+        for (final a in assets) ?packageOf(a is Map ? a['path'] : a),
+      if (fonts is List)
+        for (final family in fonts)
+          if (family is Map && family['fonts'] is List)
+            for (final font in family['fonts'] as List)
+              if (font is Map) ?packageOf(font['asset']),
     };
   }
 
