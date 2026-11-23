@@ -28,6 +28,10 @@ class ProjectScanner {
   /// (`lib`, `test`). Missing folders are skipped.
   final List<String> memberScanDirs;
 
+  /// Whether [defaultExcludePatterns] apply. The dependency check turns them
+  /// off, because generated files count as using a package.
+  final bool useDefaultExcludes;
+
   /// Creates a scanner for the project at [rootPath].
   ProjectScanner({
     required this.rootPath,
@@ -35,6 +39,7 @@ class ProjectScanner {
     this.exclude = const [],
     this.enableWorkspace = true,
     this.memberScanDirs = const ['lib'],
+    this.useDefaultExcludes = true,
   });
 
   /// Performs the scan and returns a [ScanResult].
@@ -44,7 +49,7 @@ class ProjectScanner {
         PubspecReader.readPackageName(absRoot) ?? p.basename(absRoot);
 
     final excludeMatchers = [
-      ...defaultExcludePatterns,
+      if (useDefaultExcludes) ...defaultExcludePatterns,
       ...exclude,
     ].map(excludeMatcher).toList();
 
