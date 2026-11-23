@@ -277,4 +277,52 @@ layers:
       });
     }
   });
+
+  group('pubspec_check', () {
+    ArchGuardConfig parse(String yaml) =>
+        ArchGuardConfig.parse(yaml, rootPath: Directory.systemTemp.path);
+
+    test('is off by default', () {
+      final config = parse('ignore: []\n');
+      expect(config.pubspecCheckEnabled, isFalse);
+      expect(config.failOnDependencyProblems, isFalse);
+    });
+
+    test('parses ignore and fail', () {
+      final config = parse(
+        'pubspec_check:\n  ignore: [sqlite3_flutter_libs]\n  fail: true\n',
+      );
+      expect(config.pubspecCheckEnabled, isTrue);
+      expect(config.pubspecCheckIgnore, {'sqlite3_flutter_libs'});
+      expect(config.failOnDependencyProblems, isTrue);
+      expect(config.warnings, isEmpty);
+    });
+
+    test('an empty key turns it on with defaults', () {
+      for (final yaml in ['pubspec_check:\n', 'pubspec_check: {}\n']) {
+        final config = parse(yaml);
+        expect(config.pubspecCheckEnabled, isTrue, reason: yaml);
+        expect(config.pubspecCheckIgnore, isEmpty);
+        expect(config.warnings, isEmpty, reason: yaml);
+      }
+    });
+
+    test('bad shapes warn', () {
+      expect(
+        parse('pubspec_check:\n  nope: 1\n').warnings.single,
+        contains('unknown key `pubspec_check: nope`'),
+      );
+      expect(
+        parse('pubspec_check:\n  ignore: x\n').warnings.single,
+        contains('`pubspec_check: ignore` must be a list of package names'),
+      );
+      expect(
+        parse('pubspec_check:\n  fail: yes please\n').warnings.single,
+        contains('`pubspec_check: fail` must be true or false'),
+      );
+      final notMap = parse('pubspec_check: 3\n');
+      expect(notMap.warnings.single, contains('`pubspec_check` must be a map'));
+      expect(notMap.pubspecCheckEnabled, isFalse);
+    });
+  });
 }

@@ -5,6 +5,7 @@ import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/pubspec_check.dart';
 import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
 import '../models/scan_result.dart';
@@ -37,6 +38,9 @@ class SarifExporter {
   /// SARIF rule id for files no entry point reaches (`unused_files:`).
   static const unusedFileRule = 'unused-file';
 
+  /// SARIF rule id for unused or misplaced dependencies (`pubspec_check:`).
+  static const dependencyProblemRule = 'dependency-problem';
+
   /// SARIF rule id for groups larger than `max_scc_size`.
   static const sccSizeLimitRule = 'scc-size-limit';
 
@@ -61,6 +65,8 @@ class SarifExporter {
     bool failOnLayerViolation = true,
     List<String> unusedFiles = const [],
     bool failOnUnusedFiles = false,
+    List<DependencyProblem> dependencyProblems = const [],
+    bool failOnDependencyProblems = false,
     String uriPrefix = '',
   }) {
     final lineOf = <String, int>{};
@@ -250,6 +256,22 @@ class SarifExporter {
       });
     }
 
+    for (final d in dependencyProblems) {
+      results.add({
+        'ruleId': dependencyProblemRule,
+        'level': failOnDependencyProblems ? 'error' : 'warning',
+        'message': {'text': d.rule},
+        'locations': [location(d.pubspecPath, line: d.line)],
+        'partialFingerprints': {
+          'archGuard/v1': '$dependencyProblemRule:${d.key}',
+        },
+        'baselineState': ?state(
+          !(baseline?.knownDependencyProblems.any((k) => k.key == d.key) ??
+              false),
+        ),
+      });
+    }
+
     final log = {
       r'$schema': 'https://json.schemastore.org/sarif-2.1.0.json',
       'version': '2.1.0',
@@ -365,6 +387,21 @@ class SarifExporter {
       },
       'helpUri': '$_docsUri/cli.html#fix-a-cycle',
       'defaultConfiguration': {'level': 'error'},
+      'properties': {
+        'tags': ['architecture', 'maintainability'],
+      },
+    },
+    {
+      'id': dependencyProblemRule,
+      'name': 'DependencyProblem',
+      'helpUri': '$_docsUri/configuration.html#unused-dependencies',
+      'shortDescription': {'text': 'Unused or misplaced dependency'},
+      'fullDescription': {
+        'text':
+            'A package under `dependencies:` that no Dart file imports, or '
+            'that only test code imports (see `pubspec_check:` in '
+            'arch_guard.yaml).',
+      },
       'properties': {
         'tags': ['architecture', 'maintainability'],
       },

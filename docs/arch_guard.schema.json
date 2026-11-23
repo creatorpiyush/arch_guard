@@ -131,6 +131,23 @@
         }
       }
     },
+    "pubspec_check": {
+      "description": "Report `dependencies:` entries that no Dart file imports (unused) or that only test code imports (misplaced). Report-only unless `fail: true`.",
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "ignore": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Dependencies never reported, e.g. packages used without a Dart import."
+        },
+        "fail": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fail the run on new unused or misplaced dependencies."
+        }
+      }
+    },
     "unused_files": {
       "description": "Report scanned files that no entry point reaches. `true` turns it on with the defaults.",
       "oneOf": [

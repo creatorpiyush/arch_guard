@@ -1,0 +1,13 @@
+name: unused_dependencies
+publish_to: none
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  path: ^1.9.0     # used from lib/
+  collection: ^1.19.0   # never imported: unused
+  mocktail: ^1.0.0      # imported only from test/: misplaced
+
+dev_dependencies:
+  test: ^1.25.0         # dev_dependencies are never reported

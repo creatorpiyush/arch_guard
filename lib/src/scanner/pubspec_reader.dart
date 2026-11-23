@@ -41,8 +41,9 @@ class PubspecReader {
   ///
   /// Maps package name -> [WorkspacePackage].
   static Map<String, WorkspacePackage> discoverWorkspacePackages(
-    String projectRoot,
-  ) {
+    String projectRoot, {
+    bool requireLib = true,
+  }) {
     final absRoot = p.canonicalize(projectRoot);
     final results = <String, WorkspacePackage>{};
 
@@ -57,7 +58,7 @@ class PubspecReader {
         if (yamlMap is Map) {
           final rootName = yamlMap['name']?.toString();
           if (rootName != null &&
-              Directory(p.join(absRoot, 'lib')).existsSync()) {
+              (!requireLib || Directory(p.join(absRoot, 'lib')).existsSync())) {
             rootPackage = WorkspacePackage(
               name: rootName,
               packagePath: '.',
@@ -120,7 +121,8 @@ class PubspecReader {
           final pubspecFile = File(p.join(entity.path, 'pubspec.yaml'));
           final libDir = Directory(p.join(entity.path, 'lib'));
 
-          if (pubspecFile.existsSync() && libDir.existsSync()) {
+          if (pubspecFile.existsSync() &&
+              (!requireLib || libDir.existsSync())) {
             if (memberGlobs.any((g) => g.matches(relPath))) {
               final pkgName = readPackageName(entity.path);
               if (pkgName != null && pkgName.isNotEmpty) {

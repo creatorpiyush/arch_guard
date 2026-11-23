@@ -23,6 +23,7 @@ void main() {
       'baseline',
       'scan_options',
       'unused_files',
+      'unused_dependencies',
     ]) {
       expect(await runCli(['example/cases/$name']), 1, reason: name);
     }
@@ -156,5 +157,17 @@ void main() {
     final none = why('lib/data', 'lib/domain');
     expect(none.exitCode, 1);
     expect(none.stdout, 'No import path from lib/data to lib/domain/.\n');
+  });
+
+  test('unused_dependencies: collection unused, mocktail misplaced', () async {
+    final a = await run('unused_dependencies');
+    expect(
+      [for (final d in a.dependencyProblems) '${d.key}:${d.line}'],
+      [
+        'pubspec.yaml: collection (unused):9',
+        'pubspec.yaml: mocktail (misplaced):10',
+      ],
+    );
+    expect(a.failures(), hasLength(2));
   });
 }

@@ -5,6 +5,7 @@ import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/pubspec_check.dart';
 import '../checker/unused_files.dart';
 import '../checker/workspace_validator.dart';
 import '../graph/dependency_graph.dart';
@@ -55,6 +56,10 @@ class ArchAnalysis {
   /// Empty unless `unused_files:` is configured.
   final List<String> unusedFiles;
 
+  /// Unused or misplaced dependencies (see [PubspecCheck]). Empty unless
+  /// `pubspec_check:` is configured.
+  final List<DependencyProblem> dependencyProblems;
+
   /// Problems with the configuration found while analysing (for example
   /// `workspace_rules` in a project that isn't a workspace).
   final List<String> warnings;
@@ -101,6 +106,7 @@ class ArchAnalysis {
     this.workspaceViolations = const [],
     this.moduleViolations = const [],
     this.unusedFiles = const [],
+    this.dependencyProblems = const [],
     this.warnings = const [],
     required this.coverage,
     required this.baselinePath,
@@ -146,6 +152,10 @@ class ArchAnalysis {
   /// Unused files not in the baseline.
   List<String> get newUnusedFiles => baseline?.newUnusedFiles ?? unusedFiles;
 
+  /// Dependency problems not in the baseline.
+  List<DependencyProblem> get newDependencyProblems =>
+      baseline?.newDependencyProblems ?? dependencyProblems;
+
   /// Workspace rule violations not in the baseline.
   List<WorkspaceViolation> get newWorkspaceViolations =>
       baseline?.newWorkspaceViolations ?? workspaceViolations;
@@ -172,6 +182,8 @@ class ArchAnalysis {
         'Forbidden package: ${at(v.sourceFile, v.line)} imports ${v.uri}. '
             '${v.rule}',
       for (final v in newMetricViolations) 'Metric limit: ${v.rule}',
+      if (config.failOnDependencyProblems)
+        for (final d in newDependencyProblems) 'Dependency: ${d.rule}',
       if (config.failOnUnusedFiles)
         for (final f in newUnusedFiles)
           'Unused file: $f (no entry point reaches it).',
@@ -340,6 +352,14 @@ class ArchAnalysis {
         warnings.add('Graph diff skipped: $e.');
       }
     }
+    final pubspecCheck = config.pubspecCheckEnabled
+        ? await PubspecCheck.run(
+            projectRoot: root,
+            config: config,
+            enableWorkspace: enableWorkspace,
+          )
+        : null;
+    warnings.addAll(pubspecCheck?.warnings ?? const []);
     final maxScc = config.maxSccSize;
     final absBaseline = p.isAbsolute(baselinePath)
         ? baselinePath
@@ -359,6 +379,7 @@ class ArchAnalysis {
       // null (not checked) keeps the baseline's unused files from counting
       // as fixed when the check is off or found no entry point.
       unusedFiles: unused == null || unused.noEntryPoint ? null : unused.files,
+      dependencyProblems: pubspecCheck?.problems,
     );
 
     // Without --since every predicate is true; with it, keep only problems
@@ -389,6 +410,18 @@ class ArchAnalysis {
     List<ModuleViolation> mod(List<ModuleViolation> l) =>
         l.where((v) => touches(v.sourceFile)).toList();
     List<String> unusedIn(List<String> l) => l.where(touches).toList();
+    // A dependency problem is about its package: keep it when the pubspec
+    // or any file of that package changed.
+    bool packageTouched(DependencyProblem d) {
+      if (changed == null) return true;
+      final dir = p.posix.dirname(d.pubspecPath);
+      return dir == '.'
+          ? changed.isNotEmpty
+          : changed.any((f) => f.startsWith('$dir/'));
+    }
+
+    List<DependencyProblem> deps(List<DependencyProblem> l) =>
+        l.where(packageTouched).toList();
 
     return ArchAnalysis(
       scan: scan,
@@ -402,6 +435,7 @@ class ArchAnalysis {
       workspaceViolations: ws(workspaceViolations),
       moduleViolations: mod(moduleViolations),
       unusedFiles: unusedIn([...?unused?.files]),
+      dependencyProblems: deps(pubspecCheck?.problems ?? const []),
       warnings: warnings,
       oversizedCycles: cyc(oversized),
       coverage: LayerValidator.coverage(result: scan, config: config),
@@ -435,6 +469,10 @@ class ArchAnalysis {
               newUnusedFiles: unusedIn(comparison.newUnusedFiles),
               knownUnusedFiles: unusedIn(comparison.knownUnusedFiles),
               fixedUnusedFileCount: comparison.fixedUnusedFileCount,
+              newDependencyProblems: deps(comparison.newDependencyProblems),
+              knownDependencyProblems: deps(comparison.knownDependencyProblems),
+              fixedDependencyProblemCount:
+                  comparison.fixedDependencyProblemCount,
               newModuleViolations: mod(comparison.newModuleViolations),
               knownModuleViolations: mod(comparison.knownModuleViolations),
               fixedModuleViolationCount: comparison.fixedModuleViolationCount,

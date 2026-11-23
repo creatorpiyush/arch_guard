@@ -1,0 +1,2 @@
+pubspec_check:
+  fail: true   # unused or misplaced dependencies fail the run (exit 1)

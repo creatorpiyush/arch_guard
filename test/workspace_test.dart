@@ -181,4 +181,36 @@ void main() {
       expect(byDefault.files.keys, isNot(contains(testFile)));
     });
   });
+
+  group('discovery without lib/', () {
+    late Directory dir;
+    void write(String path, String content) {
+      final f = File(p.join(dir.path, path));
+      f.parent.createSync(recursive: true);
+      f.writeAsStringSync(content);
+    }
+
+    setUp(() {
+      dir = Directory.systemTemp.createTempSync('arch_guard_nolib_');
+      write('pubspec.yaml', 'name: root\n');
+      write('apps/cli/pubspec.yaml', 'name: cli\n');
+      write('apps/cli/bin/main.dart', '');
+      write('packages/core/pubspec.yaml', 'name: core\n');
+      write('packages/core/lib/core.dart', '');
+    });
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('bin-only packages and a lib-less root need requireLib: false', () {
+      expect(PubspecReader.discoverWorkspacePackages(dir.path).keys.toSet(), {
+        'core',
+      });
+      final all = PubspecReader.discoverWorkspacePackages(
+        dir.path,
+        requireLib: false,
+      );
+      expect(all.keys.toSet(), {'root', 'cli', 'core'});
+      expect(all['cli']!.packagePath, 'apps/cli');
+      expect(all['root']!.packagePath, '.');
+    });
+  });
 }

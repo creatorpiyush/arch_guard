@@ -23,6 +23,7 @@ export 'src/checker/layer_validator.dart';
 export 'src/checker/metric_validator.dart';
 export 'src/checker/module_validator.dart';
 export 'src/checker/package_validator.dart';
+export 'src/checker/pubspec_check.dart';
 export 'src/checker/unused_files.dart';
 export 'src/checker/workspace_validator.dart';
 export 'src/exporters/dot_exporter.dart';

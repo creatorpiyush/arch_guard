@@ -389,4 +389,52 @@ void main() {
       expect(Baseline.fromJson({'version': 1}).unusedFiles, isEmpty);
     });
   });
+
+  group('dependency problems', () {
+    const unused = DependencyProblem(
+      package: 'app',
+      pubspecPath: 'pubspec.yaml',
+      dependency: 'dio',
+      kind: 'unused',
+      line: 3,
+    );
+
+    test('round-trips through JSON', () {
+      final json = Baseline.capture(
+        cycles: const [],
+        layerViolations: const [],
+        dependencyProblems: const [unused],
+      ).toJson();
+      expect(json['dependencyProblems'], ['pubspec.yaml: dio (unused)']);
+      final back = Baseline.fromJson(json);
+      expect(back.dependencyProblems, {'pubspec.yaml: dio (unused)'});
+    });
+
+    test('absent when empty, and an old baseline loads with none', () {
+      final json = Baseline.capture(
+        cycles: const [],
+        layerViolations: const [],
+      ).toJson();
+      expect(json.containsKey('dependencyProblems'), isFalse);
+      final old = Baseline.fromJson({'version': 1, 'cycles': <Object>[]});
+      final c = old.compare(
+        cycles: const [],
+        layerViolations: const [],
+        dependencyProblems: const [unused],
+      );
+      expect(c.newDependencyProblems, [unused]);
+      expect(c.fixedDependencyProblemCount, 0);
+    });
+
+    test('null means not checked: nothing new, nothing fixed', () {
+      final b = Baseline.capture(
+        cycles: const [],
+        layerViolations: const [],
+        dependencyProblems: const [unused],
+      );
+      final c = b.compare(cycles: const [], layerViolations: const []);
+      expect(c.newDependencyProblems, isEmpty);
+      expect(c.fixedDependencyProblemCount, 0);
+    });
+  });
 }

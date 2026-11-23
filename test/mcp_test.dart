@@ -405,4 +405,15 @@ modules:
     }
     expect(jsonDecode(lines[1])['id'], 2);
   });
+
+  test('check lists dependency problems from pubspec_check', () async {
+    final server = McpServer(
+      p.canonicalize('example/cases/unused_dependencies'),
+    );
+    final r = await callJson(server, 'check');
+    expect(r['failures'], [
+      startsWith('Dependency: `collection` is under dependencies'),
+      startsWith('Dependency: `mocktail` is used only from tests'),
+    ]);
+  });
 }

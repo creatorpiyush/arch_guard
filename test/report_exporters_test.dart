@@ -567,6 +567,8 @@ void main() {
           '${docs}configuration.html#module-boundaries',
       SarifExporter.circularDependencyRule: '${docs}cli.html#fix-a-cycle',
       SarifExporter.unusedFileRule: '${docs}configuration.html#unused-files',
+      SarifExporter.dependencyProblemRule:
+          '${docs}configuration.html#unused-dependencies',
       SarifExporter.sccSizeLimitRule: '${docs}configuration.html#keys',
     });
   });
@@ -695,6 +697,80 @@ void main() {
               as Map;
       expect(json('6 months ago')['churnSince'], '6 months ago');
       expect(json().containsKey('churnSince'), isFalse);
+    });
+  });
+
+  group('dependency problems', () {
+    const dep = DependencyProblem(
+      package: 'app',
+      pubspecPath: 'pubspec.yaml',
+      dependency: 'dio',
+      kind: 'unused',
+      line: 7,
+    );
+
+    test('JSON lists them only when enabled', () {
+      Map json(List<Map<String, Object>>? deps) =>
+          jsonDecode(
+                JsonExporter.export(
+                  result: result,
+                  cycles: const [],
+                  dependencyProblems: deps,
+                ),
+              )
+              as Map;
+      expect(
+        (json([dep.toJson()])['dependencyProblems'] as List)
+            .single['dependency'],
+        'dio',
+      );
+      expect(json(null).containsKey('dependencyProblems'), isFalse);
+    });
+
+    test('SARIF result points at the pubspec line', () {
+      final sarif =
+          jsonDecode(
+                SarifExporter.export(
+                  result: result,
+                  cycles: const [],
+                  dependencyProblems: const [dep],
+                ),
+              )
+              as Map;
+      final results =
+          ((sarif['runs'] as List).single as Map)['results'] as List;
+      final r =
+          results.singleWhere(
+                (r) => r['ruleId'] == SarifExporter.dependencyProblemRule,
+              )
+              as Map;
+      expect(r['level'], 'warning');
+      final loc =
+          ((r['locations'] as List).single as Map)['physicalLocation'] as Map;
+      expect((loc['artifactLocation'] as Map)['uri'], 'pubspec.yaml');
+      expect((loc['region'] as Map)['startLine'], 7);
+      final none =
+          jsonDecode(SarifExporter.export(result: result, cycles: const []))
+              as Map;
+      expect(
+        (((none['runs'] as List).single as Map)['results'] as List).where(
+          (r) => r['ruleId'] == SarifExporter.dependencyProblemRule,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('Markdown section and summary row only when enabled', () {
+      final md = MarkdownExporter.export(
+        result: result,
+        cycles: const [],
+        dependencyProblems: const [dep],
+      );
+      expect(md, contains('| Unused or misplaced dependencies | 1 | 1 |'));
+      expect(md, contains('### New unused or misplaced dependencies'));
+      expect(md, contains('- `pubspec.yaml:7` `dio` (unused):'));
+      final off = MarkdownExporter.export(result: result, cycles: const []);
+      expect(off, isNot(contains('misplaced dependencies')));
     });
   });
 }

@@ -298,6 +298,9 @@ class McpServer {
             if (!config.failOnUnusedFiles)
               for (final f in analysis.newUnusedFiles)
                 'Unused file: $f (no entry point reaches it).',
+            if (!config.failOnDependencyProblems)
+              for (final d in analysis.newDependencyProblems)
+                'Dependency: ${d.rule}',
           ],
           'warnings': [...analysis.config.warnings, ...analysis.warnings],
           'since': ?analysis.since,
