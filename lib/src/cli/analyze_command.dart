@@ -157,6 +157,9 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       (comparison?.fixedModuleViolationCount ?? 0) > 0;
   final showUnused =
       config.unusedFilesEnabled || (comparison?.fixedUnusedFileCount ?? 0) > 0;
+  final showDeps =
+      config.pubspecCheckEnabled ||
+      (comparison?.fixedDependencyProblemCount ?? 0) > 0;
   List<String> counts(
     int cycles,
     int layer,
@@ -164,8 +167,9 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     int metric,
     int ws,
     int mod,
-    int unused,
-  ) => [
+    int unused, [
+    int deps = 0,
+  ]) => [
     '$cycles cycle group(s)',
     '$layer layer violation(s)',
     '$pkg forbidden package import(s)',
@@ -173,6 +177,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     if (showWorkspace) '$ws workspace rule violation(s)',
     if (showModules) '$mod module boundary violation(s)',
     if (showUnused) '$unused unused file(s)',
+    if (showDeps)
+      '$deps unused or misplaced dependenc${deps == 1 ? 'y' : 'ies'}',
   ];
 
   scanResult.skippedFiles.forEach((file, reason) {
@@ -396,6 +402,23 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
     out.writeln();
   }
 
+  final newDependencyProblems = analysis.newDependencyProblems;
+  if (newDependencyProblems.isNotEmpty) {
+    final color = config.failOnDependencyProblems ? cRed : '';
+    out.writeln(
+      '$color[!] ${comparison == null ? 'Unused' : 'New unused'} or misplaced '
+      'dependencies (${newDependencyProblems.length}):$cReset',
+    );
+    for (final d in newDependencyProblems) {
+      out.writeln(
+        '  ${d.pubspecPath}${d.line == null ? '' : ':${d.line}'} '
+        '${d.dependency} (${d.kind})',
+      );
+      out.writeln('     ${d.rule}');
+    }
+    out.writeln();
+  }
+
   final maxSccSize = config.maxSccSize;
   final oversizedSccs = analysis.oversizedCycles;
   final newOversizedSccs = analysis.newOversizedCycles;
@@ -410,6 +433,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       comparison.knownWorkspaceViolations.length,
       comparison.knownModuleViolations.length,
       comparison.knownUnusedFiles.length,
+      comparison.knownDependencyProblems.length,
     );
     final added = counts(
       newCycles.length,
@@ -419,6 +443,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       newWorkspaceViolations.length,
       newModuleViolations.length,
       analysis.newUnusedFiles.length,
+      newDependencyProblems.length,
     );
     final fixed = counts(
       comparison.fixedCycleCount,
@@ -428,6 +453,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       comparison.fixedWorkspaceViolationCount,
       comparison.fixedModuleViolationCount,
       comparison.fixedUnusedFileCount,
+      comparison.fixedDependencyProblemCount,
     );
     out.writeln('  Known (ignored): ${known.join(', ')}');
     final newColor =
@@ -437,7 +463,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
             newMetricViolations.isEmpty &&
             newWorkspaceViolations.isEmpty &&
             newModuleViolations.isEmpty &&
-            analysis.newUnusedFiles.isEmpty
+            analysis.newUnusedFiles.isEmpty &&
+            newDependencyProblems.isEmpty
         ? cGreen
         : cRed;
     out.writeln('  New:             $newColor${added.join(', ')}$cReset');
@@ -456,7 +483,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         comparison.fixedMetricViolationCount > 0 ||
         comparison.fixedWorkspaceViolationCount > 0 ||
         comparison.fixedModuleViolationCount > 0 ||
-        comparison.fixedUnusedFileCount > 0) {
+        comparison.fixedUnusedFileCount > 0 ||
+        comparison.fixedDependencyProblemCount > 0) {
       out.writeln(
         '  $cGreen${_andJoin(fixed)} in the baseline are fixed.$cReset Run with --update-baseline to lock this in.',
       );
@@ -488,6 +516,9 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         ? null
         : moduleViolations.map((v) => v.toJson()).toList(),
     unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
+    dependencyProblems: config.pubspecCheckEnabled
+        ? [for (final d in analysis.dependencyProblems) d.toJson()]
+        : null,
     since: since,
     changedFiles: analysis.changedFiles,
     graphDiffRequested: diffWanted,
@@ -577,6 +608,8 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         failOnLayerViolation: config.failOnLayerViolation,
         unusedFiles: unusedFiles,
         failOnUnusedFiles: config.failOnUnusedFiles,
+        dependencyProblems: analysis.dependencyProblems,
+        failOnDependencyProblems: config.failOnDependencyProblems,
         uriPrefix: _repoRelativePrefix(absProjectPath),
       );
       File(sarifPath).writeAsStringSync(sarifContent);
@@ -601,6 +634,10 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
         changedFileCount: analysis.changedFiles?.length,
         unusedFiles: config.unusedFilesEnabled ? unusedFiles : null,
         failOnUnusedFiles: config.failOnUnusedFiles,
+        dependencyProblems: config.pubspecCheckEnabled
+            ? analysis.dependencyProblems
+            : null,
+        failOnDependencyProblems: config.failOnDependencyProblems,
         graphDiff: analysis.graphDiff,
         churn: analysis.churn,
         churnSince: config.churnSince,
@@ -633,6 +670,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       workspaceViolations.length,
       moduleViolations.length,
       analysis.unusedFiles.length,
+      analysis.dependencyProblems.length,
     );
     Baseline.capture(
       cycles: cycles,
@@ -668,6 +706,10 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
   }
 
   if (config.failOnUnusedFiles && newUnusedFiles.isNotEmpty) {
+    return 1;
+  }
+
+  if (config.failOnDependencyProblems && newDependencyProblems.isNotEmpty) {
     return 1;
   }
 

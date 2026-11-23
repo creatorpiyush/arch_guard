@@ -82,6 +82,7 @@ layers:
 | `modules` | map | none | Module boundaries: `roots` (globs of module folders), optional `public` (files other modules may import) and `allowed` (which modules each may import). See [Module boundaries](#module-boundaries). |
 | `metrics` | map | none | `max_fan_out` / `max_fan_in`: fail when a file imports, or is imported by, more project files than this. `hotspots`: how many most-coupled files reports list (default 10). `churn_since`: a git date such as `"6 months ago"`; ranks hotspots by commits since then × coupling. See [Metric limits](#metric-limits). |
 | `unused_files` | map or `true` | off | Report scanned files that no entry point reaches. `entry_points`: extra globs. `fail: true` makes them fail the run. See [Unused files](#unused-files). |
+| `pubspec_check` | map | off | Report `dependencies:` that nothing imports, or that only tests import. `ignore`: packages never reported. `fail: true` makes them fail the run. See [Unused dependencies](#unused-dependencies). |
 | `max_scc_size` | int | none | Fail when a circular-dependency group has more files than this, even with `--no-fail-on-cycle`. |
 
 ## Editor support
@@ -269,6 +270,33 @@ When no scanned file is an entry point, nothing is reported and you get a warnin
 | Baseline, check turned off | The recorded files are not counted as fixed. |
 
 Unused files appear in every report format; see [Output formats](cli.md#unused-files-in-each-format). The check adds about 2 ms per 1,000 files; see [How long a run takes](ci.md#how-long-a-run-takes).
+
+## Unused dependencies
+
+Find packages under `dependencies:` that nothing uses, and ones that only tests use:
+
+```yaml
+pubspec_check:
+  ignore: [sqlite3_flutter_libs]   # used without a Dart import
+  fail: true                       # default: report only
+```
+
+```text
+[!] Unused or misplaced dependencies (2):
+  pubspec.yaml:9 collection (unused)
+     `collection` is under dependencies in pubspec.yaml but nothing imports it. Remove it, or add it to pubspec_check: ignore.
+  pubspec.yaml:10 mocktail (misplaced)
+     `mocktail` is used only from tests; move it to dev_dependencies in pubspec.yaml.
+```
+
+- **Unused:** no Dart file of the package imports or exports it.
+- **Misplaced:** only `test/`, `tool/`, `integration_test/`, `test_driver/`, `benchmark/` or `example/` import it, never `lib/`, `bin/` or `hook/`. Move it to `dev_dependencies:`.
+- Every package is checked: the root, each workspace member, and members with only `bin/`. A folder with its own `pubspec.yaml` inside a package (a plugin's `example/` app) is a separate package; its imports don't count for the parent.
+- All Dart files count, including generated files, `stub/` folders and anything under `ignore:` or `--exclude`.
+- A package named in an `analysis_options.yaml` `include:` counts as used.
+- Never reported: `dev_dependencies`, entries with `sdk:` (`flutter`, `flutter_localizations`), `cupertino_icons`, and the `ignore:` list. An `ignore:` name that no pubspec declares gives a warning.
+- Imports of packages that aren't declared are not reported here: the `depend_on_referenced_packages` lint (in `package:lints` core) already reports them in your editor.
+- With a baseline, known problems pass, and `--since` keeps a problem when its `pubspec.yaml` or any file of its package changed. Each problem appears in the terminal, JSON (`dependencyProblems`), SARIF (rule `dependency-problem`, at the pubspec line) and Markdown.
 
 ## Warnings
 

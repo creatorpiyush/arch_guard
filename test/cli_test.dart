@@ -472,4 +472,16 @@ layers:
       });
     }
   });
+
+  test('pubspec_check example prints both problems and exits 1', () async {
+    final r = await Process.run(Platform.resolvedExecutable, [
+      'bin/arch_guard.dart',
+      'example/cases/unused_dependencies',
+      '--no-color',
+    ]);
+    expect(r.exitCode, 1);
+    expect(r.stdout, contains('[!] Unused or misplaced dependencies (2):'));
+    expect(r.stdout, contains('pubspec.yaml:9 collection (unused)'));
+    expect(r.stdout, contains('pubspec.yaml:10 mocktail (misplaced)'));
+  });
 }

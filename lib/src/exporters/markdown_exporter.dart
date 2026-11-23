@@ -3,6 +3,7 @@ import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/pubspec_check.dart';
 import '../checker/workspace_validator.dart';
 import '../graph/graph_diff.dart';
 import '../models/cycle.dart';
@@ -47,6 +48,8 @@ class MarkdownExporter {
     int? changedFileCount,
     List<String>? unusedFiles,
     bool failOnUnusedFiles = false,
+    List<DependencyProblem>? dependencyProblems,
+    bool failOnDependencyProblems = false,
     GraphDiff? graphDiff,
     Map<String, int>? churn,
     String? churnSince,
@@ -61,8 +64,10 @@ class MarkdownExporter {
           workspaceViolations: workspaceViolations,
           moduleViolations: moduleViolations,
           unusedFiles: unusedFiles ?? const [],
+          dependencyProblems: dependencyProblems ?? const [],
         );
     final newUnused = comparison.newUnusedFiles;
+    final newDeps = comparison.newDependencyProblems;
     final newCycles = comparison.newCycles;
     final newViolations = comparison.newViolations;
     final newPackages = comparison.newPackageViolations;
@@ -78,7 +83,8 @@ class MarkdownExporter {
         newWorkspace.isNotEmpty ||
         newModules.isNotEmpty ||
         newOversized.isNotEmpty ||
-        (failOnUnusedFiles && newUnused.isNotEmpty);
+        (failOnUnusedFiles && newUnused.isNotEmpty) ||
+        (failOnDependencyProblems && newDeps.isNotEmpty);
 
     final b = StringBuffer()
       ..writeln(marker)
@@ -151,6 +157,12 @@ class MarkdownExporter {
       );
     }
     // null: the check is off, so the row is left out.
+    if (dependencyProblems != null) {
+      b.writeln(
+        '| Unused or misplaced dependencies | ${dependencyProblems.length} | '
+        '${newDeps.length} |',
+      );
+    }
     if (unusedFiles != null) {
       b.writeln(
         '| Unused files | ${unusedFiles.length} | ${newUnused.length} |',
@@ -242,6 +254,20 @@ class MarkdownExporter {
         final id = c.scc?.id;
         return '- ${id != null ? '**Cycle $id** ' : ''}has ${c.files.length} files';
       });
+      b.writeln();
+    }
+
+    if (newDeps.isNotEmpty) {
+      b
+        ..writeln('### New unused or misplaced dependencies')
+        ..writeln();
+      _writeCapped(
+        b,
+        newDeps,
+        (d) =>
+            '- `${d.pubspecPath}${d.line == null ? '' : ':${d.line}'}` '
+            '`${d.dependency}` (${d.kind}): ${d.rule}',
+      );
       b.writeln();
     }
 

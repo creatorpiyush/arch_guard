@@ -28,6 +28,7 @@ dart run arch_guard          # checks the project
 - 🧩 **Module boundaries.** `modules:` keeps feature folders apart: other features may import only a feature's public files (its barrel), on top of the layer rules inside each feature.
 - 🏢 **Workspace rules.** In a monorepo, say which packages may depend on which: `apps/*` may use `packages/*`, never the reverse.
 - 🧹 **Unused files.** `unused_files:` lists files no entry point imports, directly or indirectly, and can fail the run on them.
+- 📦 **Unused dependencies.** `pubspec_check:` lists `dependencies:` that no code imports, and ones only tests use (move them to `dev_dependencies`), for every package in a workspace.
 - 📏 **Metric limits and hotspots.** `max_fan_out` / `max_fan_in` stop files from becoming hubs; reports list the most coupled files, or with `churn_since` the coupled files that change most often.
 - ⚡ **Presets and `init`.** `clean_architecture`, `riverpod`, `bloc` and `feature_first` presets; `arch_guard init` detects which one fits your project.
 - 🔁 **Circular dependencies.** Tarjan's algorithm finds every group of files that import each other, with fan-in/fan-out, instability and hub metrics.
