@@ -62,4 +62,11 @@ void main() {
   test('schemaUrl points at the published schema', () {
     expect(schema[r'$id'], equals(ArchGuardConfig.schemaUrl));
   });
+
+  test('pubspec_check properties match ArchGuardConfig.pubspecCheckKeys', () {
+    expect(
+      keysOf(props['pubspec_check'] as Map<String, dynamic>),
+      equals(ArchGuardConfig.pubspecCheckKeys),
+    );
+  });
 }

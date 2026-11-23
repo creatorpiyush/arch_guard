@@ -26,6 +26,7 @@ class ArchGuardConfig {
     'workspace_rules',
     'unused_files',
     'modules',
+    'pubspec_check',
   };
 
   /// URL of the JSON Schema for `arch_guard.yaml`, which editors use for
@@ -46,6 +47,9 @@ class ArchGuardConfig {
 
   /// Keys recognised under `unused_files:`.
   static const unusedFilesKeys = {'entry_points', 'fail'};
+
+  /// Keys recognised under `pubspec_check:`.
+  static const pubspecCheckKeys = {'ignore', 'fail'};
 
   /// Glob patterns of files left out of the scan.
   final List<String> ignorePatterns;
@@ -107,6 +111,17 @@ class ArchGuardConfig {
   /// Whether unused files make the run fail (`unused_files: fail: true`).
   final bool failOnUnusedFiles;
 
+  /// Whether the config has a `pubspec_check:` key, which turns on the
+  /// unused and misplaced dependency report (see `PubspecCheck`).
+  final bool pubspecCheckEnabled;
+
+  /// Dependencies never reported (`pubspec_check: ignore`).
+  final Set<String> pubspecCheckIgnore;
+
+  /// Whether dependency problems make the run fail
+  /// (`pubspec_check: fail: true`).
+  final bool failOnDependencyProblems;
+
   /// Whether any metric limit is configured.
   bool get hasMetricRules => maxFanOut != null || maxFanIn != null;
 
@@ -136,6 +151,9 @@ class ArchGuardConfig {
     this.unusedFilesEnabled = false,
     this.unusedFileEntryPoints = const [],
     this.failOnUnusedFiles = false,
+    this.pubspecCheckEnabled = false,
+    this.pubspecCheckIgnore = const {},
+    this.failOnDependencyProblems = false,
     this.warnings = const [],
     this.sourcePath,
   });
@@ -410,6 +428,42 @@ class ArchGuardConfig {
       warnings.add('$source: `unused_files` must be a map or true.');
     }
 
+    var pubspecEnabled = false;
+    final pubspecIgnore = <String>{};
+    var failOnDependencies = false;
+    if (raw.containsKey('pubspec_check')) {
+      final rawCheck = raw['pubspec_check'] ?? const {};
+      if (rawCheck is Map) {
+        pubspecEnabled = true;
+        for (final key in rawCheck.keys) {
+          if (!pubspecCheckKeys.contains('$key')) {
+            warnings.add(
+              '$source: unknown key `pubspec_check: $key` (expected one of: '
+              '${pubspecCheckKeys.join(', ')}).',
+            );
+          }
+        }
+        final rawIgnore = rawCheck['ignore'];
+        if (rawIgnore is List && rawIgnore.every((e) => e is String)) {
+          pubspecIgnore.addAll(rawIgnore.cast<String>());
+        } else if (rawIgnore != null) {
+          warnings.add(
+            '$source: `pubspec_check: ignore` must be a list of package names.',
+          );
+        }
+        final rawFail = rawCheck['fail'];
+        if (rawFail is bool) {
+          failOnDependencies = rawFail;
+        } else if (rawFail != null) {
+          warnings.add(
+            '$source: `pubspec_check: fail` must be true or false; using false.',
+          );
+        }
+      } else {
+        warnings.add('$source: `pubspec_check` must be a map.');
+      }
+    }
+
     final workspaceRules = <String, List<String>>{};
     final rawRules = raw['workspace_rules'];
     if (rawRules is Map) {
@@ -573,6 +627,9 @@ class ArchGuardConfig {
       unusedFilesEnabled: unusedEnabled,
       unusedFileEntryPoints: unusedEntryPoints,
       failOnUnusedFiles: failOnUnused,
+      pubspecCheckEnabled: pubspecEnabled,
+      pubspecCheckIgnore: pubspecIgnore,
+      failOnDependencyProblems: failOnDependencies,
       warnings: warnings,
       sourcePath: sourcePath,
     );
