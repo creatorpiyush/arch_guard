@@ -5,6 +5,7 @@ import '../checker/layer_validator.dart';
 import '../checker/metric_validator.dart';
 import '../checker/module_validator.dart';
 import '../checker/package_validator.dart';
+import '../checker/pubspec_check.dart';
 import '../checker/workspace_validator.dart';
 import '../models/cycle.dart';
 
@@ -38,6 +39,10 @@ class Baseline {
   /// Known unused files (`unused_files:`), by path.
   final Set<String> unusedFiles;
 
+  /// Known unused or misplaced dependencies (`pubspec_check:`), by
+  /// [DependencyProblem.key].
+  final Set<String> dependencyProblems;
+
   /// Creates a baseline holding [cycles], [layerViolations] and
   /// [packageViolations].
   const Baseline({
@@ -48,6 +53,7 @@ class Baseline {
     this.workspaceViolations = const {},
     this.moduleViolations = const {},
     this.unusedFiles = const {},
+    this.dependencyProblems = const {},
   });
 
   /// Captures the current problems as a baseline.
@@ -59,6 +65,7 @@ class Baseline {
     List<WorkspaceViolation> workspaceViolations = const [],
     List<ModuleViolation> moduleViolations = const [],
     List<String> unusedFiles = const [],
+    List<DependencyProblem> dependencyProblems = const [],
   }) => Baseline(
     cycles: cycles.map((c) => c.files.toSet()).toList(),
     layerViolations: layerViolations.map(violationKey).toSet(),
@@ -67,6 +74,7 @@ class Baseline {
     workspaceViolations: workspaceViolations.map(workspaceViolationKey).toSet(),
     moduleViolations: moduleViolations.map(moduleViolationKey).toSet(),
     unusedFiles: unusedFiles.toSet(),
+    dependencyProblems: {for (final d in dependencyProblems) d.key},
   );
 
   /// Parses a baseline from its JSON form. Throws [FormatException] if invalid.
@@ -130,6 +138,10 @@ class Baseline {
       moduleViolations: modules,
       unusedFiles: {
         for (final f in json['unusedFiles'] as List? ?? const []) f as String,
+      },
+      dependencyProblems: {
+        for (final k in json['dependencyProblems'] as List? ?? const [])
+          k as String,
       },
     );
   }
@@ -198,6 +210,8 @@ class Baseline {
         ],
       // Only when used, so baselines of projects without the check don't change.
       if (unusedFiles.isNotEmpty) 'unusedFiles': unusedFiles.toList()..sort(),
+      if (dependencyProblems.isNotEmpty)
+        'dependencyProblems': dependencyProblems.toList()..sort(),
     };
   }
 
@@ -227,6 +241,7 @@ class Baseline {
     List<WorkspaceViolation> workspaceViolations = const [],
     List<ModuleViolation> moduleViolations = const [],
     List<String>? unusedFiles,
+    List<DependencyProblem>? dependencyProblems,
   }) {
     final newCycles = <Cycle>[];
     final knownCycles = <Cycle>[];
@@ -322,6 +337,7 @@ class Baseline {
     }
 
     final checkedUnused = unusedFiles ?? const <String>[];
+    final checkedDependencies = dependencyProblems ?? const [];
     return BaselineComparison(
       newCycles: newCycles,
       knownCycles: knownCycles,
@@ -366,6 +382,19 @@ class Baseline {
       fixedUnusedFileCount: unusedFiles == null
           ? 0
           : this.unusedFiles.difference(unusedFiles.toSet()).length,
+      newDependencyProblems: [
+        for (final d in checkedDependencies)
+          if (!this.dependencyProblems.contains(d.key)) d,
+      ],
+      knownDependencyProblems: [
+        for (final d in checkedDependencies)
+          if (this.dependencyProblems.contains(d.key)) d,
+      ],
+      fixedDependencyProblemCount: dependencyProblems == null
+          ? 0
+          : this.dependencyProblems.difference({
+              for (final d in dependencyProblems) d.key,
+            }).length,
     );
   }
 
@@ -490,6 +519,15 @@ class BaselineComparison {
   /// Baseline unused files that are now used or deleted.
   final int fixedUnusedFileCount;
 
+  /// Unused or misplaced dependencies that are not in the baseline.
+  final List<DependencyProblem> newDependencyProblems;
+
+  /// Unused or misplaced dependencies that the baseline already lists.
+  final List<DependencyProblem> knownDependencyProblems;
+
+  /// Baseline dependency problems that are now gone.
+  final int fixedDependencyProblemCount;
+
   /// Creates a comparison from already split problem lists.
   const BaselineComparison({
     required this.newCycles,
@@ -516,6 +554,9 @@ class BaselineComparison {
     this.newUnusedFiles = const [],
     this.knownUnusedFiles = const [],
     this.fixedUnusedFileCount = 0,
+    this.newDependencyProblems = const [],
+    this.knownDependencyProblems = const [],
+    this.fixedDependencyProblemCount = 0,
   });
 
   /// Treats every problem as new (used when there is no baseline).
@@ -527,6 +568,7 @@ class BaselineComparison {
     List<WorkspaceViolation> workspaceViolations = const [],
     List<ModuleViolation> moduleViolations = const [],
     List<String> unusedFiles = const [],
+    List<DependencyProblem> dependencyProblems = const [],
   }) => BaselineComparison(
     newCycles: cycles,
     knownCycles: const [],
@@ -537,6 +579,7 @@ class BaselineComparison {
     newWorkspaceViolations: workspaceViolations,
     newModuleViolations: moduleViolations,
     newUnusedFiles: unusedFiles,
+    newDependencyProblems: dependencyProblems,
   );
 
   /// Known problems that got smaller without going away, e.g.

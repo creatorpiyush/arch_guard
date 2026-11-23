@@ -642,6 +642,7 @@ Future<int> runAnalyze(ArgResults argResults, List<String> args) async {
       workspaceViolations: workspaceViolations,
       moduleViolations: moduleViolations,
       unusedFiles: analysis.unusedFiles,
+      dependencyProblems: analysis.dependencyProblems,
     ).save(baselinePath);
     out.writeln(
       '${cGreen}Baseline written to $baselinePath$cReset '

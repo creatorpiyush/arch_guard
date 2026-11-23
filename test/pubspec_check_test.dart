@@ -189,4 +189,85 @@ dependencies:
       'rule': x.rule,
     });
   });
+
+  group('in ArchAnalysis', () {
+    void project({bool fail = false}) {
+      write('pubspec.yaml', 'name: app\ndependencies:\n  dio: any\n');
+      write('lib/a.dart', '');
+      write('arch_guard.yaml', 'pubspec_check:\n  fail: $fail\n');
+    }
+
+    test('report-only by default', () async {
+      project();
+      final a = await ArchAnalysis.run(projectPath: dir.path);
+      expect(a.dependencyProblems.single.dependency, 'dio');
+      expect(a.newDependencyProblems, hasLength(1));
+      expect(a.failures(), isEmpty);
+    });
+
+    test('fail: true fails on new problems', () async {
+      project(fail: true);
+      final a = await ArchAnalysis.run(projectPath: dir.path);
+      expect(a.failures(), [startsWith('Dependency: `dio` is under')]);
+    });
+
+    test('off without pubspec_check', () async {
+      write('pubspec.yaml', 'name: app\ndependencies:\n  dio: any\n');
+      write('lib/a.dart', '');
+      final a = await ArchAnalysis.run(projectPath: dir.path);
+      expect(a.dependencyProblems, isEmpty);
+    });
+
+    test('baseline hides a known problem and counts a fixed one', () async {
+      project(fail: true);
+      final first = await ArchAnalysis.run(projectPath: dir.path);
+      Baseline.capture(
+        cycles: const [],
+        layerViolations: const [],
+        dependencyProblems: first.dependencyProblems,
+      ).save(p.join(dir.path, defaultBaselineFileName));
+      final known = await ArchAnalysis.run(projectPath: dir.path);
+      expect(known.newDependencyProblems, isEmpty);
+      expect(known.baseline!.knownDependencyProblems, hasLength(1));
+      expect(known.failures(), isEmpty);
+
+      write('pubspec.yaml', 'name: app\n');
+      final fixed = await ArchAnalysis.run(projectPath: dir.path);
+      expect(fixed.baseline!.fixedDependencyProblemCount, 1);
+    });
+
+    test('--since keeps only problems in changed packages', () async {
+      void git(List<String> args) {
+        final r = Process.runSync('git', args, workingDirectory: dir.path);
+        if (r.exitCode != 0) fail('git ${args.join(' ')}: ${r.stderr}');
+      }
+
+      write(
+        'pubspec.yaml',
+        'name: root\nworkspace:\n  - packages/a\n  - packages/b\n',
+      );
+      write('arch_guard.yaml', 'pubspec_check: {}\n');
+      write('packages/a/pubspec.yaml', 'name: a\ndependencies:\n  dio: any\n');
+      write('packages/a/lib/a.dart', '');
+      write('packages/b/pubspec.yaml', 'name: b\ndependencies:\n  http: any\n');
+      write('packages/b/lib/b.dart', '');
+      git(['init', '-q', '-b', 'main']);
+      git(['config', 'user.email', 't@example.com']);
+      git(['config', 'user.name', 'T']);
+      git(['add', '.']);
+      git(['commit', '-qm', 'base']);
+      write(
+        'packages/b/pubspec.yaml',
+        'name: b\ndependencies:\n  http: any\n  args: any\n',
+      );
+      final a = await ArchAnalysis.run(projectPath: dir.path, since: 'main');
+      expect(
+        [for (final x in a.dependencyProblems) x.key],
+        [
+          'packages/b/pubspec.yaml: args (unused)',
+          'packages/b/pubspec.yaml: http (unused)',
+        ],
+      );
+    });
+  });
 }
